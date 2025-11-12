@@ -29,19 +29,24 @@ async function setupDatabase() {
     await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT)`);
     await client.query(`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, "from_user" TEXT NOT NULL, "to_user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-    await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
+    await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
     await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
+    await client.query(`CREATE TABLE IF NOT EXISTS community_members (id SERIAL PRIMARY KEY, user_name TEXT NOT NULL, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_name, community_id))`);
+    
+    // ===============================================
+    // 👇 NOVA TABELA 'CHANNELS' ADICIONADA AQUI 👇
+    // ===============================================
     await client.query(`
-      CREATE TABLE IF NOT EXISTS community_members (
+      CREATE TABLE IF NOT EXISTS channels (
         id SERIAL PRIMARY KEY,
-        user_name TEXT NOT NULL,
         community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-        timestamp TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_name, community_id) 
+        name TEXT NOT NULL,
+        is_voice BOOLEAN DEFAULT FALSE,
+        timestamp TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    
-    console.log('Tabelas (incluindo "community_members") verificadas/criadas.');
+
+    console.log('Tabelas (incluindo "channels") verificadas/criadas.');
 
   } catch (err) {
     console.error('Erro ao criar tabelas:', err);
@@ -57,13 +62,20 @@ async function seedDatabase() {
     const res = await client.query('SELECT 1 FROM communities LIMIT 1');
     if (res.rows.length === 0) {
       console.log('Populando o banco de dados com comunidades de teste...');
+      // Insere as comunidades de teste
+      const tech = await client.query(`INSERT INTO communities (name, description, emoji, members) VALUES ('Tecnologia 💻', 'A comunidade oficial para falar de hardware, software e programação.', '💻', 1) RETURNING id`);
+      const music = await client.query(`INSERT INTO communities (name, description, emoji, members) VALUES ('Música 🎵', 'Do Rock ao Pop, partilhe as suas batidas favoritas.', '🎵', 1) RETURNING id`);
+      const games = await client.query(`INSERT INTO communities (name, description, emoji, members) VALUES ('Games 🎮', 'Discussão geral, do retro ao moderno. Encontre o seu "x1" aqui.', '🎮', 1) RETURNING id`);
+      
+      // Adiciona canais padrão para cada comunidade de teste (NOVO)
       await client.query(`
-        INSERT INTO communities (name, description, emoji, members) VALUES
-        ('Tecnologia 💻', 'A comunidade oficial para falar de hardware, software e programação.', '💻', 1),
-        ('Música 🎵', 'Do Rock ao Pop, partilhe as suas batidas favoritas.', '🎵', 1),
-        ('Games 🎮', 'Discussão geral, do retro ao moderno. Encontre o seu "x1" aqui.', '🎮', 1)
-      `);
-      console.log('Comunidades de teste inseridas.');
+        INSERT INTO channels (community_id, name) VALUES
+        ($1, 'geral'), ($1, 'programacao'), 
+        ($2, 'geral'), ($2, 'musica-pop'),
+        ($3, 'geral'), ($3, 'retrogaming')
+      `, [tech.rows[0].id, music.rows[0].id, games.rows[0].id]);
+
+      console.log('Comunidades e canais de teste inseridos.');
     }
   } catch (err) {
     console.error('Erro ao popular dados:', err);
@@ -80,16 +92,58 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'agora.html')); 
 });
 
-// --- API (Feed, Perfil, Amigos, etc.) ---
-// ... (rotas /api/posts, /profile, /following, /follow, etc. - Sem mudanças) ...
-app.get('/api/posts', async (req, res) => {
-  const { user } = req.query; 
-  if (!user) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
+// ... (Todas as outras rotas /api/posts, /profile, /following, /follow, etc. - Sem mudanças) ...
+
+// ===============================================
+// 👇 NOVA ROTA 'CREATE COMMUNITY' AQUI 👇
+// ===============================================
+
+app.post('/api/communities/create', async (req, res) => {
+  const { name, emoji, creator } = req.body;
+  if (!name || !creator) {
+    return res.status(400).json({ error: 'Nome e criador são obrigatórios' });
+  }
+  
+  const client = await pool.connect();
   try {
-    const result = await pool.query(`SELECT p.* FROM posts p LEFT JOIN follows f ON p."user" = f.following_user WHERE f.follower_user = $1 OR p."user" = $1 ORDER BY p.timestamp DESC LIMIT 30`, [user]);
-    res.json({ posts: result.rows });
-  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
+    await client.query('BEGIN'); // Inicia a transação
+    
+    // 1. Cria a nova comunidade
+    const newCommResult = await client.query(
+      `INSERT INTO communities (name, emoji, description, members) 
+       VALUES ($1, $2, $3, 1) RETURNING id, name, emoji`,
+      [name, emoji || '🌟', `Comunidade criada por ${creator}`]
+    );
+    const community = newCommResult.rows[0];
+    
+    // 2. Adiciona o criador como membro
+    await client.query(
+      `INSERT INTO community_members (user_name, community_id) VALUES ($1, $2)`,
+      [creator, community.id]
+    );
+    
+    // 3. Cria o canal de texto #geral padrão
+    await client.query(
+      `INSERT INTO channels (community_id, name) VALUES ($1, $2)`,
+      [community.id, 'geral']
+    );
+    
+    await client.query('COMMIT'); // Finaliza a transação
+    
+    res.status(201).json({ community });
+    
+  } catch (err) {
+    await client.query('ROLLBACK'); // Desfaz tudo se houver erro
+    console.error('Erro ao criar comunidade:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  } finally {
+    client.release();
+  }
 });
+
+
+// ... (Todas as outras rotas /api/community/join, /api/communities/joined, /socket.io - Sem mudanças) ...
+
 app.get('/api/posts/explore', async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM posts ORDER BY timestamp DESC LIMIT 30`);
@@ -198,24 +252,10 @@ app.post('/api/unfollow', async (req, res) => {
     res.status(200).json({ message: 'Deixou de seguir com sucesso' });
   } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
-
-// --- API (Comunidades) ---
-
-// ===============================================
-// 👇 MUDANÇA: ROTA "EXPLORAR COMUNIDADES" ATUALIZADA 👇
-// ===============================================
 app.get('/api/communities/explore', async (req, res) => {
-  const { user_name } = req.query; // ex: /api/communities/explore?user_name=Alexandre
-  if (!user_name) {
-    return res.status(400).json({ error: 'Utilizador não fornecido' });
-  }
-  
+  const { user_name } = req.query;
+  if (!user_name) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
   try {
-    // Esta consulta SQL agora é mais inteligente:
-    // 1. Seleciona todas as comunidades (c)
-    // 2. Faz um LEFT JOIN com community_members (cm) para *este* utilizador
-    // 3. ONDE cm.user_name IS NULL (ou seja, onde não houve correspondência)
-    // 4. Isto retorna apenas comunidades onde o utilizador NÃO está.
     const result = await pool.query(
       `SELECT c.* FROM communities c
        LEFT JOIN community_members cm ON c.id = cm.community_id AND cm.user_name = $1
@@ -224,94 +264,52 @@ app.get('/api/communities/explore', async (req, res) => {
       [user_name]
     );
     res.json({ communities: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar comunidades:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 
 app.post('/api/community/join', async (req, res) => {
   const { user_name, community_id } = req.body;
-  if (!user_name || !community_id) {
-    return res.status(400).json({ error: 'Faltam dados' });
-  }
+  if (!user_name || !community_id) { return res.status(400).json({ error: 'Faltam dados' }); }
   try {
     await pool.query(`INSERT INTO community_members (user_name, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [user_name, community_id]);
     const communityData = await pool.query(`SELECT * FROM communities WHERE id = $1`, [community_id]);
     res.status(201).json({ community: communityData.rows[0] });
-  } catch (err) {
-    console.error('Erro ao entrar na comunidade:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.get('/api/communities/joined', async (req, res) => {
   const { user_name } = req.query; 
-  if (!user_name) {
-    return res.status(400).json({ error: 'Utilizador não fornecido' });
-  }
+  if (!user_name) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
   try {
-    const result = await pool.query(
-      `SELECT c.id, c.name, c.emoji 
-       FROM communities c
-       JOIN community_members cm ON c.id = cm.community_id
-       WHERE cm.user_name = $1`,
-      [user_name]
-    );
+    const result = await pool.query(`SELECT c.id, c.name, c.emoji FROM communities c JOIN community_members cm ON c.id = cm.community_id WHERE cm.user_name = $1`, [user_name]);
     res.json({ communities: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar comunidades do utilizador:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro ao buscar comunidades do utilizador:', err }); }
 });
 
 
 // --- Lógica do Socket.IO (Chat) ---
-// ... (sem mudanças) ...
 io.on('connection', (socket) => {
   console.log(`Um utilizador conectou-se: ${socket.id}`);
   socket.on('joinChannel', async (data) => {
     const channelName = (typeof data === 'object' && data.channel) ? data.channel : data;
-    if (!channelName || typeof channelName !== 'string') {
-      console.error('Erro: Tentativa de entrar em canal inválido.', data);
-      return;
-    }
+    if (!channelName || typeof channelName !== 'string') { console.error('Erro: Tentativa de entrar em canal inválido.', data); return; }
     try {
       console.log(`Utilizador ${socket.id} entrou no canal ${channelName}`);
       socket.join(channelName); 
-      const result = await pool.query(
-        `SELECT * FROM messages WHERE channel = $1 ORDER BY timestamp ASC LIMIT 50`, 
-        [channelName]
-      );
-      const history = result.rows.map(row => ({
-        ...row,
-        user: row.user,
-        timestamp: new Date(row.timestamp).toLocaleString('pt-BR')
-      }));
+      const result = await pool.query(`SELECT * FROM messages WHERE channel = $1 ORDER BY timestamp ASC LIMIT 50`, [channelName]);
+      const history = result.rows.map(row => ({ ...row, user: row.user, timestamp: new Date(row.timestamp).toLocaleString('pt-BR') }));
       socket.emit('loadHistory', history);
-    } catch (err) {
-      console.error('Erro em joinChannel:', err);
-    }
+    } catch (err) { console.error('Erro em joinChannel:', err); }
   });
   socket.on('sendMessage', async (data) => {
     const { channel, user, message } = data;
     const timestamp = new Date();
     try {
-      await pool.query(
-        `INSERT INTO messages (channel, "user", message, timestamp) VALUES ($1, $2, $3, $4)`,
-        [channel, user, message, timestamp]
-      );
-      const broadcastData = {
-        ...data,
-        timestamp: timestamp.toLocaleString('pt-BR')
-      };
+      await pool.query(`INSERT INTO messages (channel, "user", message, timestamp) VALUES ($1, $2, $3, $4)`, [channel, user, message, timestamp]);
+      const broadcastData = { ...data, timestamp: timestamp.toLocaleString('pt-BR') };
       io.to(channel).emit('newMessage', broadcastData);
-    } catch (err) {
-      console.error('Erro ao guardar mensagem:', err);
-    }
+    } catch (err) { console.error('Erro ao guardar mensagem:', err); }
   });
-  socket.on('disconnect', () => {
-    console.log(`Utilizador desconectou-se: ${socket.id}`);
-  });
+  socket.on('disconnect', () => { console.log(`Utilizador desconectou-se: ${socket.id}`); });
 });
 
 // --- Iniciar o Servidor ---

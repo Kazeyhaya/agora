@@ -77,16 +77,18 @@ a{color:inherit;text-decoration:none}
 .hash{opacity:.7}
 
 /* Layout (Grid) */
-/* Modo "Home" (Feed, Explorar, Perfil, Explorar Servidores) */
+/* Modo "Home" (Feed, Explorar, Perfil, Explorar Servidores, Criar Comunidade) */
 .app.view-home {
   grid-template-columns: 80px 1fr;
   grid-template-rows: 64px 1fr 64px;
   grid-template-areas: "servers header" "servers content" "servers userbar";
 }
+/* 👇 MUDANÇA: Adicionado create-community à área content 👇 */
 .app.view-home .feed,
 .app.view-home .profile,
 .app.view-home .explore,
-.app.view-home .explore-servers { 
+.app.view-home .explore-servers,
+.app.view-home .create-community { 
   grid-area: content;
 }
 .app.view-home .channels,
@@ -107,7 +109,8 @@ a{color:inherit;text-decoration:none}
 .app.view-community .feed,
 .app.view-community .profile,
 .app.view-community .explore,
-.app.view-community .explore-servers { 
+.app.view-community .explore-servers,
+.app.view-community .create-community { /* Adicionado create-community */
   display: none;
 }
 
@@ -241,10 +244,23 @@ a{color:inherit;text-decoration:none}
 .explore-servers-top {
   padding: 14px;
   border-bottom: 1px solid rgba(255,255,255,.06);
+  /* 👇 MUDANÇA: Novo layout para abrigar o botão "Criar Minha" */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap; /* Permite quebrar em telas pequenas */
 }
 .explore-servers-top h2 {
   font-size: 1.5rem;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+}
+.explore-servers-top .meta {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  /* Garante que o meta não atrapalhe o botão */
+  flex-basis: 100%; 
+  margin-top: 5px;
 }
 .community-list {
   overflow-y: auto;
@@ -330,6 +346,20 @@ a{color:inherit;text-decoration:none}
   color: var(--orkut-blue);
 }
 
+/* 👇 NOVO ESTILO: Formulário de Criação 👇 */
+.create-community {
+  background: var(--discord-dark);
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+#create-community-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
 
 /* Responsivo */
 @media (max-width: 1080px){

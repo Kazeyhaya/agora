@@ -123,10 +123,31 @@
     <section class="explore-servers" id="view-explore-servers" hidden>
       <div class="explore-servers-top">
         <h2>Explorar Comunidades</h2>
+        <button class="mini-btn" id="btn-show-create-community">Criar a Minha</button>
         <p class="meta">Entre em comunidades públicas e faça novos amigos</p>
       </div>
       <div class="community-list" id="community-list-container">
       </div>
+    </section>
+
+    <section class="create-community" id="view-create-community" hidden>
+        <div class="explore-servers-top">
+            <h2>Criar Nova Comunidade</h2>
+        </div>
+        <div class="profile-body" style="grid-template-columns: 1fr;">
+            <div class="card" style="max-width: 600px;">
+                <form id="create-community-form">
+                    <label for="community-name">Nome da Comunidade:</label>
+                    <input class="input" id="community-name" type="text" required placeholder="Ex: Clube de Programação">
+                    
+                    <label for="community-emoji" style="margin-top: 10px;">Emoji/Ícone (Ex: 💻):</label>
+                    <input class="input" id="community-emoji" type="text" placeholder="Opcional. Ex: 🌟">
+                    
+                    <button class="send" type="submit" style="margin-top: 15px;">Criar e Entrar</button>
+                    <button type="button" class="mini-btn" id="btn-cancel-create" style="margin-left: 10px;">Cancelar</button>
+                </form>
+            </div>
+        </div>
     </section>
 
 
