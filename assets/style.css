@@ -81,9 +81,7 @@ a{color:inherit;text-decoration:none}
 .channel.active,.channel:hover{background:rgba(255,255,255,.06);color:#fff}
 .hash{opacity:.7}
 
-/* ======================== */
-/* 👇 CORREÇÃO DO LAYOUT E SCROLL 👇 */
-/* ======================== */
+/* Correção do Layout (Grid) */
 .app.view-feed .channels,
 .app.view-profile .channels {
   display: none;
@@ -103,7 +101,6 @@ a{color:inherit;text-decoration:none}
   grid-template-rows: 64px 1fr 64px; /* <-- Layout Padrão com userbar */
   grid-template-areas: "servers header header" "servers channels chat" "servers userbar chat";
 }
-/* ======================== */
 
 /* Chat */
 .chat{grid-area: chat;background: var(--discord-dark);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:grid;grid-template-rows: 56px 1fr 74px;box-shadow: var(--shadow)}
