@@ -3,12 +3,12 @@
 // ===================================================
 
 // --- Identificação do Usuário ---
-const storedUser = localStorage.getItem("agora:user"); // <--- MUDANÇA AQUI: agora:user
+const storedUser = localStorage.getItem("agora:user");
 let currentUser = storedUser && storedUser.trim() ? storedUser.trim() : null;
 if (!currentUser) {
   currentUser = prompt("Digite seu nome de usuário (para o Feed e Chat):");
   if (!currentUser || !currentUser.trim()) currentUser = "Anônimo";
-  localStorage.setItem("agora:user", currentUser); // <--- MUDANÇA AQUI: agora:user
+  localStorage.setItem("agora:user", currentUser);
 }
 // Atualiza a UI com o nome do usuário
 document.getElementById("userName").textContent = currentUser;
@@ -93,33 +93,26 @@ async function apiCreatePost() {
 }
 
 async function apiLikePost(postId) {
-  // Adiciona o post na "memória" ANTES de chamar a API
   likedPostsInSession.add(postId.toString());
-  // Atualiza o feed otimisticamente (sem esperar o servidor)
   apiGetPosts(); 
   
   try {
     await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
-    // O refresh (apiGetPosts) já foi chamado, então não precisa de novo
   } catch (err) {
     console.error("Falha ao dar like:", err);
-    // Se der erro, remove da memória para o usuário poder tentar de novo
     likedPostsInSession.delete(postId.toString());
     apiGetPosts(); // Reverte o like
   }
 } 
 
 async function apiUnlikePost(postId) {
-  // Remove o post da "memória" ANTES de chamar a API
   likedPostsInSession.delete(postId.toString());
-  // Atualiza o feed otimisticamente
   apiGetPosts();
 
   try {
     await fetch(`/api/posts/${postId}/unlike`, { method: 'POST' });
   } catch (err) {
     console.error("Falha ao descurtir:", err);
-    // Se der erro, adiciona de volta na memória
     likedPostsInSession.add(postId.toString());
     apiGetPosts(); // Reverte o unlike
   }
@@ -140,7 +133,6 @@ function renderPosts(posts) {
     const postUserInitial = (post.user || "?").slice(0, 2).toUpperCase();
     const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
 
-    // Verifica a "memória" para saber se o post foi curtido
     const isLiked = likedPostsInSession.has(post.id.toString()); 
 
     node.innerHTML = `
@@ -154,34 +146,94 @@ function renderPosts(posts) {
           </button>
           <button class="mini-btn" data-comment="${post.id}">Comentar</button>
         </div>
-        <div class="comments">
+        <div class="comments" id="comments-for-${post.id}">
           </div>
       </div>`;
     postsEl.appendChild(node);
+    
+    // ===============================================
+    // 👇 CARREGA OS COMENTÁRIOS PARA ESTE POST 👇
+    // ===============================================
+    apiGetComments(post.id);
   });
 }
 
-// --- Eventos do Feed ---
-feedSend.addEventListener("click", apiCreatePost);
-feedRefreshBtn.addEventListener("click", apiGetPosts);
-feedInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") apiCreatePost();
-});
+// ===============================================
+// 👇 NOVAS FUNÇÕES DE COMENTÁRIOS ADICIONADAS AQUI 👇
+// ===============================================
 
-// "Ouvinte" de cliques para a área de posts (pega os cliques nos botões de Like)
+// --- Funções da API de Comentários ---
+
+// [GET] Pede os comentários de UM post
+async function apiGetComments(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderComments(postId, data.comments || []);
+  } catch (err) {
+    console.error(`Falha ao buscar comentários para o post ${postId}:`, err);
+  }
+}
+
+// [POST] Cria um novo comentário
+async function apiCreateComment(postId, text) {
+  try {
+    await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: currentUser, text: text })
+    });
+    // Atualiza (recarrega) os comentários desse post
+    apiGetComments(postId); 
+  } catch (err) {
+    console.error("Falha ao criar comentário:", err);
+  }
+}
+
+// --- Renderização dos Comentários ---
+function renderComments(postId, comments) {
+  const container = document.getElementById(`comments-for-${postId}`);
+  if (!container) return; // Se o post não está na tela, não faz nada
+  
+  if (comments.length === 0) {
+    container.innerHTML = ""; // Limpa (remove o "carregando...")
+    return;
+  }
+  
+  // Transforma a lista de comentários em HTML
+  container.innerHTML = comments.map(item => {
+    return `<div class="meta"><strong>${escapeHtml(item.user)}</strong>: ${escapeHtml(item.text)}</div>`;
+  }).join(""); // Junta tudo em uma string só
+}
+
+// ===============================================
+// 👇 "OUVINTE" DE COMENTÁRIOS ADICIONADO AQUI 👇
+// ===============================================
 postsEl.addEventListener("click", (e) => {
-  const clickedButton = e.target.closest('[data-like]'); // Pega o botão
-  if (clickedButton) {
-    const postId = clickedButton.dataset.like; 
-    
-    // Agora ele checa se o botão tem a classe '.liked'
-    if (clickedButton.classList.contains('liked')) {
-      // Se tem, DESCURTE
+  // --- Lógica de Like ---
+  const likeButton = e.target.closest('[data-like]');
+  if (likeButton) {
+    const postId = likeButton.dataset.like; 
+    if (likeButton.classList.contains('liked')) {
       apiUnlikePost(postId);
     } else {
-      // Se não tem, CURTE
       apiLikePost(postId);
     }
+    return; // Para a execução
+  }
+
+  // --- Lógica de Comentário ---
+  const commentButton = e.target.closest('[data-comment]');
+  if (commentButton) {
+    const postId = commentButton.dataset.comment;
+    const text = prompt("Digite seu comentário:"); // Pede o comentário
+    
+    // Se o usuário digitou algo (e não cancelou)
+    if (text && text.trim()) {
+      apiCreateComment(postId, text.trim());
+    }
+    return; // Para a execução
   }
 });
 

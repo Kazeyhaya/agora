@@ -69,7 +69,20 @@ async function setupDatabase() {
       )
     `);
     
-    console.log('Tabelas "messages", "posts", "profiles" e "testimonials" verificadas/criadas.');
+    // ===============================================
+    // 👇 NOVA TABELA DE COMENTÁRIOS ADICIONADA AQUI 👇
+    // ===============================================
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        "user" TEXT NOT NULL,
+        text TEXT NOT NULL,
+        timestamp TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    
+    console.log('Tabelas "messages", "posts", "profiles", "testimonials" e "comments" verificadas/criadas.');
 
   } catch (err) {
     console.error('Erro ao criar tabelas:', err);
@@ -84,7 +97,7 @@ async function setupDatabase() {
 
 // --- Rota Principal (O HTML) ---
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'agora.html')); // <--- MUDANÇA AQUI: agora.html
+  res.sendFile(path.join(__dirname, 'agora.html')); 
 });
 
 // --- API (Parte "Feed") ---
@@ -230,6 +243,47 @@ app.post('/api/testimonials', async (req, res) => {
 });
 
 
+// ===============================================
+// 👇 NOVAS ROTAS DE COMENTÁRIOS ADICIONADAS AQUI 👇
+// ===============================================
+
+// [GET] Rota para LER os comentários de um post
+app.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const { id } = req.params; // ID do post
+    const result = await pool.query(
+      `SELECT * FROM comments WHERE post_id = $1 ORDER BY timestamp ASC`,
+      [id]
+    );
+    res.json({ comments: result.rows });
+  } catch (err) {
+    console.error('Erro ao buscar comentários:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
+});
+
+// [POST] Rota para ADICIONAR um comentário
+app.post('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const { id } = req.params; // ID do post
+    const { user, text } = req.body; 
+
+    if (!user || !text) {
+      return res.status(400).json({ error: 'Usuário e texto são obrigatórios' });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO comments (post_id, "user", text, timestamp) VALUES ($1, $2, $3, NOW()) RETURNING *`,
+      [id, user, text]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao salvar comentário:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
+});
+
+
 // --- Lógica do Socket.IO (Parte "Discord") ---
 io.on('connection', (socket) => {
   console.log(`Um utilizador conectou-se: ${socket.id}`);
@@ -288,6 +342,6 @@ io.on('connection', (socket) => {
 // --- Iniciar o Servidor ---
 setupDatabase().then(() => {
   server.listen(port, () => {
-    console.log(`Agora a rodar na porta ${port}`); // <-- MUDANÇA AQUI: Agora
+    console.log(`Agora a rodar na porta ${port}`);
   });
-}); // 
+});
