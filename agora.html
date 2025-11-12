@@ -66,7 +66,17 @@
     </aside>
 
     <section class="feed" id="view-feed">
-      </section>
+      <div class="feed-top">
+        <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Posts de quem você segue</span></div>
+        <div class="chat-actions"><button class="icon-btn" id="btn-refresh">🔄</button></div>
+      </div>
+      <div class="composer-feed">
+        <input class="input" id="feedInput" type="text" placeholder="Compartilhe algo..." />
+        <button class="send" id="feedSend">Publicar</button>
+      </div>
+      <div class="posts" id="posts">
+      </div>
+    </section>
 
     <main class="chat" aria-live="polite" id="view-chat" hidden>
       <div class="chat-top">
@@ -86,17 +96,69 @@
     </main>
     
     <section class="profile" id="view-profile" hidden>
-      </section>
+      <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div><span class="meta">— Seu perfil social</span></div></div>
+      <div class="profile-body">
+        <div class="card">
+          <div class="avatar" style="width:64px;height:64px;border-radius:16px;margin-bottom:8px" id="profileAvatar">VC</div>
+          <div><strong id="profileName">Você</strong></div>
+          <div class="meta" id="profileBio">Apaixonado por comunidades e bate-papo.</div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="mini-btn" id="editBioBtn">Editar bio</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:8px">Depoimentos</h3>
+          <div id="testimonials" class="comments"></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input class="input" id="testimonialInput" placeholder="Escreva um depoimento..." />
+            <button class="send" id="testimonialSend">Adicionar</button>
+          </div>
+          <h3 style="margin:12px 0 8px">Amigos</h3>
+          <div class="friends" id="friends">
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="feed" id="view-explore" hidden>
-      </section>
+      <div class="feed-top">
+        <div class="chat-topic"><div class="topic-badge">Explorar</div><span class="meta">— Todos os posts da rede</span></div>
+        <div class="chat-actions"><button class="icon-btn" id="btn-explore-refresh">🔄</button></div>
+      </div>
+      <div class="posts" id="explore-posts">
+      </div>
+    </section>
 
     <section class="explore-servers" id="view-explore-servers" hidden>
-      </section>
+      <div class="explore-servers-top">
+        <h2>Explorar Comunidades</h2>
+        <button class="mini-btn" id="btn-show-create-community">Criar a Minha</button>
+        <p class="meta">Entre em comunidades públicas e faça novos amigos</p>
+      </div>
+      <div class="community-list" id="community-list-container">
+      </div>
+    </section>
 
     <section class="create-community" id="view-create-community" hidden>
-        </section>
-
+        <div class="explore-servers-top">
+            <h2>Criar Nova Comunidade</h2>
+        </div>
+        <div class="profile-body" style="grid-template-columns: 1fr;">
+            <div class="card" style="max-width: 600px;">
+                <form id="create-community-form">
+                    <label for="community-name">Nome da Comunidade:</label>
+                    <input class="input" id="community-name" type="text" required placeholder="Ex: Clube de Programação">
+                    
+                    <label for="community-emoji" style="margin-top: 10px;">Emoji/Ícone (Ex: 💻):</label>
+                    <input class="input" id="community-emoji" type="text" placeholder="Opcional. Ex: 🌟">
+                    
+                    <button class="send" type="submit" style="margin-top: 15px;">Criar e Entrar</button>
+                    <button type="button" class="mini-btn" id="btn-cancel-create" style="margin-left: 10px;">Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </section>
+    
     <section class="community-content feed" id="view-community-topics" hidden>
         <div class="feed-top">
             <div class="chat-topic"><div class="topic-badge" id="current-community-name">Nome Com.</div><span class="meta">— Fórum de Tópicos (Posts)</span></div>
@@ -106,20 +168,31 @@
             <div class="meta" style="padding: 12px;">Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>
         </div>
     </section>
-
     <section class="community-content profile-body" id="view-community-members" hidden style="grid-template-columns: 1fr;">
         <div class="explore-servers-top" style="border-bottom: none;">
             <h2 id="community-members-title">Membros da Comunidade</h2>
         </div>
         <div class="card">
             <div class="friends" id="community-member-list">
-                </div>
+            </div>
         </div>
     </section>
 
 
     <footer class="userbar" role="contentinfo">
-      </footer>
+      <div class="me clickable" id="userbar-me">
+        <div class="avatar" id="userAvatar">VC</div>
+        <div>
+          <div id="userName"><strong id="userName">Você</strong> <span class="meta">@orklover</span></div>
+          <div class="meta">Mood: <span style="color:var(--orkut-pink)">❤ feliz</span></div>
+        </div>
+      </div>
+      <div class="user-actions">
+        <div class="presence" title="online"></div>
+        <button class="icon-btn" title="Configurações">⚙️</button>
+        <button class="icon-btn" title="Sair">🚪</button>
+      </div>
+    </footer>
   </div>
 
   <script src="/socket.io/socket.io.js" defer></script>

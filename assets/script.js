@@ -14,8 +14,8 @@ if (!currentUser) {
 // --- Estado da UI ---
 let activeChannel = "geral"; 
 let viewedUsername = currentUser; 
-let currentCommunityId = null; // 👈 NOVO: Guarda o ID da comunidade ativa
-let currentCommunityName = null; // 👈 NOVO: Guarda o nome da comunidade ativa
+let currentCommunityId = null; 
+let currentCommunityName = null; 
 
 
 // --- Referências do Chat ---
@@ -67,11 +67,11 @@ const createCommunityForm = document.getElementById("create-community-form");
 
 
 // --- Referências do NOVO LAYOUT DE COMUNIDADE (Fórum) ---
-const communityChannelBar = document.querySelector('aside.channels'); // A barra de canais inteira
+const communityChannelBar = document.querySelector('aside.channels'); 
 const communityTopicList = document.getElementById('community-topic-list');
-const communityTopicView = document.getElementById('view-community-topics'); // O novo feed fórum
-const communityMembersView = document.getElementById('view-community-members'); // A nova página de membros
-const communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); // As abas internas (Tópicos/Chat/Membros)
+const communityTopicView = document.getElementById('view-community-topics'); 
+const communityMembersView = document.getElementById('view-community-members'); 
+const communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); 
 const communityChatChannelsList = document.getElementById('community-chat-channels');
 const currentCommunityNameEl = document.getElementById('current-community-name');
 const communityAvatarChannelEl = document.getElementById('community-avatar-channel');
@@ -94,8 +94,8 @@ const views = {
   explore: exploreView,
   "explore-servers": exploreServersView,
   "create-community": createCommunityView,
-  "community-topics": communityTopicView, // 👈 NOVA VISTA
-  "community-members": communityMembersView // 👈 NOVA VISTA
+  "community-topics": communityTopicView, 
+  "community-members": communityMembersView 
 };
 
 // --- Conexão Socket.IO (Só para o Chat) ---
@@ -440,8 +440,8 @@ userbarMeBtn.addEventListener("click", () => {
   activateView("profile"); 
 });
 
-// --- Evento do Botão Home ---
-headerHomeBtn.addEventListener("click", () => { // 👈 NOVA LIGAÇÃO
+// --- Evento do Botão Home (NOVO) ---
+headerHomeBtn.addEventListener("click", () => { 
   activateView("feed"); 
 });
 
@@ -479,7 +479,7 @@ joinedServersList.addEventListener("click", (e) => {
   const communityBtn = e.target.closest('.community-btn[data-community-id]');
   if (communityBtn) {
     const communityId = communityBtn.dataset.communityId;
-    activateCommunityView("chat-channels", { community: communityId }); // 👈 MUDANÇA: Chama a nova função
+    activateCommunityView("topics", { community: communityId }); // 👈 MUDANÇA: ATIVA TÓPICOS POR PADRÃO
   }
 });
 
@@ -566,6 +566,7 @@ function activateCommunityView(name, options = {}) {
     
     // 3. Atualiza o estado da Comunidade
     currentCommunityId = options.community;
+    // (Opcional: Obter o nome da comunidade para mostrar no cabeçalho)
     
     // 4. Atualiza o ícone ativo na barra de servidores
     document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
@@ -576,87 +577,27 @@ function activateCommunityView(name, options = {}) {
     communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
 
     // 6. Mostra a sub-vista correta e carrega dados
+    // Zera todas as sub-vistas
+    communityTopicView.hidden = true;
+    communityMembersView.hidden = true;
+    communityChatChannelsList.hidden = true;
+    chatView.hidden = true; 
+    
     if (name === "topics") {
         communityTopicView.hidden = false; // Mostra o novo feed fórum
-        communityChatChannelsList.hidden = true; // Esconde a lista de canais
-        chatView.hidden = true; // Esconde o chat de mensagens
-        // 👇 NOVO: Carregar posts do fórum
+        // Carregar a API do fórum
         apiGetCommunityPosts(currentCommunityId); 
     } else if (name === "chat-channels") {
         chatView.hidden = false; // Mostra o chat de mensagens
-        communityChatChannelsList.hidden = false; // Mostra a lista de canais
-        communityTopicView.hidden = true;
-        // 👇 NOVO: Carregar canais do banco de dados (Próximo passo)
+        communityChatChannelsList.hidden = false; // Mostra a lista de canais (a ser populada)
+        // Carregar canais (próximo passo)
         renderChannel("geral"); // Por agora, carrega sempre o canal geral
     } else if (name === "members") {
         communityMembersView.hidden = false; // Mostra a lista de membros
-        communityChatChannelsList.hidden = true; // Esconde a lista de canais
-        chatView.hidden = true; // Esconde o chat de mensagens
         // Carregar membros (próximo passo)
     }
 }
-
-
-// ===================================================
-// 7. LÓGICA DE EXPLORAR COMUNIDADES
-// ===================================================
-// ... (omissão por brevidade) ...
-
-// ===================================================
-// 8. LÓGICA DE AMIGOS E ENTRAR EM COMUNIDADES
-// ===================================================
-// ... (omissão por brevidade) ...
-
-// ===================================================
-// 9. LÓGICA DE FÓRUM DA COMUNIDADE (NOVO)
-// ===================================================
-
-// [GET] Obter os posts do fórum de uma comunidade
-async function apiGetCommunityPosts(communityId) {
-    try {
-        const res = await fetch(`/api/community/${communityId}/posts`);
-        const data = await res.json();
-        renderCommunityPosts(data.posts || []);
-    } catch (err) {
-        console.error("Erro ao buscar posts do fórum:", err);
-        communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
-    }
-}
-
-function renderCommunityPosts(posts) {
-    if (!communityTopicList) return;
-    communityTopicList.innerHTML = "";
-
-    if (posts.length === 0) {
-        communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
-        return;
-    }
-
-    posts.forEach(post => {
-        const node = document.createElement("div");
-        node.className = "post"; // Reutilizamos a classe 'post'
-        const userInitial = post.user.slice(0, 2).toUpperCase();
-        const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
-
-        node.innerHTML = `
-            <div class="avatar">${escapeHtml(userInitial)}</div>
-            <div>
-                <div class="meta">
-                    <strong class="post-username" data-username="${escapeHtml(post.user)}">
-                        ${escapeHtml(post.user)}
-                    </strong> 
-                    • ${postTime}
-                </div>
-                <h3>${escapeHtml(post.title)}</h3>
-                <div>${escapeHtml(post.content)}</div>
-                <div class="post-actions">
-                    <button class="mini-btn">💬 Comentários</button>
-                </div>
-            </div>`;
-        communityTopicList.appendChild(node);
-    });
-}
-// ... (Resto do script.js - Funções auxiliares, Inicialização - Sem mudanças) ...
+// ... (Restante do script.js - Funções de Comunidade, Amigos, etc. - Sem mudanças) ...
 
 // --- Inicialização ---
 socket.on('connect', () => {
