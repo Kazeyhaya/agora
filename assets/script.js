@@ -144,4 +144,233 @@ feedInput.addEventListener("keydown", (e) => {
 postsEl.addEventListener("click", (e) => {
   // Verifica se o que clicamos foi um botão com o atributo 'data-like'
   if (e.target.matches('[data-like]')) {
-    const postId =
+    const postId = e.target.dataset.like; // Pega o ID do post
+    e.target.disabled = true; // Desabilita o botão
+    apiLikePost(postId);
+  }
+  
+  // (Mais tarde, podemos adicionar um 'else if (e.target.matches('[data-comment]'))' aqui)
+});
+
+
+// --- Funções da API do Perfil ---
+async function apiGetProfile() {
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (profileBioEl) profileBioEl.textContent = data.bio;
+  } catch (err) {
+    console.error("Falha ao buscar bio:", err);
+  }
+} 
+
+async function apiUpdateBio() {
+  const newBio = prompt("Digite sua nova bio:", profileBioEl.textContent);
+  if (newBio === null || newBio.trim() === "") return; 
+
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: currentUser, bio: newBio.trim() })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (profileBioEl) profileBioEl.textContent = data.bio;
+  } catch (err) {
+    console.error("Falha ao salvar bio:", err);
+  }
+}
+
+// --- Evento do Perfil ---
+editBioBtn.addEventListener("click", apiUpdateBio);
+
+
+// --- Funções da API de Depoimentos ---
+async function apiGetTestimonials() {
+  try {
+    const res = await fetch(`/api/testimonials/${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderTestimonials(data.testimonials || []);
+  } catch (err) {
+    console.error("Falha ao buscar depoimentos:", err);
+  }
+}
+
+async function apiCreateTestimonial() {
+  const text = testimonialInput.value.trim();
+  if (!text) return; 
+
+  testimonialSend.disabled = true;
+  try {
+    await fetch('/api/testimonials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_user: currentUser, 
+        to_user: currentUser,   
+        text: text
+      })
+    });
+    testimonialInput.value = ""; 
+    apiGetTestimonials(); 
+  } catch (err) {
+    console.error("Falha ao salvar depoimento:", err);
+  }
+  testimonialSend.disabled = false;
+}
+
+// --- Renderização dos Depoimentos ---
+function renderTestimonials(testimonials) {
+  if (!testimonialsEl) return;
+  if (testimonials.length === 0) {
+    testimonialsEl.innerHTML = "<div class='meta'>Seja o primeiro a deixar um depoimento!</div>";
+    return;
+  }
+  
+  testimonialsEl.innerHTML = ""; // Limpa a lista
+  testimonials.forEach(item => {
+    const node = document.createElement("div");
+    node.className = "meta"; // Reutiliza o estilo 'meta'
+    node.innerHTML = `<strong>${escapeHtml(item.from_user)}</strong>: ${escapeHtml(item.text)}`;
+    testimonialsEl.appendChild(node);
+  });
+}
+
+// --- Evento de Depoimento ---
+testimonialSend.addEventListener("click", apiCreateTestimonial);
+
+
+// ===================================================
+// 3. LÓGICA DO CHAT (Socket.IO / "Cord")
+// ===================================================
+
+// --- Funções do Chat ---
+function renderChannel(name) {
+  activeChannel = name; 
+  chatMessagesEl.innerHTML = ""; 
+  
+  chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
+  chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
+  
+  document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
+  const activeBtn = document.querySelector(`.channel[data-channel="${name}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
+}
+
+function addMessageBubble({ user, timestamp, message }) {
+  const item = document.createElement("div");
+  item.className = "msg";
+  const userInitial = (user || "V").slice(0, 2).toUpperCase();
+  const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
+
+  item.innerHTML = `
+    <div class="avatar">${escapeHtml(userInitial)}</div>
+    <div class="bubble">
+      <div class="meta"><strong>${escapeHtml(user)}</strong> • ${time}</div>
+      <div>${escapeHtml(message)}</div>
+    </div>
+  `;
+  chatMessagesEl.appendChild(item);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+}
+
+function sendChatMessage() {
+  const text = chatInputEl.value.trim();
+  if (!text) return;
+
+  const messageData = {
+    channel: activeChannel,
+    user: currentUser, 
+    message: text,
+    timestamp: new Date().toLocaleString('pt-BR') 
+  };
+  
+  socket.emit('sendMessage', messageData);
+  
+  chatInputEl.value = "";
+  chatInputEl.focus();
+}
+
+// --- Eventos do Chat (Socket.IO) ---
+chatSendBtn.addEventListener("click", sendChatMessage);
+chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
+
+// --- Ouvintes do Socket.IO (Backend -> Frontend) ---
+socket.on('loadHistory', (messages) => {
+  chatMessagesEl.innerHTML = ""; 
+  messages.forEach(addMessageBubble);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+});
+
+socket.on('newMessage', (data) => {
+  if (data.channel === activeChannel) { 
+     addMessageBubble(data);
+  }
+});
+
+// ===================================================
+// 4. LÓGICA DE TROCA DE VISÃO (Views)
+// ===================================================
+
+function activateView(name) {
+  // 1. Esconde todas as seções
+  Object.values(views).forEach(view => view.hidden = true);
+  // 2. Mostra a seção correta
+  if (views[name]) {
+    views[name].hidden = false;
+  }
+  
+  // 3. Atualiza os botões (tabs)
+  viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+
+  // 4. Ajusta o layout do grid
+  appEl.classList.remove("view-feed", "view-chat", "view-profile");
+  appEl.classList.add(`view-${name}`);
+
+  if (name === "chat") {
+    // Layout de Chat (com canais)
+    channelsEl.style.display = "flex";
+    if (socket.connected) {
+      renderChannel(activeChannel); 
+    }
+  } else {
+    // Layout de Feed/Perfil (sem canais)
+    channelsEl.style.display = "none";
+  }
+
+  // 5. Carrega os dados da aba
+  if (name === "feed") {
+    apiGetPosts(); // Carrega os posts ao entrar no feed
+  }
+  if (name === "profile") {
+    apiGetProfile(); // Carrega a bio ao entrar no perfil
+    apiGetTestimonials(); // Carrega os depoimentos
+  }
+}
+
+// --- Eventos das Abas ---
+viewTabs.forEach(b => b.addEventListener("click", () => activateView(b.dataset.view)));
+
+// ===================================================
+// 5. INICIALIZAÇÃO E UTILITÁRIOS
+// ===================================================
+
+// --- Segurança ---
+function escapeHtml(s) {
+  if (!s) return "";
+  return s.replace(/[&<>"']/g, m => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  }[m]));
+}
+
+// --- Inicialização ---
+socket.on('connect', () => {
+  console.log('Socket conectado:', socket.id);
+  activateView("feed"); // Começa o aplicativo na aba "Feed"
+});
