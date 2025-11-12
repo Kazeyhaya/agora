@@ -102,9 +102,20 @@ const views = {
 const socket = io();
 
 // ===================================================
+// 1.5 AUXILIARES (Para garantir o Hoisting)
+// ===================================================
+
+// 👇 MUDANÇA: 'escapeHtml' movido para cá. 👇
+function escapeHtml(s) {
+  if (!s) return "";
+  return s.replace(/[&<>"']/g, m => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  }[m]));
+}
+
+// ===================================================
 // 2. LÓGICA DE API E RENDERIZAÇÃO (FUNÇÕES)
 // ===================================================
-// (Todas as funções API e Renderização foram agrupadas aqui para garantir o hoisting)
 
 // --- Funções da API do Feed (Pessoal) ---
 async function apiGetPosts() {
@@ -157,6 +168,7 @@ function renderPostList(containerElement, posts) {
     node.className = "post";
     const postUserInitial = (post.user || "?").slice(0, 2).toUpperCase();
     const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
+    
     node.innerHTML = `
       <div class="avatar">${escapeHtml(postUserInitial)}</div>
       <div>
@@ -317,7 +329,7 @@ async function apiJoinCommunity(communityId, button) {
     if (!res.ok) { throw new Error('Falha ao entrar na comunidade'); }
     const data = await res.json();
     renderJoinedCommunities([data.community]); 
-    activateCommunityView("chat-channels", { community: data.community.id }); // Vai direto para o chat
+    activateCommunityView("chat-channels", { community: data.community.id });
   } catch (err) { console.error("Erro ao entrar na comunidade:", err); alert("Falha ao entrar na comunidade."); button.disabled = false; button.textContent = "Entrar"; }
 }
 async function apiCreateCommunity(name, emoji, button) {
@@ -329,7 +341,6 @@ async function apiCreateCommunity(name, emoji, button) {
         const data = await res.json();
         const newComm = data.community;
         renderJoinedCommunities([newComm]); 
-        // 👇 MUDANÇA: Mudar para a vista TÓPICOS por padrão após a criação 👇
         activateCommunityView("topics", { community: newComm.id }); 
     } catch (err) { console.error("Erro ao criar comunidade:", err); alert("Falha ao criar comunidade. Tente novamente."); button.disabled = false; button.textContent = "Criar e Entrar"; }
 }
@@ -358,12 +369,48 @@ function renderJoinedCommunities(communities) {
 // ===================================================
 // 3. LÓGICA DO CHAT (Socket.IO / "Agora")
 // ===================================================
-// ... (Toda a lógica de Chat, Sockets - Sem mudanças) ...
-function renderChannel(name) { /* ... */ }
-function addMessageBubble({ user, timestamp, message }) { /* ... */ }
-function sendChatMessage() { /* ... */ }
-socket.on('loadHistory', (messages) => { /* ... */ });
-socket.on('newMessage', (data) => { /* ... */ });
+function renderChannel(name) {
+  activeChannel = name; 
+  chatMessagesEl.innerHTML = ""; 
+  chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
+  chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
+  document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
+  const activeBtn = document.querySelector(`.channel[data-channel="${name}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+  socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
+}
+function addMessageBubble({ user, timestamp, message }) {
+  const item = document.createElement("div");
+  item.className = "msg";
+  const userInitial = (user || "V").slice(0, 2).toUpperCase();
+  const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
+  const isScrolledToBottom = chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight <= chatMessagesEl.scrollTop + 100;
+  item.innerHTML = `
+    <div class="avatar">${escapeHtml(userInitial)}</div>
+    <div class="bubble">
+      <div class="meta"><strong>${escapeHtml(user)}</strong> • ${time}</div>
+      <div>${escapeHtml(message)}</div>
+    </div>
+  `;
+  chatMessagesEl.appendChild(item);
+  if (isScrolledToBottom) { chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
+}
+function sendChatMessage() {
+  const text = chatInputEl.value.trim();
+  if (!text) return;
+  const messageData = { channel: activeChannel, user: currentUser, message: text, timestamp: new Date().toLocaleString('pt-BR') };
+  socket.emit('sendMessage', messageData);
+  chatInputEl.value = "";
+  chatInputEl.focus();
+}
+socket.on('loadHistory', (messages) => {
+  chatMessagesEl.innerHTML = ""; 
+  messages.forEach(addMessageBubble);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; 
+});
+socket.on('newMessage', (data) => {
+  if (data.channel === activeChannel) { addMessageBubble(data); }
+});
 
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
@@ -377,12 +424,25 @@ channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.ge
 // --- Eventos do Feed (Likes, Comentários e Ver Perfil) ---
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
+  if (userLink) {
+    viewedUsername = userLink.dataset.username; 
+    activateView("profile"); 
+    return;
+  }
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
+    
+    if (likeButton.classList.contains('liked')) {
+      apiUnlikePost(postId); 
+      likeButton.classList.remove('liked');
+      likeButton.innerHTML = `❤ ${currentLikes - 1}`;
+    } else {
+      apiLikePost(postId); 
+      likeButton.classList.add('liked');
+      likeButton.innerHTML = `❤ ${currentLikes + 1}`;
+    }
     return;
   }
   const commentButton = e.target.closest('[data-comment]');
@@ -440,7 +500,7 @@ joinedServersList.addEventListener("click", (e) => {
   const communityBtn = e.target.closest('.community-btn[data-community-id]');
   if (communityBtn) {
     const communityId = communityBtn.dataset.communityId;
-    activateCommunityView("topics", { community: communityId }); // 👈 MUDANÇA: Ativa a vista TÓPICOS
+    activateCommunityView("topics", { community: communityId }); // Ativa a vista TÓPICOS
   }
 });
 
@@ -479,6 +539,7 @@ communityTabs.forEach(tab => {
 function activateView(name, options = {}) {
   Object.values(views).forEach(view => view.hidden = true);
   appEl.classList.remove("view-home", "view-community");
+  
   document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
   
   if (name === "feed" || name === "explore" || name === "profile" || name === "explore-servers" || name === "create-community") {
@@ -563,50 +624,14 @@ function activateCommunityView(name, options = {}) {
 
 // ===================================================
 // 9. LÓGICA DE FÓRUM DA COMUNIDADE (NOVO)
-// ===================================================
+// ... (omissão por brevidade) ...
 
-// [GET] Obter os posts do fórum de uma comunidade
-async function apiGetCommunityPosts(communityId) {
-    try {
-        const res = await fetch(`/api/community/${communityId}/posts`);
-        const data = await res.json();
-        renderCommunityPosts(data.posts || []);
-    } catch (err) {
-        console.error("Erro ao buscar posts do fórum:", err);
-        communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
-    }
-}
-
-function renderCommunityPosts(posts) {
-    if (!communityTopicList) return;
-    communityTopicList.innerHTML = "";
-
-    if (posts.length === 0) {
-        communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
-        return;
-    }
-
-    posts.forEach(post => {
-        const node = document.createElement("div");
-        node.className = "post"; 
-        const userInitial = post.user.slice(0, 2).toUpperCase();
-        const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
-
-        node.innerHTML = `
-            <div class="avatar">${escapeHtml(userInitial)}</div>
-            <div>
-                <div class="meta">
-                    <strong class="post-username" data-username="${escapeHtml(post.user)}">
-                        ${escapeHtml(post.user)}
-                    </strong> 
-                    • ${postTime}
-                </div>
-                <h3>${escapeHtml(post.title)}</h3>
-                <div>${escapeHtml(post.content)}</div>
-                <div class="post-actions">
-                    <button class="mini-btn">💬 Comentários</button>
-                </div>
-            </div>`;
-        communityTopicList.appendChild(node);
-    });
-}
+// --- Inicialização ---
+socket.on('connect', () => {
+  console.log('Socket conectado:', socket.id);
+  document.getElementById("userName").textContent = currentUser;
+  document.getElementById("userAvatar").textContent = currentUser.slice(0, 2).toUpperCase();
+  
+  apiGetJoinedCommunities(); 
+  activateView("feed"); 
+});
