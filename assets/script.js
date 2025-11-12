@@ -35,6 +35,13 @@ const feedRefreshBtn = document.getElementById("btn-refresh");
 const profileBioEl = document.getElementById("profileBio");
 const editBioBtn = document.getElementById("editBioBtn");
 
+// ===============================================
+// 👇 REFERÊNCIAS DOS DEPOIMENTOS ADICIONADAS 👇
+// ===============================================
+const testimonialsEl = document.getElementById("testimonials");
+const testimonialInput = document.getElementById("testimonialInput");
+const testimonialSend = document.getElementById("testimonialSend");
+
 // --- Referências de Visão (Views) ---
 const appEl = document.querySelector(".app");
 const channelsEl = document.querySelector(".channels");
@@ -128,11 +135,9 @@ feedInput.addEventListener("keydown", (e) => {
 // [GET] Pede a bio ao servidor
 async function apiGetProfile() {
   try {
-    // Usa o nome de usuário global para buscar o perfil
     const res = await fetch(`/api/profile/${encodeURIComponent(currentUser)}`);
     if (!res.ok) return;
     const data = await res.json();
-    // Atualiza a bio na tela
     if (profileBioEl) profileBioEl.textContent = data.bio;
   } catch (err) {
     console.error("Falha ao buscar bio:", err);
@@ -142,8 +147,6 @@ async function apiGetProfile() {
 // [POST] Salva a bio nova no servidor
 async function apiUpdateBio() {
   const newBio = prompt("Digite sua nova bio:", profileBioEl.textContent);
-  
-  // Se o usuário cancelou ou não digitou nada, não faz nada
   if (newBio === null || newBio.trim() === "") return; 
 
   try {
@@ -154,7 +157,6 @@ async function apiUpdateBio() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    // Atualiza a bio na tela com o texto salvo
     if (profileBioEl) profileBioEl.textContent = data.bio;
   } catch (err) {
     console.error("Falha ao salvar bio:", err);
@@ -165,24 +167,85 @@ async function apiUpdateBio() {
 editBioBtn.addEventListener("click", apiUpdateBio);
 
 
+// ===============================================
+// 👇 BLOCO DE FUNÇÕES DE DEPOIMENTOS ADICIONADO 👇
+// ===============================================
+
+// --- Funções da API de Depoimentos ---
+
+// [GET] Pede os depoimentos ao servidor
+async function apiGetTestimonials() {
+  try {
+    const res = await fetch(`/api/testimonials/${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderTestimonials(data.testimonials || []);
+  } catch (err) {
+    console.error("Falha ao buscar depoimentos:", err);
+  }
+}
+
+// [POST] Salva um novo depoimento
+async function apiCreateTestimonial() {
+  const text = testimonialInput.value.trim();
+  if (!text) return; // Não envia depoimento vazio
+
+  testimonialSend.disabled = true;
+  try {
+    await fetch('/api/testimonials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_user: currentUser, // Quem escreveu (Você)
+        to_user: currentUser,   // Para quem (O dono do perfil, que por enquanto é você)
+        text: text
+      })
+    });
+    testimonialInput.value = ""; // Limpa o input
+    apiGetTestimonials(); // Atualiza a lista
+  } catch (err) {
+    console.error("Falha ao salvar depoimento:", err);
+  }
+  testimonialSend.disabled = false;
+}
+
+// --- Renderização dos Depoimentos ---
+function renderTestimonials(testimonials) {
+  if (!testimonialsEl) return;
+  if (testimonials.length === 0) {
+    testimonialsEl.innerHTML = "<div class='meta'>Seja o primeiro a deixar um depoimento!</div>";
+    return;
+  }
+  
+  testimonialsEl.innerHTML = ""; // Limpa a lista
+  testimonials.forEach(item => {
+    const node = document.createElement("div");
+    node.className = "meta"; // Reutiliza o estilo 'meta'
+    node.innerHTML = `<strong>${escapeHtml(item.from_user)}</strong>: ${escapeHtml(item.text)}`;
+    testimonialsEl.appendChild(node);
+  });
+}
+
+// --- Evento de Depoimento ---
+testimonialSend.addEventListener("click", apiCreateTestimonial);
+
+
 // ===================================================
 // 3. LÓGICA DO CHAT (Socket.IO / "Cord")
 // ===================================================
 
 // --- Funções do Chat ---
 function renderChannel(name) {
-  activeChannel = name; // Atualiza o canal ativo
-  chatMessagesEl.innerHTML = ""; // Limpa as mensagens
+  activeChannel = name; 
+  chatMessagesEl.innerHTML = ""; 
   
   chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
   chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
   
-  // Atualiza o visual dos botões
   document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
   const activeBtn = document.querySelector(`.channel[data-channel="${name}"]`);
   if (activeBtn) activeBtn.classList.add("active");
 
-  // **Avisa o backend que entrámos num canal e pede o histórico**
   socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
 
@@ -190,7 +253,7 @@ function addMessageBubble({ user, timestamp, message }) {
   const item = document.createElement("div");
   item.className = "msg";
   const userInitial = (user || "V").slice(0, 2).toUpperCase();
-  const time = timestamp ? timestamp.split(' ')[1] : 'agora'; // Pega só a hora
+  const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
 
   item.innerHTML = `
     <div class="avatar">${escapeHtml(userInitial)}</div>
@@ -209,12 +272,11 @@ function sendChatMessage() {
 
   const messageData = {
     channel: activeChannel,
-    user: currentUser, // Usa o nome de usuário global
+    user: currentUser, 
     message: text,
-    timestamp: new Date().toLocaleString('pt-BR') // Gera timestamp no front
+    timestamp: new Date().toLocaleString('pt-BR') 
   };
   
-  // Envia para o backend (que vai salvar no PG e retransmitir)
   socket.emit('sendMessage', messageData);
   
   chatInputEl.value = "";
@@ -228,13 +290,13 @@ channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.ge
 
 // --- Ouvintes do Socket.IO (Backend -> Frontend) ---
 socket.on('loadHistory', (messages) => {
-  chatMessagesEl.innerHTML = ""; // Garante que está limpo
+  chatMessagesEl.innerHTML = ""; 
   messages.forEach(addMessageBubble);
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 });
 
 socket.on('newMessage', (data) => {
-  if (data.channel === activeChannel) { // Só adiciona se for no canal ativo
+  if (data.channel === activeChannel) { 
      addMessageBubble(data);
   }
 });
@@ -261,7 +323,6 @@ function activateView(name) {
   if (name === "chat") {
     // Layout de Chat (com canais)
     channelsEl.style.display = "flex";
-    // **IMPORTANTE**: Carrega o histórico do chat SÓ quando entra na aba
     if (socket.connected) {
       renderChannel(activeChannel); 
     }
@@ -276,6 +337,10 @@ function activateView(name) {
   }
   if (name === "profile") {
     apiGetProfile(); // Carrega a bio ao entrar no perfil
+    // ===============================================
+    // 👇 CHAMADA DOS DEPOIMENTOS ADICIONADA 👇
+    // ===============================================
+    apiGetTestimonials(); // Carrega os depoimentos
   }
 }
 
@@ -295,7 +360,6 @@ function escapeHtml(s) {
 }
 
 // --- Inicialização ---
-// Conecta ao socket e, QUANDO conectar, inicializa a primeira view
 socket.on('connect', () => {
   console.log('Socket conectado:', socket.id);
   activateView("feed"); // Começa o aplicativo na aba "Feed"
