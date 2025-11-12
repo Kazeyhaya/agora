@@ -180,7 +180,6 @@ a{color:inherit;text-decoration:none}
 .friend-card strong:hover {
   color: var(--orkut-blue);
 }
-
 .chat-top{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.06);background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);border-top-left-radius: var(--radius);border-top-right-radius: var(--radius); min-height: 56px;}
 .chat-topic{display:flex;align-items:center;gap:10px}
 .topic-badge{color:#fff;background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue));padding:6px 10px;border-radius:999px;font-weight:600}
@@ -295,10 +294,14 @@ a{color:inherit;text-decoration:none}
   font-weight: 600;
   cursor: pointer;
 }
+.community-card-explore .join-btn:disabled {
+  background: var(--discord-panel);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
 
-/* =============================================== */
-/* 👇 NOVOS ESTILOS "AMIGOS" AQUI 👇 */
-/* =============================================== */
+
+/* Estilos "AMIGOS" */
 .friends {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -319,7 +322,6 @@ a{color:inherit;text-decoration:none}
   border-radius: 8px;
   font-size: 0.9rem;
 }
-/* O nome do amigo no cartão será clicável */
 .friend-card strong {
   cursor: pointer;
   transition: .2s;

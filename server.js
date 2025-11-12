@@ -24,7 +24,6 @@ const pool = new Pool({
 async function setupDatabase() {
   const client = await pool.connect();
   try {
-    // ... (tabelas messages, posts, profiles, testimonials, comments, follows, communities - sem mudanças)
     await client.query(`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT)`);
@@ -32,17 +31,13 @@ async function setupDatabase() {
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
     await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-
-    // ===============================================
-    // 👇 NOVA TABELA 'COMMUNITY_MEMBERS' ADICIONADA AQUI 👇
-    // ===============================================
     await client.query(`
       CREATE TABLE IF NOT EXISTS community_members (
         id SERIAL PRIMARY KEY,
         user_name TEXT NOT NULL,
         community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
         timestamp TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_name, community_id) -- Impede entrar na mesma comunidade duas vezes
+        UNIQUE(user_name, community_id) 
       )
     `);
     
@@ -86,8 +81,6 @@ app.get('/', (req, res) => {
 });
 
 // --- API (Feed, Perfil, Amigos, etc.) ---
-// ... (Todas as rotas anteriores /api/posts, /explore, /profile, /following, /follow, etc. - Sem mudanças) ...
-// (Vou omiti-las aqui para ser breve, elas continuam iguais)
 app.get('/api/posts', async (req, res) => {
   const { user } = req.query; 
   if (!user) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
@@ -211,50 +204,27 @@ app.get('/api/communities/explore', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 
-// ===============================================
-// 👇 NOVAS ROTAS DE COMUNIDADE AQUI 👇
-// ===============================================
-
-// [POST] Entrar numa comunidade
+// --- API (Comunidades) ---
 app.post('/api/community/join', async (req, res) => {
   const { user_name, community_id } = req.body;
   if (!user_name || !community_id) {
     return res.status(400).json({ error: 'Faltam dados' });
   }
-  
   try {
-    // Adiciona o membro
-    await pool.query(
-      `INSERT INTO community_members (user_name, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [user_name, community_id]
-    );
-    
-    // (Opcional) Incrementa o contador de membros na tabela 'communities'
-    // Esta é uma boa prática, mas podemos deixar para depois
-    
-    // Devolve a comunidade que o utilizador acabou de entrar
-    const communityData = await pool.query(
-      `SELECT * FROM communities WHERE id = $1`,
-      [community_id]
-    );
-
+    await pool.query(`INSERT INTO community_members (user_name, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [user_name, community_id]);
+    const communityData = await pool.query(`SELECT * FROM communities WHERE id = $1`, [community_id]);
     res.status(201).json({ community: communityData.rows[0] });
-    
   } catch (err) {
     console.error('Erro ao entrar na comunidade:', err);
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
-
-// [GET] Obter as comunidades que um utilizador já entrou
 app.get('/api/communities/joined', async (req, res) => {
-  const { user_name } = req.query; // ex: /api/communities/joined?user_name=Alexandre
+  const { user_name } = req.query; 
   if (!user_name) {
     return res.status(400).json({ error: 'Utilizador não fornecido' });
   }
-  
   try {
-    // Faz um JOIN para buscar os dados das comunidades (emoji, nome, id)
     const result = await pool.query(
       `SELECT c.id, c.name, c.emoji 
        FROM communities c
@@ -269,9 +239,7 @@ app.get('/api/communities/joined', async (req, res) => {
   }
 });
 
-
 // --- Lógica do Socket.IO (Chat) ---
-// ... (sem mudanças) ...
 io.on('connection', (socket) => {
   console.log(`Um utilizador conectou-se: ${socket.id}`);
   socket.on('joinChannel', async (data) => {
