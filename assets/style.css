@@ -81,25 +81,29 @@ a{color:inherit;text-decoration:none}
 .channel.active,.channel:hover{background:rgba(255,255,255,.06);color:#fff}
 .hash{opacity:.7}
 
-/* Correção do Layout (Grid) */
+/* ======================== */
+/* 👇 CORREÇÃO DO LAYOUT E SCROLL 👇 */
+/* ======================== */
 .app.view-feed .channels,
 .app.view-profile .channels {
   display: none;
 }
 .app.view-feed {
   grid-template-columns: 80px 1fr;
-  grid-template-rows: 64px 1fr 64px; /* <-- Correção da userbar */
+  grid-template-rows: 64px 1fr 64px; /* <-- CORREÇÃO DA USERBAR */
   grid-template-areas: "servers header" "servers chat" "servers userbar";
 }
 .app.view-profile {
   grid-template-columns: 80px 1fr;
-  grid-template-rows: 64px 1fr 64px; /* <-- Correção da userbar */
+  grid-template-rows: 64px 1fr 64px; /* <-- CORREÇÃO DA USERBAR */
   grid-template-areas: "servers header" "servers chat" "servers userbar";
 }
 .app.view-chat {
   grid-template-columns: 80px 280px 1fr;
+  grid-template-rows: 64px 1fr 64px; /* <-- Layout Padrão com userbar */
   grid-template-areas: "servers header header" "servers channels chat" "servers userbar chat";
 }
+/* ======================== */
 
 /* Chat */
 .chat{grid-area: chat;background: var(--discord-dark);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:grid;grid-template-rows: 56px 1fr 74px;box-shadow: var(--shadow)}
@@ -108,20 +112,14 @@ a{color:inherit;text-decoration:none}
 .feed-top{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.06);background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);border-top-left-radius: var(--radius);border-top-right-radius: var(--radius); min-height: 56px;}
 .composer-feed{display:flex;gap:10px;padding:12px;border-bottom:1px solid rgba(255,255,255,.06)}
 .composer-feed .input{min-height:44px}
-
-/* ======================== */
-/* 👇 CORREÇÃO DO SCROLL DO FEED AQUI 👇 */
-/* ======================== */
 .posts{
   overflow:auto;
   padding:12px;
   display:flex;
   flex-direction:column;
   gap:12px;
-  min-height: 0; /* <-- A NOVA LINHA MÁGICA */
+  min-height: 0; /* <-- CORREÇÃO DO SCROLL DO FEED */
 }
-/* ======================== */
-
 .post{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;display:grid;grid-template-columns:44px 1fr;gap:10px}
 .post .meta{margin:0 0 6px 0}
 .post-actions{display:flex;gap:8px;margin-top:8px}
@@ -142,7 +140,6 @@ a{color:inherit;text-decoration:none}
 .chat-actions{display:flex;gap:8px}
 .icon-btn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#fff8;transition:.2s}
 .icon-btn:hover{color:#fff;background:rgba(255,255,255,.1)}
-/* Correção do Scroll do Chat */
 .messages{
   padding:14px;
   overflow:auto;
@@ -150,7 +147,7 @@ a{color:inherit;text-decoration:none}
   display:flex;
   flex-direction:column;
   gap:12px;
-  min-height: 0; /* <-- A LINHA MÁGICA */
+  min-height: 0; /* <-- CORREÇÃO DO SCROLL DO CHAT */
 }
 .msg{display:grid;grid-template-columns: 44px 1fr;gap:10px;align-items:start;animation:fadeIn .3s ease}
 .avatar{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background: linear-gradient(135deg, var(--orkut-blue), var(--orkut-pink));font-weight:800}

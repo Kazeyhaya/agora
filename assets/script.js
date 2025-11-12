@@ -335,14 +335,14 @@ function renderChannel(name) {
   socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
 
-// ===============================================
-// 👇 FUNÇÃO DE MENSAGEM ATUALIZADA (UX) 👇
-// ===============================================
 function addMessageBubble({ user, timestamp, message }) {
   const item = document.createElement("div");
   item.className = "msg";
   const userInitial = (user || "V").slice(0, 2).toUpperCase();
   const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
+  
+  // Verifica se o usuário está perto do final do chat
+  const isScrolledToBottom = chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight <= chatMessagesEl.scrollTop + 100;
 
   item.innerHTML = `
     <div class="avatar">${escapeHtml(userInitial)}</div>
@@ -352,9 +352,6 @@ function addMessageBubble({ user, timestamp, message }) {
     </div>
   `;
   
-  // Verifica se o usuário está perto do final do chat
-  const isScrolledToBottom = chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight <= chatMessagesEl.scrollTop + 100;
-
   chatMessagesEl.appendChild(item);
   
   // Só rola para baixo se o usuário já estava no final
