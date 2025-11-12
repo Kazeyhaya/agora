@@ -19,6 +19,7 @@ let activeChannel = "geral";
 let viewedUsername = currentUser; 
 
 // --- Referências do Chat ---
+const chatView = document.getElementById("view-chat"); // 👈 MUDANÇA
 const chatMessagesEl = document.getElementById("messages");
 const chatTopicBadge = document.getElementById("topic");
 const chatInputEl = document.getElementById("composerInput");
@@ -26,22 +27,25 @@ const chatSendBtn = document.getElementById("sendBtn");
 const channelButtons = document.querySelectorAll(".channel[data-channel]");
 
 // --- Referências do Feed (Pessoal) ---
+const feedView = document.getElementById("view-feed"); // 👈 MUDANÇA
 const postsEl = document.getElementById("posts");
 const feedInput = document.getElementById("feedInput");
 const feedSend = document.getElementById("feedSend");
 const feedRefreshBtn = document.getElementById("btn-refresh");
 
 // --- Referências do Feed (Explorar) ---
+const exploreView = document.getElementById("view-explore"); // 👈 MUDANÇA
 const explorePostsEl = document.getElementById("explore-posts");
 const btnExplore = document.getElementById("btn-explore");
 const btnExploreRefresh = document.getElementById("btn-explore-refresh");
 
 // --- Referências do Perfil ---
+const profileView = document.getElementById("view-profile"); // 👈 MUDANÇA
 const profileAvatarEl = document.getElementById("profileAvatar");
 const profileNameEl = document.getElementById("profileName");
 const profileBioEl = document.getElementById("profileBio");
 const editBioBtn = document.getElementById("editBioBtn");
-const userbarMeBtn = document.getElementById("userbar-me"); // 👈 NOVO
+const userbarMeBtn = document.getElementById("userbar-me"); 
 
 // --- Referências dos Depoimentos ---
 const testimonialsEl = document.getElementById("testimonials");
@@ -50,15 +54,12 @@ const testimonialSend = document.getElementById("testimonialSend");
 
 // --- Referências de Visão (Views) ---
 const appEl = document.querySelector(".app");
+const mainHeader = document.querySelector(".header"); // 👈 NOVO
 const channelsEl = document.querySelector(".channels");
-// O botão "Perfil" já não existe, este querySelector está correto
-const viewTabs = document.querySelectorAll(".view-tabs .pill"); 
-const views = {
-  feed: document.getElementById("view-feed"),
-  chat: document.getElementById("view-chat"),
-  profile: document.getElementById("view-profile"),
-  explore: document.getElementById("view-explore") 
-};
+const viewTabs = document.querySelectorAll(".view-tabs .pill"); // Apanha só o "Feed"
+const serverBtns = document.querySelectorAll(".servers .server"); // 👈 NOVO
+const homeBtn = document.getElementById("home-btn"); // 👈 NOVO
+const communityBtns = document.querySelectorAll(".community-btn"); // 👈 NOVO
 
 // --- Conexão Socket.IO (Só para o Chat) ---
 const socket = io();
@@ -83,10 +84,10 @@ async function apiGetPosts() {
 // --- Funções da API do Feed (Explorar) ---
 async function apiGetExplorePosts() {
   try {
-    const response = await fetch('/api/posts/explore'); // Chama a nova rota
+    const response = await fetch('/api/posts/explore'); 
     if (!response.ok) return;
     const data = await response.json();
-    renderExplorePosts(data.posts || []); // Renderiza no feed explorar
+    renderExplorePosts(data.posts || []); 
   } catch (err) {
     console.error("Falha ao buscar posts do explorar:", err);
     explorePostsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>";
@@ -114,9 +115,8 @@ async function apiCreatePost() {
 async function apiLikePost(postId) {
   try {
     await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
-    // Atualiza ambos os feeds se estiverem ativos
-    if (!views.feed.hidden) apiGetPosts(); 
-    if (!views.explore.hidden) apiGetExplorePosts();
+    if (!feedView.hidden) apiGetPosts(); 
+    if (!exploreView.hidden) apiGetExplorePosts();
   } catch (err) {
     console.error("Falha ao dar like:", err);
   }
@@ -397,10 +397,22 @@ viewTabs.forEach(b => b.addEventListener("click", () => {
 // --- Evento do Botão Explorar --- 
 btnExplore.addEventListener("click", () => activateView("explore"));
 
-// --- Evento da Userbar (Novo Perfil) --- (NOVO)
+// --- Evento da Userbar (Perfil) --- 
 userbarMeBtn.addEventListener("click", () => {
-  viewedUsername = currentUser; // Define que queremos ver o nosso próprio perfil
-  activateView("profile"); // Ativa a vista do perfil
+  viewedUsername = currentUser; 
+  activateView("profile"); 
+});
+
+// --- Eventos dos Servidores (NOVO) ---
+homeBtn.addEventListener("click", () => {
+  activateView("feed"); // Clicar no "Home" leva-te ao Feed
+});
+
+communityBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const communityId = btn.dataset.communityId;
+    activateView("chat", { community: communityId }); // Passa o ID da comunidade
+  });
 });
 
 
@@ -408,55 +420,65 @@ userbarMeBtn.addEventListener("click", () => {
 // 5. LÓGICA DE TROCA DE VISÃO (Views) E INICIALIZAÇÃO
 // ===================================================
 
-function activateView(name) {
-  // 1. Esconde todas as seções
-  Object.values(views).forEach(view => view.hidden = true);
-  // 2. Mostra a seção correta
-  if (views[name]) {
-    views[name].hidden = false;
-  }
+function activateView(name, options = {}) {
+  // 1. Esconde todas as vistas principais
+  feedView.hidden = true;
+  chatView.hidden = true;
+  profileView.hidden = true;
+  exploreView.hidden = true;
   
-  // 3. Atualiza os botões (tabs)
-  if (name === 'explore') {
-    viewTabs.forEach(b => b.classList.remove("active"));
-    btnExplore.classList.add("active"); 
-  } else if (name === 'profile') {
-    // 👇 MUDANÇA: Se estamos no perfil, nenhuma aba principal fica ativa
-    viewTabs.forEach(b => b.classList.remove("active"));
-    btnExplore.classList.remove("active");
-  } else {
-    // Ativa a aba "Feed" ou "Chat"
+  // 2. Remove classes de estado do app
+  appEl.classList.remove("view-home", "view-community");
+
+  // Remove "active" de todos os botões de servidor
+  serverBtns.forEach(b => b.classList.remove("active"));
+  
+  
+  // --- LÓGICA DE VISTA "HOME" (Feed, Explorar, Perfil) ---
+  if (name === "feed" || name === "explore" || name === "profile") {
+    
+    // 3. Define o layout
+    appEl.classList.add("view-home");
+    mainHeader.hidden = false;
+    channelsEl.hidden = true;
+    
+    // 4. Mostra a vista correta
+    if (name === "feed") feedView.hidden = false;
+    if (name === "explore") exploreView.hidden = false;
+    if (name === "profile") profileView.hidden = false;
+    
+    // 5. Atualiza botões
+    homeBtn.classList.add("active"); // O botão "A" é o ativo
     viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
-    btnExplore.classList.remove("active"); 
-  }
-
-  // 4. Ajusta o layout do grid
-  appEl.classList.remove("view-feed", "view-chat", "view-profile", "view-explore");
-  // O layout do "profile" e "explore" é o mesmo do "feed"
-  if (name === 'profile' || name === 'explore') {
-    appEl.classList.add('view-feed'); 
-  } else {
-    appEl.classList.add(`view-${name}`); 
-  }
-
-  if (name === "chat") {
-    channelsEl.style.display = "flex";
-    if (socket.connected) {
-      renderChannel(activeChannel); 
+    btnExplore.classList.toggle("active", name === "explore");
+    if (name === 'profile') { // Se for perfil, desativa abas
+      viewTabs.forEach(b => b.classList.remove("active"));
+      btnExplore.classList.remove("active");
     }
-  } else {
-    channelsEl.style.display = "none";
-  }
 
-  // 5. Carrega os dados da aba
-  if (name === "feed") {
-    apiGetPosts(); 
-  }
-  if (name === "profile") {
-    showDynamicProfile(viewedUsername); 
-  }
-  if (name === "explore") { 
-    apiGetExplorePosts();
+    // 6. Carrega dados
+    if (name === "feed") apiGetPosts(); 
+    if (name === "explore") apiGetExplorePosts();
+    if (name === "profile") showDynamicProfile(viewedUsername); 
+    
+  } 
+  // --- LÓGICA DE VISTA "COMUNIDADE" (Chat) ---
+  else if (name === "chat") {
+    
+    // 3. Define o layout
+    appEl.classList.add("view-community");
+    mainHeader.hidden = true; // Esconde header principal
+    channelsEl.hidden = false; // Mostra canais
+    chatView.hidden = false;   // Mostra chat
+    
+    // 5. Atualiza botões
+    // Ativa o botão de servidor correto
+    const activeCommunityBtn = document.querySelector(`.community-btn[data-community-id="${options.community}"]`);
+    if (activeCommunityBtn) activeCommunityBtn.classList.add("active");
+    
+    // 6. Carrega dados
+    // (No futuro, podemos usar o options.community para carregar canais diferentes)
+    renderChannel("geral"); 
   }
 }
 
@@ -539,5 +561,5 @@ socket.on('connect', () => {
   console.log('Socket conectado:', socket.id);
   document.getElementById("userName").textContent = currentUser;
   document.getElementById("userAvatar").textContent = currentUser.slice(0, 2).toUpperCase();
-  activateView("feed"); 
+  activateView("feed"); // Começa o aplicativo na vista "feed"
 });

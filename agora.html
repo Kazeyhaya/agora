@@ -11,10 +11,12 @@
 <body>
   <div class="app">
     <aside class="servers" aria-label="Comunidades">
-      <div class="server active" title="Agora" style="background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue)); font-weight: bold; font-size: 24px;">A</div>
-      <div class="server" title="Tecnologia 💻"><span class="emoji">💻</span></div>
-      <div class="server" title="Música 🎵"><span class="emoji">🎵</span></div>
-      <div class="server" title="Games 🎮"><span class="emoji">🎮</span></div>
+      <div id="home-btn" class="server active" title="Agora" style="background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue)); font-weight: bold; font-size: 24px;">A</div>
+      
+      <div class="server community-btn" data-community-id="tech" title="Tecnologia 💻"><span class="emoji">💻</span></div>
+      <div class="server community-btn" data-community-id="music" title="Música 🎵"><span class="emoji">🎵</span></div>
+      <div class="server community-btn" data-community-id="games" title="Games 🎮"><span class="emoji">🎮</span></div>
+      
       <div class="divider"></div>
       <button class="add-btn" title="Nova Comunidade">+</button>
     </aside>
@@ -27,13 +29,12 @@
       <div class="header-actions">
         <div class="view-tabs">
           <button class="pill active" data-view="feed">Feed</button>
-          <button class="pill" data-view="chat">Chat</button>
-        </div>
+          </div>
         <button class="pill" id="btn-explore">Explorar</button>
       </div>
     </header>
 
-    <aside class="channels" aria-label="Canais">
+    <aside class="channels" aria-label="Canais" hidden>
       <div class="community-card">
         <div class="community-avatar">AG</div>
         <div class="community-info">
