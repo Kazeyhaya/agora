@@ -101,7 +101,6 @@ const views = {
 // --- Conexão Socket.IO (Só para o Chat) ---
 const socket = io();
 
-
 // ===================================================
 // 1.5 AUXILIARES (Para garantir o Hoisting)
 // ===================================================
@@ -112,7 +111,6 @@ function escapeHtml(s) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
   }[m]));
 }
-
 
 // ===================================================
 // 2. LÓGICA DE API E RENDERIZAÇÃO (FUNÇÕES CONSOLIDADAS)
@@ -326,7 +324,7 @@ async function apiJoinCommunity(communityId, button) {
     if (!res.ok) { throw new Error('Falha ao entrar na comunidade'); }
     const data = await res.json();
     renderJoinedCommunities([data.community]); 
-    activateCommunityView("topics", { community: data.community.id }); // Mudar para Tópicos
+    activateCommunityView("chat-channels", { community: data.community.id });
   } catch (err) { console.error("Erro ao entrar na comunidade:", err); alert("Falha ao entrar na comunidade."); button.disabled = false; button.textContent = "Entrar"; }
 }
 async function apiCreateCommunity(name, emoji, button) {
@@ -361,11 +359,6 @@ function renderJoinedCommunities(communities) {
     joinedServersList.appendChild(node);
   });
 }
-
-// ===================================================
-// 3. LÓGICA DO CHAT (Socket.IO / "Agora")
-// ===================================================
-// ... (Toda a lógica de Chat, Sockets - Sem mudanças) ...
 function renderChannel(name) {
   activeChannel = name; 
   chatMessagesEl.innerHTML = ""; 
@@ -409,9 +402,113 @@ socket.on('newMessage', (data) => {
   if (data.channel === activeChannel) { addMessageBubble(data); }
 });
 
+
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
-// ... (Toda a lógica de Eventos - Sem mudanças) ...
+// ===================================================
+
+// --- Eventos do Chat (Socket.IO) ---
+chatSendBtn.addEventListener("click", sendChatMessage);
+chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
+
+// --- Eventos do Feed (Likes, Comentários e Ver Perfil) ---
+function handlePostClick(e) {
+  const userLink = e.target.closest('.post-username[data-username]');
+  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
+  const likeButton = e.target.closest('[data-like]');
+  if (likeButton) {
+    const postId = likeButton.dataset.like; 
+    let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
+    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
+    return;
+  }
+  const commentButton = e.target.closest('[data-comment]');
+  if (commentButton) {
+    const postId = commentButton.dataset.comment;
+    const text = prompt("Digite seu comentário:"); 
+    if (text && text.trim()) { apiCreateComment(postId, text.trim()); }
+    return;
+  }
+}
+postsEl.addEventListener("click", handlePostClick);
+explorePostsEl.addEventListener("click", handlePostClick); 
+
+// --- Eventos dos Botões do Feed (Publicar e Refresh) ---
+feedSend.addEventListener("click", apiCreatePost);
+feedRefreshBtn.addEventListener("click", apiGetPosts);
+btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
+
+// --- Evento de Depoimento ---
+testimonialSend.addEventListener("click", apiCreateTestimonial);
+
+// --- Eventos das Abas ---
+viewTabs.forEach(b => b.addEventListener("click", () => { const viewName = b.dataset.view; activateView(viewName); }));
+
+// --- Evento do Botão Explorar --- 
+btnExplore.addEventListener("click", () => activateView("explore"));
+
+// --- Evento da Userbar (Perfil) --- 
+userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
+
+// --- Evento do Botão Home ---
+headerHomeBtn.addEventListener("click", () => { activateView("feed"); });
+homeBtn.addEventListener("click", () => { activateView("feed"); });
+
+// --- Evento do Botão "+" ---
+exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
+
+// --- Evento de clique no cartão de Amigo ---
+friendsContainer.addEventListener("click", (e) => {
+  const friendLink = e.target.closest('.friend-card-name[data-username]');
+  if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
+});
+
+// --- Evento de clique para Entrar na Comunidade ---
+communityListContainer.addEventListener("click", (e) => {
+  const joinButton = e.target.closest('.join-btn[data-community-id]');
+  if (joinButton) {
+    const communityId = joinButton.dataset.communityId;
+    apiJoinCommunity(communityId, joinButton);
+  }
+});
+
+// --- Evento de clique para Mudar de Comunidade ---
+joinedServersList.addEventListener("click", (e) => {
+  const communityBtn = e.target.closest('.community-btn[data-community-id]');
+  if (communityBtn) {
+    const communityId = communityBtn.dataset.communityId;
+    activateCommunityView("topics", { community: communityId }); // Ativa a vista TÓPICOS
+  }
+});
+
+// --- Evento para Abrir Formulário de Criação ---
+btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
+
+// --- Evento para Cancelar Criação ---
+btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
+
+// --- Evento para Enviar Formulário de Criação ---
+createCommunityForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nameInput = document.getElementById("community-name");
+    const emojiInput = document.getElementById("community-emoji");
+    const name = nameInput.value.trim();
+    const emoji = emojiInput.value.trim();
+
+    if (!name) return;
+
+    apiCreateCommunity(name, emoji, createCommunityForm.querySelector('button[type="submit"]'));
+});
+
+// --- Eventos das Abas Internas da Comunidade ---
+communityTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const view = tab.dataset.communityView;
+        activateCommunityView(view, { community: currentCommunityId });
+    });
+});
+
 
 // ===================================================
 // 5. LÓGICA DE TROCA DE VISÃO (Views) E INICIALIZAÇÃO
@@ -449,19 +546,28 @@ function activateView(name, options = {}) {
 }
 
 function activateCommunityView(name, options = {}) {
+    // 1. Esconde todas as vistas principais (incluindo Home views)
     Object.values(views).forEach(view => view.hidden = true);
+    
+    // 2. Define o Layout: Modo Comunidade
     appEl.classList.add("view-community");
     mainHeader.hidden = true; 
-    channelsEl.hidden = false; 
+    channelsEl.hidden = false; // Mostra a barra de canais/abas
     
+    // 3. Atualiza o estado da Comunidade
     currentCommunityId = options.community;
+    // (Ainda precisamos buscar o nome/emoji da comunidade)
     
+    // 4. Atualiza o ícone ativo na barra de servidores
     document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
     const activeCommunityBtn = document.querySelector(`.community-btn[data-community-id="${options.community}"]`);
     if (activeCommunityBtn) activeCommunityBtn.classList.add("active");
 
+    // 5. Atualiza as abas internas (Topics, Chat-Channels, Members)
     communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
 
+    // 6. Mostra a sub-vista correta e carrega dados
+    // Zera todas as sub-vistas
     communityTopicView.hidden = true;
     communityMembersView.hidden = true;
     communityChatChannelsList.hidden = true;
@@ -473,9 +579,11 @@ function activateCommunityView(name, options = {}) {
     } else if (name === "chat-channels") {
         chatView.hidden = false; 
         communityChatChannelsList.hidden = false; 
+        // Carregar canais (próximo passo)
         renderChannel("geral"); 
     } else if (name === "members") {
         communityMembersView.hidden = false; 
+        // Carregar membros (próximo passo)
     }
 }
 
@@ -493,7 +601,7 @@ function activateCommunityView(name, options = {}) {
 // ... (omissão por brevidade) ...
 
 // ===================================================
-// 9. LÓGICA DE FÓRUM DA COMUNIDADE
+// 9. LÓGICA DE FÓRUM DA COMUNIDADE (NOVO)
 // ... (omissão por brevidade) ...
 
 // --- Inicialização ---
