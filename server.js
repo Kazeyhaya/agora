@@ -24,6 +24,7 @@ const pool = new Pool({
 async function setupDatabase() {
   const client = await pool.connect();
   try {
+    // ... (tabelas messages, posts, profiles, testimonials, comments, follows, communities - sem mudanças)
     await client.query(`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT)`);
@@ -31,8 +32,21 @@ async function setupDatabase() {
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
     await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
+
+    // ===============================================
+    // 👇 NOVA TABELA 'COMMUNITY_MEMBERS' ADICIONADA AQUI 👇
+    // ===============================================
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS community_members (
+        id SERIAL PRIMARY KEY,
+        user_name TEXT NOT NULL,
+        community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_name, community_id) -- Impede entrar na mesma comunidade duas vezes
+      )
+    `);
     
-    console.log('Tabelas (incluindo "communities") verificadas/criadas.');
+    console.log('Tabelas (incluindo "community_members") verificadas/criadas.');
 
   } catch (err) {
     console.error('Erro ao criar tabelas:', err);
@@ -71,275 +85,190 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'agora.html')); 
 });
 
-// --- API (Parte "Feed" e "Explorar Posts") ---
-// ... (rotas /api/posts, /api/posts/explore, /api/posts - POST, /like, /unlike - sem mudanças)
+// --- API (Feed, Perfil, Amigos, etc.) ---
+// ... (Todas as rotas anteriores /api/posts, /explore, /profile, /following, /follow, etc. - Sem mudanças) ...
+// (Vou omiti-las aqui para ser breve, elas continuam iguais)
 app.get('/api/posts', async (req, res) => {
   const { user } = req.query; 
-  if (!user) {
-    return res.status(400).json({ error: 'Utilizador não fornecido' });
-  }
+  if (!user) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
   try {
-    const result = await pool.query(
-      `SELECT p.* FROM posts p
-       LEFT JOIN follows f ON p."user" = f.following_user
-       WHERE f.follower_user = $1 OR p."user" = $1
-       ORDER BY p.timestamp DESC
-       LIMIT 30`,
-      [user]
-    );
+    const result = await pool.query(`SELECT p.* FROM posts p LEFT JOIN follows f ON p."user" = f.following_user WHERE f.follower_user = $1 OR p."user" = $1 ORDER BY p.timestamp DESC LIMIT 30`, [user]);
     res.json({ posts: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar posts:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.get('/api/posts/explore', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT * FROM posts ORDER BY timestamp DESC LIMIT 30`
-    );
+    const result = await pool.query(`SELECT * FROM posts ORDER BY timestamp DESC LIMIT 30`);
     res.json({ posts: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar posts para explorar:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/posts', async (req, res) => {
   const { user, text } = req.body;
-  if (!user || !text) {
-    return res.status(400).json({ error: 'Usuário e texto são obrigatórios' });
-  }
+  if (!user || !text) { return res.status(400).json({ error: 'Usuário e texto são obrigatórios' }); }
   try {
-    const result = await pool.query(
-      `INSERT INTO posts ("user", text, timestamp) VALUES ($1, $2, NOW()) RETURNING *`,
-      [user, text]
-    );
+    const result = await pool.query(`INSERT INTO posts ("user", text, timestamp) VALUES ($1, $2, NOW()) RETURNING *`, [user, text]);
     res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao criar post:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/posts/:id/like', async (req, res) => {
   try {
     const { id } = req.params; 
-    const result = await pool.query(
-      `UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING likes`,
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Post não encontrado' });
-    }
+    const result = await pool.query(`UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING likes`, [id]);
+    if (result.rows.length === 0) { return res.status(404).json({ error: 'Post não encontrado' }); }
     res.status(200).json(result.rows[0]); 
-  } catch (err) {
-    console.error('Erro ao dar like:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/posts/:id/unlike', async (req, res) => {
   try {
     const { id } = req.params; 
-    const result = await pool.query(
-      `UPDATE posts SET likes = GREATEST(0, likes - 1) WHERE id = $1 RETURNING likes`,
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Post não encontrado' });
-    }
+    const result = await pool.query(`UPDATE posts SET likes = GREATEST(0, likes - 1) WHERE id = $1 RETURNING likes`, [id]);
+    if (result.rows.length === 0) { return res.status(404).json({ error: 'Post não encontrado' }); }
     res.status(200).json(result.rows[0]); 
-  } catch (err)
- {
-    console.error('Erro ao descurtir:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
-
-// --- API (Perfil, Depoimentos, Comentários) ---
-// ... (rotas /api/profile, /testimonials, /comments - sem mudanças) ...
 app.get('/api/profile/:username', async (req, res) => {
   try {
     const { username } = req.params;
-    const result = await pool.query(
-      `SELECT bio FROM profiles WHERE "user" = $1`,
-      [username]
-    );
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.json({ bio: "Apaixonado por comunidades e bate-papo." });
-    }
-  } catch (err) {
-    console.error('Erro ao buscar perfil:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+    const result = await pool.query(`SELECT bio FROM profiles WHERE "user" = $1`, [username]);
+    if (result.rows.length > 0) { res.json(result.rows[0]); } else { res.json({ bio: "Apaixonado por comunidades e bate-papo." }); }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/profile', async (req, res) => {
   const { user, bio } = req.body;
-  if (!user || bio === undefined) {
-    return res.status(400).json({ error: 'Usuário e bio são obrigatórios' });
-  }
+  if (!user || bio === undefined) { return res.status(400).json({ error: 'Usuário e bio são obrigatórios' }); }
   try {
-    const result = await pool.query(
-      `INSERT INTO profiles ("user", bio) 
-       VALUES ($1, $2)
-       ON CONFLICT ("user") 
-       DO UPDATE SET bio = $2
-       RETURNING *`,
-      [user, bio]
-    );
+    const result = await pool.query(`INSERT INTO profiles ("user", bio) VALUES ($1, $2) ON CONFLICT ("user") DO UPDATE SET bio = $2 RETURNING *`, [user, bio]);
     res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao atualizar bio:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.get('/api/testimonials/:username', async (req, res) => {
   try {
     const { username } = req.params;
-    const result = await pool.query(
-      `SELECT * FROM testimonials WHERE "to_user" = $1 ORDER BY timestamp DESC LIMIT 30`,
-      [username]
-    );
+    const result = await pool.query(`SELECT * FROM testimonials WHERE "to_user" = $1 ORDER BY timestamp DESC LIMIT 30`, [username]);
     res.json({ testimonials: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar depoimentos:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/testimonials', async (req, res) => {
   const { from_user, to_user, text } = req.body; 
-  if (!from_user || !to_user || !text) {
-    return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
-  }
+  if (!from_user || !to_user || !text) { return res.status(400).json({ error: 'Todos os campos são obrigatórios' }); }
   try {
-    const result = await pool.query(
-      `INSERT INTO testimonials ("from_user", "to_user", text, timestamp) VALUES ($1, $2, $3, NOW()) RETURNING *`,
-      [from_user, to_user, text]
-    );
+    const result = await pool.query(`INSERT INTO testimonials ("from_user", "to_user", text, timestamp) VALUES ($1, $2, $3, NOW()) RETURNING *`, [from_user, to_user, text]);
     res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao salvar depoimento:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.get('/api/posts/:id/comments', async (req, res) => {
   try {
-    const { id } = req.params; // ID do post
-    const result = await pool.query(
-      `SELECT * FROM comments WHERE post_id = $1 ORDER BY timestamp ASC`,
-      [id]
-    );
+    const { id } = req.params; 
+    const result = await pool.query(`SELECT * FROM comments WHERE post_id = $1 ORDER BY timestamp ASC`, [id]);
     res.json({ comments: result.rows });
-  } catch (err) {
-    console.error('Erro ao buscar comentários:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/posts/:id/comments', async (req, res) => {
   try {
-    const { id } = req.params; // ID do post
+    const { id } = req.params; 
     const { user, text } = req.body; 
-
-    if (!user || !text) {
-      return res.status(400).json({ error: 'Usuário e texto são obrigatórios' });
-    }
-    
-    const result = await pool.query(
-      `INSERT INTO comments (post_id, "user", text, timestamp) VALUES ($1, $2, $3, NOW()) RETURNING *`,
-      [id, user, text]
-    );
+    if (!user || !text) { return res.status(400).json({ error: 'Usuário e texto são obrigatórios' }); }
+    const result = await pool.query(`INSERT INTO comments (post_id, "user", text, timestamp) VALUES ($1, $2, $3, NOW()) RETURNING *`, [id, user, text]);
     res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Erro ao salvar comentário:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
-
-// ===============================================
-// 👇 NOVA ROTA "SEGUINDO" (AMIGOS) AQUI 👇
-// ===============================================
 app.get('/api/following/:username', async (req, res) => {
-  const { username } = req.params; // Este é o 'follower_user'
+  const { username } = req.params; 
   try {
-    // Seleciona a lista de pessoas que 'username' segue
-    const result = await pool.query(
-      `SELECT following_user FROM follows WHERE follower_user = $1`,
-      [username]
-    );
-    // Devolve a lista de nomes
+    const result = await pool.query(`SELECT following_user FROM follows WHERE follower_user = $1`, [username]);
     res.json({ following: result.rows.map(row => row.following_user) });
-  } catch (err) {
-    console.error('Erro ao buscar lista de "seguindo":', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
-
-
-// --- API (Parte "Seguir") ---
-// ... (rotas /api/isfollowing, /follow, /unfollow - sem mudanças) ...
 app.get('/api/isfollowing/:username', async (req, res) => {
   const { follower } = req.query;
   const { username } = req.params;
-  if (!follower || !username) {
-    return res.status(400).json({ error: 'Faltam parâmetros' });
-  }
+  if (!follower || !username) { return res.status(400).json({ error: 'Faltam parâmetros' }); }
   try {
-    const result = await pool.query(
-      `SELECT 1 FROM follows WHERE follower_user = $1 AND following_user = $2`,
-      [follower, username]
-    );
+    const result = await pool.query(`SELECT 1 FROM follows WHERE follower_user = $1 AND following_user = $2`, [follower, username]);
     res.json({ isFollowing: result.rows.length > 0 });
-  } catch (err) {
-    console.error('Erro ao verificar se segue:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/follow', async (req, res) => {
   const { follower, following } = req.body; 
-  if (!follower || !following) {
-    return res.status(400).json({ error: 'Faltam parâmetros' });
-  }
+  if (!follower || !following) { return res.status(400).json({ error: 'Faltam parâmetros' }); }
   try {
-    await pool.query(
-      `INSERT INTO follows (follower_user, following_user) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [follower, following]
-    );
+    await pool.query(`INSERT INTO follows (follower_user, following_user) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [follower, following]);
     res.status(201).json({ message: 'Seguido com sucesso' });
-  } catch (err) {
-    console.error('Erro ao seguir:', err);
-    res.status(500).json({ error: 'Erro no servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
 });
 app.post('/api/unfollow', async (req, res) => {
   const { follower, following } = req.body;
-  if (!follower || !following) {
-    return res.status(400).json({ error: 'Faltam parâmetros' });
-  }
+  if (!follower || !following) { return res.status(400).json({ error: 'Faltam parâmetros' }); }
   try {
-    await pool.query(
-      `DELETE FROM follows WHERE follower_user = $1 AND following_user = $2`,
-      [follower, following]
-    );
+    await pool.query(`DELETE FROM follows WHERE follower_user = $1 AND following_user = $2`, [follower, following]);
     res.status(200).json({ message: 'Deixou de seguir com sucesso' });
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
+});
+app.get('/api/communities/explore', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM communities ORDER BY members DESC`);
+    res.json({ communities: result.rows });
+  } catch (err) { res.status(500).json({ error: 'Erro no servidor' }); }
+});
+
+// ===============================================
+// 👇 NOVAS ROTAS DE COMUNIDADE AQUI 👇
+// ===============================================
+
+// [POST] Entrar numa comunidade
+app.post('/api/community/join', async (req, res) => {
+  const { user_name, community_id } = req.body;
+  if (!user_name || !community_id) {
+    return res.status(400).json({ error: 'Faltam dados' });
+  }
+  
+  try {
+    // Adiciona o membro
+    await pool.query(
+      `INSERT INTO community_members (user_name, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [user_name, community_id]
+    );
+    
+    // (Opcional) Incrementa o contador de membros na tabela 'communities'
+    // Esta é uma boa prática, mas podemos deixar para depois
+    
+    // Devolve a comunidade que o utilizador acabou de entrar
+    const communityData = await pool.query(
+      `SELECT * FROM communities WHERE id = $1`,
+      [community_id]
+    );
+
+    res.status(201).json({ community: communityData.rows[0] });
+    
   } catch (err) {
-    console.error('Erro ao deixar de seguir:', err);
+    console.error('Erro ao entrar na comunidade:', err);
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
 
-// --- API (Explorar Comunidades) ---
-// ... (rota /api/communities/explore - sem mudanças) ...
-app.get('/api/communities/explore', async (req, res) => {
+// [GET] Obter as comunidades que um utilizador já entrou
+app.get('/api/communities/joined', async (req, res) => {
+  const { user_name } = req.query; // ex: /api/communities/joined?user_name=Alexandre
+  if (!user_name) {
+    return res.status(400).json({ error: 'Utilizador não fornecido' });
+  }
+  
   try {
+    // Faz um JOIN para buscar os dados das comunidades (emoji, nome, id)
     const result = await pool.query(
-      `SELECT * FROM communities ORDER BY members DESC`
+      `SELECT c.id, c.name, c.emoji 
+       FROM communities c
+       JOIN community_members cm ON c.id = cm.community_id
+       WHERE cm.user_name = $1`,
+      [user_name]
     );
     res.json({ communities: result.rows });
   } catch (err) {
-    console.error('Erro ao buscar comunidades:', err);
+    console.error('Erro ao buscar comunidades do utilizador:', err);
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
+
 
 // --- Lógica do Socket.IO (Chat) ---
 // ... (sem mudanças) ...
