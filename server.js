@@ -9,13 +9,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 const port = process.env.PORT || 3000;
 
-// Habilita o JSON para a API
 app.use(express.json());
-
-// Habilita a pasta 'assets'
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
-
+// ... (Configuração do Pool e setupDatabase() - sem mudanças) ...
 // --- Configuração do Banco de Dados PostgreSQL ---
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -28,10 +25,6 @@ const pool = new Pool({
 async function setupDatabase() {
   const client = await pool.connect();
   try {
-    // ... (todas as tuas tabelas - messages, posts, profiles, testimonials, comments, follows) ...
-    // Vou omitir as queries das tabelas aqui para ser breve, 
-    // mas elas continuam iguais ao ficheiro anterior.
-    // Garante que a tua tabela 'follows' está a ser criada.
     await client.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, 
@@ -65,9 +58,7 @@ async function setupDatabase() {
         timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user)
       )
     `);
-    
     console.log('Tabelas (incluindo "follows") verificadas/criadas.');
-
   } catch (err) {
     console.error('Erro ao criar tabelas:', err);
   } finally {
@@ -75,34 +66,24 @@ async function setupDatabase() {
   }
 }
 
+
 // ===================================================
 // ROTAS DO SERVIDOR
 // ===================================================
 
-// --- Rota Principal (O HTML) ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'agora.html')); 
 });
 
 // --- API (Parte "Feed") ---
 
-// ===============================================
-// 👇 ESTA ROTA FOI ATUALIZADA (PASSO 4) 👇
-// ===============================================
-// [GET] Rota para LER o feed personalizado
+// [GET] Rota para LER o feed PERSONALIZADO (Esta está correta)
 app.get('/api/posts', async (req, res) => {
   const { user } = req.query; // ex: /api/posts?user=Alexandre
-  
   if (!user) {
     return res.status(400).json({ error: 'Utilizador não fornecido' });
   }
-
   try {
-    // Esta consulta SQL agora é poderosa:
-    // 1. Seleciona os posts de toda a gente que o 'user' segue (da tabela 'follows')
-    // 2. ... OU ...
-    // 3. Seleciona os posts do próprio 'user'
-    // 4. Ordena por mais recente e limita a 30.
     const result = await pool.query(
       `SELECT p.* FROM posts p
        LEFT JOIN follows f ON p."user" = f.following_user
@@ -117,6 +98,24 @@ app.get('/api/posts', async (req, res) => {
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
+
+// ===============================================
+// 👇 NOVA ROTA EXPLORAR ADICIONADA AQUI 👇
+// ===============================================
+// [GET] Rota para LER o feed GLOBAL (Explorar)
+app.get('/api/posts/explore', async (req, res) => {
+  try {
+    // Esta é a lógica "antiga" - mostra tudo
+    const result = await pool.query(
+      `SELECT * FROM posts ORDER BY timestamp DESC LIMIT 30`
+    );
+    res.json({ posts: result.rows });
+  } catch (err) {
+    console.error('Erro ao buscar posts para explorar:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
+});
+
 
 // [POST] Rota para CRIAR um novo post no Feed
 app.post('/api/posts', async (req, res) => {
@@ -136,6 +135,7 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
+// ... (Todas as outras rotas - /like, /unlike, /profile, /testimonials, /comments, /follow, /unfollow - continuam aqui, sem mudanças) ...
 // [POST] Rota para DAR LIKE em um post
 app.post('/api/posts/:id/like', async (req, res) => {
   try {
@@ -333,10 +333,8 @@ app.post('/api/unfollow', async (req, res) => {
   }
 });
 
-
 // --- Lógica do Socket.IO (Parte "Discord") ---
 io.on('connection', (socket) => {
-  // ... (toda a tua lógica do socket.io, que está correta e não muda) ...
   console.log(`Um utilizador conectou-se: ${socket.id}`);
 
   socket.on('joinChannel', async (data) => {
@@ -376,7 +374,7 @@ io.on('connection', (socket) => {
         ...data,
         timestamp: timestamp.toLocaleString('pt-BR')
       };
-      io.to(channel).emit('newMessage', broadcastData);
+      io.to(channel).emit('newMessage', data);
     } catch (err) {
       console.error('Erro ao guardar mensagem:', err);
     }

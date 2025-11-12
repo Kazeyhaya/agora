@@ -58,7 +58,7 @@
 
     <section class="feed" id="view-feed">
       <div class="feed-top">
-        <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Postagens das suas comunidades</span></div>
+        <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Posts de quem você segue</span></div>
         <div class="chat-actions"><button class="icon-btn" id="btn-refresh">🔄</button></div>
       </div>
       <div class="composer-feed">
@@ -85,7 +85,7 @@
         <button class="send" id="sendBtn">Enviar</button>
       </div>
     </main>
-
+    
     <section class="profile" id="view-profile" hidden>
       <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div><span class="meta">— Seu perfil social</span></div></div>
       <div class="profile-body">
@@ -111,6 +111,16 @@
       </div>
     </section>
 
+    <section class="feed" id="view-explore" hidden>
+      <div class="feed-top">
+        <div class="chat-topic"><div class="topic-badge">Explorar</div><span class="meta">— Todos os posts da rede</span></div>
+        <div class="chat-actions"><button class="icon-btn" id="btn-explore-refresh">🔄</button></div>
+      </div>
+      <div class="posts" id="explore-posts">
+        </div>
+    </section>
+
+
     <footer class="userbar" role="contentinfo">
       <div class="me">
         <div class="avatar" id="userAvatar">VC</div>
@@ -128,7 +138,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js" defer></script>
-  
   <script src="/assets/script.js" defer></script>
   
 </body>

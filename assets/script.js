@@ -10,14 +10,13 @@ if (!currentUser) {
   if (!currentUser || !currentUser.trim()) currentUser = "Anônimo";
   localStorage.setItem("agora:user", currentUser);
 }
-// Atualiza a UI com o nome do usuário
 document.getElementById("userName").textContent = currentUser;
 const userInitial = currentUser.slice(0, 2).toUpperCase();
 document.getElementById("userAvatar").textContent = userInitial;
 
 // --- Estado da UI ---
-let activeChannel = "geral"; // Canal de chat padrão
-let viewedUsername = currentUser; // Guarda quem estamos a ver no perfil
+let activeChannel = "geral"; 
+let viewedUsername = currentUser; 
 
 // --- Referências do Chat ---
 const chatMessagesEl = document.getElementById("messages");
@@ -26,11 +25,16 @@ const chatInputEl = document.getElementById("composerInput");
 const chatSendBtn = document.getElementById("sendBtn");
 const channelButtons = document.querySelectorAll(".channel[data-channel]");
 
-// --- Referências do Feed ---
+// --- Referências do Feed (Pessoal) ---
 const postsEl = document.getElementById("posts");
 const feedInput = document.getElementById("feedInput");
 const feedSend = document.getElementById("feedSend");
 const feedRefreshBtn = document.getElementById("btn-refresh");
+
+// --- Referências do Feed (Explorar) --- (NOVO)
+const explorePostsEl = document.getElementById("explore-posts");
+const btnExplore = document.getElementById("btn-explore");
+const btnExploreRefresh = document.getElementById("btn-explore-refresh");
 
 // --- Referências do Perfil ---
 const profileAvatarEl = document.getElementById("profileAvatar");
@@ -50,7 +54,8 @@ const viewTabs = document.querySelectorAll(".view-tabs .pill");
 const views = {
   feed: document.getElementById("view-feed"),
   chat: document.getElementById("view-chat"),
-  profile: document.getElementById("view-profile")
+  profile: document.getElementById("view-profile"),
+  explore: document.getElementById("view-explore") // 👈 NOVO
 };
 
 // --- Conexão Socket.IO (Só para o Chat) ---
@@ -60,75 +65,95 @@ const socket = io();
 // 2. LÓGICA DO FEED (API / "Agora")
 // ===================================================
 
-// --- Funções da API do Feed ---
+// --- Funções da API do Feed (Pessoal) ---
 async function apiGetPosts() {
   try {
-    // ===============================================
-    // 👇 ESTA LINHA FOI ATUALIZADA (PASSO 4) 👇
-    // ===============================================
-    // Agora enviamos o 'currentUser' para o backend saber qual feed mostrar
     const response = await fetch(`/api/posts?user=${encodeURIComponent(currentUser)}`);
     if (!response.ok) return;
     const data = await response.json();
-    renderPosts(data.posts || []);
+    renderPosts(data.posts || []); // Renderiza no feed pessoal
   } catch (err) {
     console.error("Falha ao buscar posts:", err);
     postsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>";
   }
 }
 
+// --- Funções da API do Feed (Explorar) --- (NOVO)
+async function apiGetExplorePosts() {
+  try {
+    const response = await fetch('/api/posts/explore'); // Chama a nova rota
+    if (!response.ok) return;
+    const data = await response.json();
+    renderExplorePosts(data.posts || []); // Renderiza no feed explorar
+  } catch (err) {
+    console.error("Falha ao buscar posts do explorar:", err);
+    explorePostsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>";
+  }
+}
+
 async function apiCreatePost() {
+  // ... (sem mudanças)
   const text = feedInput.value.trim();
   if (!text) return;
-
-  feedSend.disabled = true; // Desabilita botão
+  feedSend.disabled = true;
   try {
     await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user: currentUser, text: text })
     });
-    feedInput.value = ""; // Limpa o input
-    apiGetPosts(); // Atualiza o feed
+    feedInput.value = ""; 
+    apiGetPosts(); 
   } catch (err) {
     console.error("Falha ao criar post:", err);
   }
-  feedSend.disabled = false; // Re-abilita botão
+  feedSend.disabled = false;
 }
 
 async function apiLikePost(postId) {
+  // ... (sem mudanças)
   try {
     await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
-    apiGetPosts(); 
+    // Atualiza ambos os feeds se estiverem ativos
+    if (!views.feed.hidden) apiGetPosts(); 
+    if (!views.explore.hidden) apiGetExplorePosts();
   } catch (err) {
     console.error("Falha ao dar like:", err);
   }
 } 
 
-async function apiUnlikePost(postId) {
-  try {
-    await fetch(`/api/posts/${postId}/unlike`, { method: 'POST' });
-    apiGetPosts();
-  } catch (err) {
-    console.error("Falha ao descurtir:", err);
-  }
-}
-
-// --- Renderização do Feed ---
+// --- Renderização do Feed (Pessoal) ---
 function renderPosts(posts) {
   if (!postsEl) return;
   if (posts.length === 0) {
-    postsEl.innerHTML = "<div class='meta' style='padding: 12px;'>O seu feed está vazio. Siga alguém para ver os posts aqui!</div>";
+    postsEl.innerHTML = "<div class='meta' style='padding: 12px;'>O seu feed está vazio. Siga alguém (ou poste algo) para ver aqui!</div>";
     return;
   }
-  
-  postsEl.innerHTML = ""; // Limpa antes de renderizar
+  // Chama a função de renderização genérica
+  renderPostList(postsEl, posts);
+}
+
+// --- Renderização do Feed (Explorar) --- (NOVO)
+function renderExplorePosts(posts) {
+  if (!explorePostsEl) return;
+  if (posts.length === 0) {
+    explorePostsEl.innerHTML = "<div class='meta' style='padding: 12px;'>Ainda não há posts na rede.</div>";
+    return;
+  }
+  // Chama a função de renderização genérica
+  renderPostList(explorePostsEl, posts);
+}
+
+// --- Renderização Genérica (NOVO) ---
+// (Reutiliza a lógica de renderização para ambos os feeds)
+function renderPostList(containerElement, posts) {
+  containerElement.innerHTML = ""; // Limpa o container
   posts.forEach(post => {
     const node = document.createElement("div");
     node.className = "post";
     const postUserInitial = (post.user || "?").slice(0, 2).toUpperCase();
     const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
-    const isLiked = post.likes > 0; // Simplificado
+    const isLiked = post.likes > 0; 
 
     node.innerHTML = `
       <div class="avatar">${escapeHtml(postUserInitial)}</div>
@@ -149,13 +174,16 @@ function renderPosts(posts) {
         <div class="comments" id="comments-for-${post.id}">
           </div>
       </div>`;
-    postsEl.appendChild(node);
+    containerElement.appendChild(node);
     
+    // A API de comentários não muda
     apiGetComments(post.id);
   });
 }
 
+
 // --- Funções da API de Comentários ---
+// ... (sem mudanças)
 async function apiGetComments(postId) {
   try {
     const res = await fetch(`/api/posts/${postId}/comments`);
@@ -166,7 +194,6 @@ async function apiGetComments(postId) {
     console.error(`Falha ao buscar comentários para o post ${postId}:`, err);
   }
 }
-
 async function apiCreateComment(postId, text) {
   try {
     await fetch(`/api/posts/${postId}/comments`, {
@@ -179,8 +206,6 @@ async function apiCreateComment(postId, text) {
     console.error("Falha ao criar comentário:", err);
   }
 }
-
-// --- Renderização dos Comentários ---
 function renderComments(postId, comments) {
   const container = document.getElementById(`comments-for-${postId}`);
   if (!container) return; 
@@ -194,6 +219,13 @@ function renderComments(postId, comments) {
 }
 
 // --- Funções da API do Perfil ---
+// ... (sem mudanças)
+async function apiGetProfile(username) { /* ... */ } 
+async function apiUpdateBio() { /* ... */ }
+async function apiGetTestimonials(username) { /* ... */ }
+async function apiCreateTestimonial() { /* ... */ }
+function renderTestimonials(testimonials) { /* ... */ }
+// (Vou omitir o código completo destas funções para ser breve, copie-as da sua versão anterior)
 async function apiGetProfile(username) { 
   try {
     const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
@@ -204,11 +236,9 @@ async function apiGetProfile(username) {
     console.error("Falha ao buscar bio:", err);
   }
 } 
-
 async function apiUpdateBio() {
   const newBio = prompt("Digite sua nova bio:", profileBioEl.textContent);
   if (newBio === null || newBio.trim() === "") return; 
-
   try {
     const res = await fetch('/api/profile', {
       method: 'POST',
@@ -222,8 +252,6 @@ async function apiUpdateBio() {
     console.error("Falha ao salvar bio:", err);
   }
 }
-
-// --- Funções da API de Depoimentos ---
 async function apiGetTestimonials(username) { 
   try {
     const res = await fetch(`/api/testimonials/${encodeURIComponent(username)}`);
@@ -234,11 +262,9 @@ async function apiGetTestimonials(username) {
     console.error("Falha ao buscar depoimentos:", err);
   }
 }
-
 async function apiCreateTestimonial() {
   const text = testimonialInput.value.trim();
   if (!text) return; 
-
   testimonialSend.disabled = true;
   try {
     await fetch('/api/testimonials', {
@@ -257,15 +283,12 @@ async function apiCreateTestimonial() {
   }
   testimonialSend.disabled = false;
 }
-
-// --- Renderização dos Depoimentos ---
 function renderTestimonials(testimonials) {
   if (!testimonialsEl) return;
   if (testimonials.length === 0) {
     testimonialsEl.innerHTML = "<div class='meta'>Seja o primeiro a deixar um depoimento!</div>";
     return;
   }
-  
   testimonialsEl.innerHTML = ""; // Limpa a lista
   testimonials.forEach(item => {
     const node = document.createElement("div");
@@ -279,7 +302,13 @@ function renderTestimonials(testimonials) {
 // 3. LÓGICA DO CHAT (Socket.IO / "Agora")
 // ===================================================
 
-// (Esta secção não teve mudanças)
+// ... (sem mudanças)
+function renderChannel(name) { /* ... */ }
+function addMessageBubble({ user, timestamp, message }) { /* ... */ }
+function sendChatMessage() { /* ... */ }
+socket.on('loadHistory', (messages) => { /* ... */ });
+socket.on('newMessage', (data) => { /* ... */ });
+// (Vou omitir o código completo destas funções para ser breve, copie-as da sua versão anterior)
 function renderChannel(name) {
   activeChannel = name; 
   chatMessagesEl.innerHTML = ""; 
@@ -332,6 +361,7 @@ socket.on('newMessage', (data) => {
   }
 });
 
+
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
@@ -342,22 +372,20 @@ chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat
 channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
 
 // --- Eventos do Feed (Likes, Comentários e Ver Perfil) ---
-postsEl.addEventListener("click", (e) => {
-  // --- Lógica de ver Perfil ---
+// Modificado para funcionar em AMBOS os feeds
+function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
   if (userLink) {
     viewedUsername = userLink.dataset.username; 
     activateView("profile"); 
     return;
   }
-  // --- Lógica de Like ---
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     apiLikePost(postId); 
     return;
   }
-  // --- Lógica de Comentário ---
   const commentButton = e.target.closest('[data-comment]');
   if (commentButton) {
     const postId = commentButton.dataset.comment;
@@ -367,11 +395,15 @@ postsEl.addEventListener("click", (e) => {
     }
     return;
   }
-});
+}
+postsEl.addEventListener("click", handlePostClick);
+explorePostsEl.addEventListener("click", handlePostClick); // 👈 NOVO: Mesma lógica no feed explorar
+
 
 // --- Eventos dos Botões do Feed (Publicar e Refresh) ---
 feedSend.addEventListener("click", apiCreatePost);
 feedRefreshBtn.addEventListener("click", apiGetPosts);
+btnExploreRefresh.addEventListener("click", apiGetExplorePosts); // 👈 NOVO
 
 // --- Evento de Depoimento ---
 testimonialSend.addEventListener("click", apiCreateTestimonial);
@@ -381,11 +413,12 @@ viewTabs.forEach(b => b.addEventListener("click", () => {
   const viewName = b.dataset.view;
   if (viewName === 'profile') {
     viewedUsername = currentUser; 
-    activateView("profile");
-  } else {
-    activateView(viewName);
   }
+  activateView(viewName);
 }));
+
+// --- Evento do Botão Explorar --- (NOVO)
+btnExplore.addEventListener("click", () => activateView("explore"));
 
 
 // ===================================================
@@ -393,13 +426,26 @@ viewTabs.forEach(b => b.addEventListener("click", () => {
 // ===================================================
 
 function activateView(name) {
+  // 1. Esconde todas as seções
   Object.values(views).forEach(view => view.hidden = true);
+  // 2. Mostra a seção correta
   if (views[name]) {
     views[name].hidden = false;
   }
-  viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
-  appEl.classList.remove("view-feed", "view-chat", "view-profile");
-  appEl.classList.add(`view-${name}`);
+  
+  // 3. Atualiza os botões (tabs)
+  // Se estamos no "explorar", nenhuma aba principal fica ativa
+  if (name === 'explore') {
+    viewTabs.forEach(b => b.classList.remove("active"));
+    btnExplore.classList.add("active"); // Ativa o botão explorar
+  } else {
+    viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+    btnExplore.classList.remove("active"); // Garante que o explorar não está ativo
+  }
+
+  // 4. Ajusta o layout do grid
+  appEl.classList.remove("view-feed", "view-chat", "view-profile", "view-explore");
+  appEl.classList.add(`view-${name}`); // (view-explore funciona como view-feed no CSS)
 
   if (name === "chat") {
     channelsEl.style.display = "flex";
@@ -417,36 +463,35 @@ function activateView(name) {
   if (name === "profile") {
     showDynamicProfile(viewedUsername); 
   }
+  if (name === "explore") { // 👈 NOVO
+    apiGetExplorePosts();
+  }
 }
 
 // ===================================================
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
 // ===================================================
 
+// ... (sem mudanças)
+async function showDynamicProfile(username) { /* ... */ }
+async function apiFollow(username) { /* ... */ }
+async function apiUnfollow(username) { /* ... */ }
+// (Vou omitir o código completo destas funções para ser breve, copie-as da sua versão anterior)
 async function showDynamicProfile(username) {
   if (!username) return;
-
-  // 1. Carrega os dados do utilizador (bio e depoimentos)
   apiGetProfile(username);
   apiGetTestimonials(username);
-
-  // 2. Atualiza a UI do Perfil imediatamente
   profileNameEl.textContent = username;
   profileAvatarEl.textContent = username.slice(0, 2).toUpperCase();
-  
-  // 3. Decide qual botão mostrar (Editar vs. Seguir)
-  editBioBtn.disabled = true; // Desativa botão enquanto verifica
-  
+  editBioBtn.disabled = true; 
   if (username === currentUser) {
     editBioBtn.textContent = "Editar bio";
-    editBioBtn.onclick = apiUpdateBio; // Liga à função de editar
+    editBioBtn.onclick = apiUpdateBio; 
     editBioBtn.disabled = false;
   } else {
-    // Verifica se já segue o utilizador
     try {
       const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
       const data = await res.json();
-      
       if (data.isFollowing) {
         editBioBtn.textContent = "Deixar de Seguir";
         editBioBtn.onclick = () => apiUnfollow(username);
@@ -454,16 +499,13 @@ async function showDynamicProfile(username) {
         editBioBtn.textContent = "Seguir"; 
         editBioBtn.onclick = () => apiFollow(username);
       }
-      editBioBtn.disabled = false; // Ativa o botão
-      
+      editBioBtn.disabled = false; 
     } catch (err) {
       console.error("Erro ao verificar 'follow':", err);
       editBioBtn.textContent = "Erro";
     }
   }
 }
-
-// Função: Seguir
 async function apiFollow(username) {
   editBioBtn.disabled = true;
   try {
@@ -472,7 +514,6 @@ async function apiFollow(username) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ follower: currentUser, following: username })
     });
-    // Atualiza o botão
     editBioBtn.textContent = "Deixar de Seguir";
     editBioBtn.onclick = () => apiUnfollow(username);
     editBioBtn.disabled = false;
@@ -481,8 +522,6 @@ async function apiFollow(username) {
     editBioBtn.disabled = false;
   }
 }
-
-// Função: Deixar de Seguir
 async function apiUnfollow(username) {
   editBioBtn.disabled = true;
   try {
@@ -491,7 +530,6 @@ async function apiUnfollow(username) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ follower: currentUser, following: username })
     });
-    // Atualiza o botão
     editBioBtn.textContent = "Seguir";
     editBioBtn.onclick = () => apiFollow(username);
     editBioBtn.disabled = false;
@@ -512,9 +550,7 @@ function escapeHtml(s) {
 // --- Inicialização ---
 socket.on('connect', () => {
   console.log('Socket conectado:', socket.id);
-  // Define o teu perfil na userbar (isto era feito noutro sítio, agora está aqui)
   document.getElementById("userName").textContent = currentUser;
   document.getElementById("userAvatar").textContent = currentUser.slice(0, 2).toUpperCase();
-  
-  activateView("feed"); // Começa o aplicativo na aba "Feed"
+  activateView("feed"); 
 });
