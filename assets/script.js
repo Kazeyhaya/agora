@@ -56,7 +56,7 @@ const exploreServersBtn = document.getElementById("explore-servers-btn");
 const communityListContainer = document.getElementById("community-list-container");
 const joinedServersList = document.getElementById("joined-servers-list"); 
 
-// --- Referências de Criação de Comunidade (NOVO) ---
+// --- Referências de Criação de Comunidade ---
 const createCommunityView = document.getElementById("view-create-community");
 const btnShowCreateCommunity = document.getElementById("btn-show-create-community");
 const btnCancelCreate = document.getElementById("btn-cancel-create");
@@ -78,7 +78,7 @@ const views = {
   profile: profileView,
   explore: exploreView,
   "explore-servers": exploreServersView,
-  "create-community": createCommunityView // Adicionada nova vista
+  "create-community": createCommunityView 
 };
 
 // --- Conexão Socket.IO (Só para o Chat) ---
@@ -423,11 +423,6 @@ userbarMeBtn.addEventListener("click", () => {
   activateView("profile"); 
 });
 
-// --- Eventos dos Servidores ---
-homeBtn.addEventListener("click", () => {
-  activateView("feed"); 
-});
-
 // --- Evento do Botão "+" ---
 exploreServersBtn.addEventListener("click", () => {
   activateView("explore-servers");
@@ -501,7 +496,7 @@ function activateView(name, options = {}) {
     channelsEl.hidden = true;
     views[name].hidden = false;
     
-    if (name === 'explore-servers' || name === 'create-community') { // Ambos ativam o botão "+"
+    if (name === 'explore-servers' || name === 'create-community') { 
       exploreServersBtn.classList.add("active"); 
     } else {
       homeBtn.classList.add("active"); 
@@ -539,10 +534,70 @@ function activateView(name, options = {}) {
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
 // ===================================================
 
-async function showDynamicProfile(username) { /* ... */ }
-async function apiFollow(username) { /* ... */ }
-async function apiUnfollow(username) { /* ... */ }
-// (Omitido por brevidade, código igual ao do Passo 1)
+async function showDynamicProfile(username) {
+  if (!username) return;
+  apiGetProfile(username);
+  apiGetTestimonials(username);
+  apiGetFollowing(username); 
+  profileNameEl.textContent = username;
+  profileAvatarEl.textContent = username.slice(0, 2).toUpperCase();
+  editBioBtn.disabled = true; 
+  if (username === currentUser) {
+    editBioBtn.textContent = "Editar bio";
+    editBioBtn.onclick = apiUpdateBio; 
+    editBioBtn.disabled = false;
+  } else {
+    try {
+      const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
+      const data = await res.json();
+      if (data.isFollowing) {
+        editBioBtn.textContent = "Deixar de Seguir";
+        editBioBtn.onclick = () => apiUnfollow(username);
+      } else {
+        editBioBtn.textContent = "Seguir"; 
+        editBioBtn.onclick = () => apiFollow(username);
+      }
+      editBioBtn.disabled = false; 
+    } catch (err) {
+      console.error("Erro ao verificar 'follow':", err);
+      editBioBtn.textContent = "Erro";
+    }
+  }
+}
+async function apiFollow(username) {
+  editBioBtn.disabled = true;
+  try {
+    await fetch('/api/follow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    editBioBtn.textContent = "Deixar de Seguir";
+    editBioBtn.onclick = () => apiUnfollow(username);
+    editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao seguir:", err);
+    editBioBtn.disabled = false;
+  }
+}
+async function apiUnfollow(username) {
+  editBioBtn.disabled = true;
+  try {
+    await fetch('/api/unfollow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    editBioBtn.textContent = "Seguir";
+    editBioBtn.onclick = () => apiFollow(username);
+    editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao deixar de seguir:", err);
+    editBioBtn.disabled = false;
+  }
+}
 
 // ===================================================
 // 7. LÓGICA DE EXPLORAR COMUNIDADES
@@ -588,6 +643,37 @@ function renderExploreCommunities(communities) {
 // 8. LÓGICA DE AMIGOS E ENTRAR EM COMUNIDADES
 // ===================================================
 
+// --- Lógica de Amigos ---
+async function apiGetFollowing(username) {
+  try {
+    const res = await fetch(`/api/following/${encodeURIComponent(username)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderFollowing(data.following || []);
+  } catch (err) {
+    console.error("Erro ao buscar lista de 'seguindo':", err);
+    friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>";
+  }
+}
+function renderFollowing(followingList) {
+  if (!friendsContainer) return;
+  friendsContainer.innerHTML = ""; 
+  if (followingList.length === 0) {
+    friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>";
+    return;
+  }
+  followingList.forEach(username => {
+    const node = document.createElement("div");
+    node.className = "friend-card";
+    const userInitial = username.slice(0, 2).toUpperCase();
+    node.innerHTML = `
+      <div class="avatar">${escapeHtml(userInitial)}</div>
+      <strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>
+    `;
+    friendsContainer.appendChild(node);
+  });
+}
+
 // --- Lógica de Entrar/Listar Comunidades ---
 async function apiJoinCommunity(communityId, button) {
   button.disabled = true;
@@ -604,7 +690,7 @@ async function apiJoinCommunity(communityId, button) {
     
     const data = await res.json();
     renderJoinedCommunities([data.community]); 
-    activateView("chat", { community: data.community.id }); // Usa o ID da comunidade
+    activateView("chat", { community: data.community.id });
     
   } catch (err) {
     console.error("Erro ao entrar na comunidade:", err);
@@ -612,6 +698,35 @@ async function apiJoinCommunity(communityId, button) {
     button.disabled = false;
     button.textContent = "Entrar";
   }
+}
+
+async function apiGetJoinedCommunities() {
+  try {
+    const res = await fetch(`/api/communities/joined?user_name=${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderJoinedCommunities(data.communities || []);
+  } catch (err) {
+    console.error("Erro ao buscar comunidades do utilizador:", err);
+  }
+}
+
+function renderJoinedCommunities(communities) {
+  if (!joinedServersList) return;
+  
+  communities.forEach(community => {
+    if (document.querySelector(`.community-btn[data-community-id="${community.id}"]`)) {
+      return; 
+    }
+    
+    const node = document.createElement("div");
+    node.className = "server community-btn";
+    node.dataset.communityId = community.id;
+    node.title = community.name;
+    node.innerHTML = `<span class="emoji">${escapeHtml(community.emoji)}</span>`;
+    
+    joinedServersList.appendChild(node);
+  });
 }
 
 // --- Lógica de Criação de Comunidades (NOVO) ---
@@ -648,54 +763,6 @@ async function apiCreateCommunity(name, emoji, button) {
 }
 
 
-// ... (apiGetFollowing, renderFollowing, apiGetJoinedCommunities, renderJoinedCommunities, Segurança, Inicialização - Sem mudanças) ...
-
-async function apiGetFollowing(username) {
-  try {
-    const res = await fetch(`/api/following/${encodeURIComponent(username)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderFollowing(data.following || []);
-  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
-}
-function renderFollowing(followingList) {
-  if (!friendsContainer) return;
-  friendsContainer.innerHTML = ""; 
-  if (followingList.length === 0) { friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>"; return; }
-  followingList.forEach(username => {
-    const node = document.createElement("div");
-    node.className = "friend-card";
-    const userInitial = username.slice(0, 2).toUpperCase();
-    node.innerHTML = `
-      <div class="avatar">${escapeHtml(userInitial)}</div>
-      <strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>
-    `;
-    friendsContainer.appendChild(node);
-  });
-}
-async function apiGetJoinedCommunities() {
-  try {
-    const res = await fetch(`/api/communities/joined?user_name=${encodeURIComponent(currentUser)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderJoinedCommunities(data.communities || []);
-  } catch (err) { console.error("Erro ao buscar comunidades do utilizador:", err); }
-}
-function renderJoinedCommunities(communities) {
-  if (!joinedServersList) return;
-  communities.forEach(community => {
-    if (document.querySelector(`.community-btn[data-community-id="${community.id}"]`)) {
-      return; 
-    }
-    const node = document.createElement("div");
-    node.className = "server community-btn";
-    node.dataset.communityId = community.id;
-    node.title = community.name;
-    node.innerHTML = `<span class="emoji">${escapeHtml(community.emoji)}</span>`;
-    joinedServersList.appendChild(node);
-  });
-}
-
 // --- Segurança ---
 function escapeHtml(s) {
   if (!s) return "";
@@ -709,6 +776,7 @@ socket.on('connect', () => {
   console.log('Socket conectado:', socket.id);
   document.getElementById("userName").textContent = currentUser;
   document.getElementById("userAvatar").textContent = currentUser.slice(0, 2).toUpperCase();
+  
   apiGetJoinedCommunities(); 
   activateView("feed"); 
 });
