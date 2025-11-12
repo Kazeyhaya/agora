@@ -12,11 +12,8 @@ const port = process.env.PORT || 3000;
 // Habilita o JSON para a API
 app.use(express.json());
 
-// ===============================================
-// 👇 LINHA NOVA PARA SERVIR A PASTA ASSETS 👇
-// ===============================================
+// Habilita a pasta 'assets'
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
-// ===============================================
 
 
 // --- Configuração do Banco de Dados PostgreSQL ---
@@ -53,7 +50,7 @@ async function setupDatabase() {
       )
     `);
 
-    // NOVA Tabela de Perfis (da Bio)
+    // Tabela de Perfis (da Bio)
     await client.query(`
       CREATE TABLE IF NOT EXISTS profiles (
         "user" TEXT PRIMARY KEY,
@@ -61,7 +58,7 @@ async function setupDatabase() {
       )
     `);
     
-    // NOVA Tabela de Depoimentos (Testimonials)
+    // Tabela de Depoimentos (Testimonials)
     await client.query(`
       CREATE TABLE IF NOT EXISTS testimonials (
         id SERIAL PRIMARY KEY,
@@ -82,7 +79,7 @@ async function setupDatabase() {
 }
 
 // ===================================================
-// ROTAS DO SERVIDOR (A PARTE MAIS IMPORTANTE)
+// ROTAS DO SERVIDOR
 // ===================================================
 
 // --- Rota Principal (O HTML) ---
@@ -91,6 +88,8 @@ app.get('/', (req, res) => {
 });
 
 // --- API (Parte "Feed") ---
+
+// [GET] Rota para LER todos os posts do Feed
 app.get('/api/posts', async (req, res) => {
   try {
     const result = await pool.query(
@@ -103,6 +102,7 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// [POST] Rota para CRIAR um novo post no Feed
 app.post('/api/posts', async (req, res) => {
   const { user, text } = req.body;
   if (!user || !text) {
@@ -119,6 +119,32 @@ app.post('/api/posts', async (req, res) => {
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
+
+// ===============================================
+// 👇 ROTA DE "CURTIR" (LIKE) ADICIONADA AQUI 👇
+// ===============================================
+app.post('/api/posts/:id/like', async (req, res) => {
+  try {
+    const { id } = req.params; // Pega o ID do post da URL
+
+    const result = await pool.query(
+      // Adiciona 1 ao contador de likes e retorna o valor novo
+      `UPDATE posts SET likes = likes + 1 WHERE id = $1 RETURNING likes`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post não encontrado' });
+    }
+
+    res.status(200).json(result.rows[0]); // Envia de volta: { likes: 1 }
+
+  } catch (err) {
+    console.error('Erro ao dar like:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
+});
+
 
 // --- API (Parte "Perfil") ---
 app.get('/api/profile/:username', async (req, res) => {
