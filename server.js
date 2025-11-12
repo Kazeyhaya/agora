@@ -143,7 +143,6 @@ app.post('/api/posts/:id/unlike', async (req, res) => {
   try {
     const { id } = req.params; 
     const result = await pool.query(
-      // Usa GREATEST para garantir que o like nunca fique negativo
       `UPDATE posts SET likes = GREATEST(0, likes - 1) WHERE id = $1 RETURNING likes`,
       [id]
     );
@@ -167,7 +166,7 @@ app.get('/api/profile/:username', async (req, res) => {
       [username]
     );
     if (result.rows.length > 0) {
-      res.json(result.rows[0]); // Envia a bio: { bio: "..." }
+      res.json(result.rows[0]);
     } else {
       res.json({ bio: "Apaixonado por comunidades e bate-papo." });
     }
@@ -289,6 +288,6 @@ io.on('connection', (socket) => {
 // --- Iniciar o Servidor ---
 setupDatabase().then(() => {
   server.listen(port, () => {
-    console.log(`Agora a rodar na porta ${port}`); // <--- MUDANÇA AQUI: Agora
+    console.log(`Agora a rodar na porta ${port}`); // <-- MUDANÇA AQUI: Agora
   });
-});
+}); // 

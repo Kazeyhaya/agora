@@ -320,4 +320,90 @@ function sendChatMessage() {
     channel: activeChannel,
     user: currentUser, 
     message: text,
-    timestamp: new Date().toLocaleString('pt-BR')
+    timestamp: new Date().toLocaleString('pt-BR') 
+  };
+  
+  socket.emit('sendMessage', messageData);
+  
+  chatInputEl.value = "";
+  chatInputEl.focus();
+}
+
+// --- Eventos do Chat (Socket.IO) ---
+chatSendBtn.addEventListener("click", sendChatMessage);
+chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
+
+// --- Ouvintes do Socket.IO (Backend -> Frontend) ---
+socket.on('loadHistory', (messages) => {
+  chatMessagesEl.innerHTML = ""; 
+  messages.forEach(addMessageBubble);
+  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+});
+
+socket.on('newMessage', (data) => {
+  if (data.channel === activeChannel) { 
+     addMessageBubble(data);
+  }
+});
+
+// ===================================================
+// 4. LÓGICA DE TROCA DE VISÃO (Views)
+// ===================================================
+
+function activateView(name) {
+  // 1. Esconde todas as seções
+  Object.values(views).forEach(view => view.hidden = true);
+  // 2. Mostra a seção correta
+  if (views[name]) {
+    views[name].hidden = false;
+  }
+  
+  // 3. Atualiza os botões (tabs)
+  viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+
+  // 4. Ajusta o layout do grid
+  appEl.classList.remove("view-feed", "view-chat", "view-profile");
+  appEl.classList.add(`view-${name}`);
+
+  if (name === "chat") {
+    // Layout de Chat (com canais)
+    channelsEl.style.display = "flex";
+    if (socket.connected) {
+      renderChannel(activeChannel); 
+    }
+  } else {
+    // Layout de Feed/Perfil (sem canais)
+    channelsEl.style.display = "none";
+  }
+
+  // 5. Carrega os dados da aba
+  if (name === "feed") {
+    apiGetPosts(); // Carrega os posts ao entrar no feed
+  }
+  if (name === "profile") {
+    apiGetProfile(); // Carrega a bio ao entrar no perfil
+    apiGetTestimonials(); // Carrega os depoimentos
+  }
+}
+
+// --- Eventos das Abas ---
+viewTabs.forEach(b => b.addEventListener("click", () => activateView(b.dataset.view)));
+
+// ===================================================
+// 5. INICIALIZAÇÃO E UTILITÁRIOS
+// ===================================================
+
+// --- Segurança ---
+function escapeHtml(s) {
+  if (!s) return "";
+  return s.replace(/[&<>"']/g, m => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  }[m]));
+}
+
+// --- Inicialização ---
+socket.on('connect', () => {
+  console.log('Socket conectado:', socket.id);
+  activateView("feed"); // Começa o aplicativo na aba "Feed"
+});
