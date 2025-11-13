@@ -1,12 +1,12 @@
 // src/controllers/profile.controller.js
-const Profile = require('../models/profile.model');
+const Profile = require('../models/profile.class'); // MUDANÇA: Importa a Classe
 
 // [GET] /api/profile/:username
 const getProfileBio = async (req, res) => {
     try {
         const { username } = req.params;
-        const bio = await Profile.getProfile(username);
-        res.json({ bio });
+        const profile = await Profile.findByUser(username); // Encontra o perfil
+        res.json({ bio: profile.bio }); // Retorna a bio dele
     } catch (err) {
         console.error("Erro no controlador getProfileBio:", err);
         res.status(500).json({ error: 'Erro ao buscar perfil' });
@@ -20,8 +20,12 @@ const updateProfileBio = async (req, res) => {
         if (!user || bio === undefined) {
             return res.status(400).json({ error: 'Utilizador e bio são obrigatórios' });
         }
-        const updatedProfile = await Profile.updateProfile(user, bio);
-        res.status(200).json(updatedProfile);
+        
+        const profile = await Profile.findByUser(user); // 1. Encontra
+        profile.bio = bio; // 2. Modifica o objeto
+        await profile.save(); // 3. Diz-lhe para se salvar
+        
+        res.status(200).json(profile);
     } catch (err) {
         console.error("Erro no controlador updateProfileBio:", err);
         res.status(500).json({ error: 'Erro ao atualizar bio' });
@@ -32,7 +36,9 @@ const updateProfileBio = async (req, res) => {
 const getFollowingList = async (req, res) => {
     try {
         const { username } = req.params;
-        const followingList = await Profile.getFollowing(username);
+        const profile = await Profile.findByUser(username); // 1. Encontra
+        const followingList = await profile.getFollowing(); // 2. Pede-lhe a lista
+        
         res.json({ following: followingList });
     } catch (err) {
         console.error("Erro no controlador getFollowingList:", err);
@@ -40,15 +46,19 @@ const getFollowingList = async (req, res) => {
     }
 };
 
-// [GET] /api/isfollowing/:username (O que corrige o botão "Erro")
+// [GET] /api/isfollowing/:username
 const getIsFollowing = async (req, res) => {
     try {
-        const { username } = req.params; // Quem o utilizador está a ver
-        const { follower } = req.query; // O utilizador atual
-        if (!follower) {
+        const { username: userToCheck } = req.params; // Quem o utilizador está a ver
+        const { follower: currentUsername } = req.query; // O utilizador atual
+        
+        if (!currentUsername) {
             return res.status(400).json({ error: "Follower não especificado" });
         }
-        const isFollowing = await Profile.checkFollowing(follower, username);
+
+        const profile = await Profile.findByUser(currentUsername); // 1. Encontra o perfil do utilizador ATUAL
+        const isFollowing = await profile.isFollowing(userToCheck); // 2. Pergunta-lhe se ele segue o outro
+        
         res.json({ isFollowing });
     } catch (err) {
         console.error("Erro no controlador getIsFollowing:", err);
@@ -63,8 +73,11 @@ const addFollow = async (req, res) => {
         if (!follower || !following) {
             return res.status(400).json({ error: 'Follower e Following são obrigatórios' });
         }
-        const result = await Profile.followUser(follower, following);
-        res.status(201).json(result);
+        
+        const profile = await Profile.findByUser(follower); // 1. Encontra o perfil
+        await profile.follow(following); // 2. Diz-lhe para seguir
+        
+        res.status(201).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador addFollow:", err);
         res.status(500).json({ error: 'Erro ao seguir' });
@@ -78,8 +91,11 @@ const removeFollow = async (req, res) => {
         if (!follower || !following) {
             return res.status(400).json({ error: 'Follower e Following são obrigatórios' });
         }
-        const result = await Profile.unfollowUser(follower, following);
-        res.status(200).json(result);
+        
+        const profile = await Profile.findByUser(follower); // 1. Encontra o perfil
+        await profile.unfollow(following); // 2. Diz-lhe para deixar de seguir
+        
+        res.status(200).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador removeFollow:", err);
         res.status(500).json({ error: 'Erro ao deixar de seguir' });

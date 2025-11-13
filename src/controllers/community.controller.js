@@ -1,5 +1,5 @@
 // src/controllers/community.controller.js
-const Community = require('../models/community.model');
+const Community = require('../models/community.class'); // MUDANÇA: Importa a Classe
 
 // [GET] /api/communities/joined
 const getJoined = async (req, res) => {
@@ -7,7 +7,7 @@ const getJoined = async (req, res) => {
         const { user_name } = req.query;
         if (!user_name) return res.status(400).json({ error: 'user_name é obrigatório' });
         
-        const communities = await Community.getJoinedCommunities(user_name);
+        const communities = await Community.findJoined(user_name);
         res.json({ communities });
     } catch (err) {
         console.error("Erro no controlador getJoined:", err);
@@ -21,7 +21,7 @@ const getExplore = async (req, res) => {
         const { user_name } = req.query;
         if (!user_name) return res.status(400).json({ error: 'user_name é obrigatório' });
 
-        const communities = await Community.getExploreCommunities(user_name);
+        const communities = await Community.findExplore(user_name);
         res.json({ communities });
     } catch (err) {
         console.error("Erro no controlador getExplore:", err);
@@ -29,14 +29,23 @@ const getExplore = async (req, res) => {
     }
 };
 
-// [POST] /api/community/join  (Nota: esta rota é singular 'community')
+// [POST] /api/community/join
 const join = async (req, res) => {
     try {
         const { user_name, community_id } = req.body;
         if (!user_name || !community_id) {
             return res.status(400).json({ error: 'user_name e community_id são obrigatórios' });
         }
-        const community = await Community.joinCommunity(user_name, community_id);
+        
+        // 1. Encontra a comunidade
+        const community = await Community.findById(community_id);
+        if (!community) {
+            return res.status(404).json({ error: 'Comunidade não encontrada' });
+        }
+        
+        // 2. Diz-lhe para adicionar o membro
+        await community.addMember(user_name);
+        
         res.status(201).json({ community });
     } catch (err) {
         console.error("Erro no controlador join:", err);
@@ -51,7 +60,14 @@ const create = async (req, res) => {
         if (!name || !creator) {
             return res.status(400).json({ error: 'Nome e criador são obrigatórios' });
         }
-        const community = await Community.createCommunity(name, emoji, creator);
+        
+        // 1. Cria o objeto
+        const community = new Community({ name, emoji, members: 1 });
+        // 2. Salva-o (para obter o ID)
+        await community.save();
+        // 3. Adiciona o criador como primeiro membro
+        await community.addMember(creator);
+
         res.status(201).json({ community });
     } catch (err) {
         console.error("Erro no controlador create:", err);
@@ -59,11 +75,19 @@ const create = async (req, res) => {
     }
 };
 
-// [GET] /api/community/:id/posts (Nota: esta rota é singular 'community')
+// [GET] /api/community/:id/posts
 const getPosts = async (req, res) => {
     try {
         const { id } = req.params;
-        const posts = await Community.getCommunityPosts(id);
+        
+        const community = await Community.findById(id);
+        if (!community) {
+            return res.status(404).json({ error: 'Comunidade não encontrada' });
+        }
+        
+        // Pede os posts à instância da comunidade
+        const posts = await community.getPosts();
+        
         res.json({ posts });
     } catch (err) {
         console.error("Erro no controlador getPosts:", err);

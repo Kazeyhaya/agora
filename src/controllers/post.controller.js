@@ -1,5 +1,7 @@
 // src/controllers/post.controller.js
-const Post = require('../models/post.model'); // Importa o Modelo
+
+// MUDANÇA: Importamos a CLASSE em vez do ficheiro de modelo antigo
+const Post = require('../models/post.class'); 
 
 // [GET] /api/posts (Feed Pessoal)
 const getFeed = async (req, res) => {
@@ -8,6 +10,7 @@ const getFeed = async (req, res) => {
     return res.status(400).json({ error: 'Utilizador não fornecido' });
   }
   try {
+    // Usamos o método estático da classe
     const posts = await Post.getPersonalizedFeed(user);
     res.json({ posts });
   } catch (err) {
@@ -19,6 +22,7 @@ const getFeed = async (req, res) => {
 // [GET] /api/posts/explore (Feed Global)
 const getExplore = async (req, res) => {
   try {
+    // Usamos o método estático da classe
     const posts = await Post.getGlobalFeed();
     res.json({ posts });
   } catch (err) {
@@ -34,8 +38,13 @@ const createNewPost = async (req, res) => {
     return res.status(400).json({ error: 'Usuário e texto são obrigatórios' });
   }
   try {
-    const newPost = await Post.createPost(user, text);
-    res.status(201).json(newPost);
+    // 1. Cria um novo objeto "Post" na memória
+    const post = new Post({ user: user, text: text });
+    
+    // 2. Diz ao objeto para se salvar a si mesmo
+    await post.save(); 
+    
+    res.status(201).json(post); // Envia o objeto 'post' (agora com ID)
   } catch (err) {
     console.error('Erro no controlador createNewPost:', err);
     res.status(500).json({ error: 'Erro no servidor' });
@@ -46,11 +55,17 @@ const createNewPost = async (req, res) => {
 const addLike = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await Post.likePost(id);
-    if (!result) {
+    
+    // 1. Encontra o post e cria um objeto "vivo"
+    const post = await Post.findById(id); 
+    if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' });
     }
-    res.status(200).json(result);
+    
+    // 2. Diz ao objeto para adicionar um like a si mesmo
+    await post.addLike(); 
+    
+    res.status(200).json(post); // Envia o objeto atualizado
   } catch (err) {
     console.error('Erro no controlador addLike:', err);
     res.status(500).json({ error: 'Erro no servidor' });
@@ -61,23 +76,30 @@ const addLike = async (req, res) => {
 const removeLike = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await Post.unlikePost(id);
-    if (!result) {
+
+    // 1. Encontra o post
+    const post = await Post.findById(id);
+    if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' });
     }
-    res.status(200).json(result);
+    
+    // 2. Diz ao objeto para remover um like de si mesmo
+    await post.removeLike();
+    
+    res.status(200).json(post); // Envia o objeto atualizado
   } catch (err) {
     console.error('Erro no controlador removeLike:', err);
     res.status(500).json({ error: 'Erro no servidor' });
   }
 };
 
-// --- NOVOS CONTROLADORES DE COMENTÁRIOS ---
+// --- CONTROLADORES DE COMENTÁRIOS (Usando a Classe) ---
 
 // [GET] /api/posts/:id/comments
 const getPostComments = async (req, res) => {
     try {
         const { id } = req.params;
+        // Usamos o método estático da classe Post
         const comments = await Post.getComments(id);
         res.json({ comments });
     } catch (err) {
@@ -94,6 +116,14 @@ const addPostComment = async (req, res) => {
         if (!user || !text) {
             return res.status(400).json({ error: 'Utilizador e texto são obrigatórios' });
         }
+        
+        // Verificamos se o Post existe (boa prática)
+        const post = await Post.findById(id);
+        if (!post) {
+             return res.status(404).json({ error: 'Post não encontrado' });
+        }
+        
+        // Usamos o método estático da classe Post
         const newComment = await Post.createComment(id, user, text);
         res.status(201).json(newComment);
     } catch (err) {
@@ -109,6 +139,6 @@ module.exports = {
   createNewPost,
   addLike,
   removeLike,
-  getPostComments,  // <-- Novo
-  addPostComment    // <-- Novo
+  getPostComments,
+  addPostComment
 };
