@@ -394,6 +394,7 @@ function handlePostClick(e) {
 
 function activateView(name, options = {}) {
   Object.values(DOM.views).forEach(view => view.hidden = true);
+  // 👇 CORREÇÃO DO BUG DE LAYOUT ESTÁ AQUI 👇
   DOM.appEl.classList.remove("view-home", "view-community");
   
   document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
@@ -425,8 +426,7 @@ function activateView(name, options = {}) {
 
 function activateCommunityView(name, options = {}) {
     Object.values(DOM.views).forEach(view => view.hidden = true);
-    
-    // 👇 CORREÇÃO: Remover a classe 'view-home'
+    // 👇 CORREÇÃO DO BUG DE LAYOUT ESTÁ AQUI 👇
     DOM.appEl.classList.remove("view-home");
     DOM.appEl.classList.add("view-community");
     
