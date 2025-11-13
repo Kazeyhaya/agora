@@ -1,4 +1,6 @@
-const db = require('./db'); // Importa a nossa ligação 'pool'
+const path = require('path');
+// 👇 MUDANÇA: O caminho agora usa 'path.join' para subir um nível (..)
+const db = require(path.join(__dirname, '..', 'models', 'db')); // Importa a nossa ligação 'pool'
 
 // [GET] Obter o feed personalizado
 const getPersonalizedFeed = async (userName) => {
@@ -53,5 +55,4 @@ module.exports = {
   createPost,
   likePost,
   unlikePost
-  // (Aqui também migrariamos as funções de Comentários)
 };

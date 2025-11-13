@@ -1,4 +1,6 @@
-const Post = require('../models/post.model'); // Importa o Modelo
+const path = require('path');
+// 👇 MUDANÇA: O caminho agora usa 'path.join' para subir um nível (..)
+const Post = require(path.join(__dirname, '..', 'models', 'post.model')); // Importa o Modelo
 
 // [GET] /api/posts (Feed Pessoal)
 const getFeed = async (req, res) => {
