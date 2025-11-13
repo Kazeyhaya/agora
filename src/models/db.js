@@ -8,43 +8,52 @@ const pool = new Pool({
   }
 });
 
-// Função para criar tabelas
+// Função para criar E MIGRAR tabelas
 async function setupDatabase() {
   const client = await pool.connect();
   try {
-    // (O resto das tuas tabelas CREATE TABLE)
+    // --- 1. CRIAÇÃO DE TABELAS (para novas BDs) ---
     await client.query(`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-    
-    // 👇 MUDANÇA AQUI 👇
-    await client.query(`CREATE TABLE IF NOT EXISTS profiles (
-        "user" TEXT PRIMARY KEY, 
-        bio TEXT,
-        mood TEXT
-    )`);
-    // 👆 MUDANÇA AQUI 👆
-    
+    await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT)`); // Começa sem o 'mood'
     await client.query(`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, "from_user" TEXT NOT NULL, "to_user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
-    await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
+    await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMVITZ DEFAULT NOW())`); // Corrigido TIMESTAMVITZ
     await client.query(`CREATE TABLE IF NOT EXISTS community_members (id SERIAL PRIMARY KEY, user_name TEXT NOT NULL, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user_name, community_id))`);
     await client.query(`CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, "user" TEXT NOT NULL, title TEXT NOT NULL, content TEXT, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS channels (id SERIAL PRIMARY KEY, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, name TEXT NOT NULL, is_voice BOOLEAN DEFAULT FALSE, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     
     console.log('Tabelas verificadas/criadas.');
-    await seedDatabase(client);
+
+    // --- 2. MIGRAÇÃO DA BD (para BDs existentes) ---
+    // Esta secção corrige a tua BD no Render
+    try {
+        // Tenta adicionar a coluna 'mood' se ela não existir
+        await client.query('ALTER TABLE profiles ADD COLUMN mood TEXT');
+        console.log('MIGRAÇÃO DA BD: Coluna "mood" adicionada a "profiles".');
+    } catch (e) {
+        // Se o erro for "column ... already exists" (código '42701'),
+        // isso é normal e significa que a migração já correu.
+        if (e.code === '42701') {
+            console.log('Coluna "mood" já existe em "profiles" (MIGRAÇÃO OK).');
+        } else {
+            // Se for outro erro, regista-o
+            console.error('Erro na migração da coluna "mood":', e.message);
+        }
+    }
+    // --- FIM DA MIGRAÇÃO ---
+
+    await seedDatabase(client); // Chama a função de popular
     
   } catch (err) {
-    console.error('Erro ao criar tabelas:', err);
+    console.error('Erro geral em setupDatabase:', err);
   } finally {
     client.release();
   }
 }
 
 // (O resto do teu ficheiro db.js, incluindo seedDatabase, fica igual)
-// ... (resto do ficheiro) ...
-
 async function seedDatabase(client) {
   try {
     const res = await client.query('SELECT 1 FROM communities LIMIT 1');
