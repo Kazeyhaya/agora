@@ -177,11 +177,12 @@ function renderTestimonials(testimonials) {
 async function apiGetCommunityPosts(communityId) {
     try {
         const res = await fetch(`/api/community/${communityId}/posts`);
+        if (!res.ok) return;
         const data = await res.json();
         renderCommunityPosts(data.posts || []);
     } catch (err) {
         console.error("Erro ao buscar posts do fórum:", err);
-        DOM.communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
+        if (DOM.communityTopicList) DOM.communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
     }
 }
 function renderCommunityPosts(posts) {
@@ -225,7 +226,7 @@ async function apiGetFollowing(username) {
     if (!res.ok) return;
     const data = await res.json();
     renderFollowing(data.following || []);
-  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); DOM.friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
+  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); if (DOM.friendsContainer) DOM.friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
 }
 function renderFollowing(followingList) {
   if (!DOM.friendsContainer) return;
@@ -290,7 +291,7 @@ async function apiGetExploreCommunities() {
     renderExploreCommunities(data.communities || []);
   } catch (err) {
     console.error("Erro ao buscar comunidades:", err);
-    DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
+    if (DOM.communityListContainer) DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
   }
 }
 function renderExploreCommunities(communities) {
@@ -525,46 +526,7 @@ async function apiUnfollow(username) {
 }
 
 // ===================================================
-// 7. LÓGICA DE EXPLORAR COMUNIDADES
-// ===================================================
-async function apiGetExploreCommunities() {
-  try {
-    const res = await fetch(`/api/communities/explore?user_name=${encodeURIComponent(currentUser)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderExploreCommunities(data.communities || []);
-  } catch (err) {
-    console.error("Erro ao buscar comunidades:", err);
-    DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
-  }
-}
-
-function renderExploreCommunities(communities) {
-  if (!DOM.communityListContainer) return;
-  DOM.communityListContainer.innerHTML = ""; 
-
-  if (communities.length === 0) {
-    DOM.communityListContainer.innerHTML = "<div class='meta'>Nenhuma comunidade pública para entrar.</div>";
-    return;
-  }
-
-  communities.forEach(community => {
-    const node = document.createElement("div");
-    node.className = "community-card-explore";
-    node.innerHTML = `
-      <div class="emoji">${escapeHtml(community.emoji)}</div>
-      <div class="community-card-explore-info">
-        <h3>${escapeHtml(community.name)}</h3>
-        <div class="meta">${escapeHtml(community.description)}</div>
-      </div>
-      <button class="join-btn" data-community-id="${community.id}">Entrar</button>
-    `;
-    DOM.communityListContainer.appendChild(node);
-  });
-}
-
-// ===================================================
-// 8. INICIALIZAÇÃO
+// 7. INICIALIZAÇÃO
 // ===================================================
 
 function initializeUI() {
