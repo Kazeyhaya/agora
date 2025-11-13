@@ -21,14 +21,16 @@
       <button class="send" type="submit" style="width: 100%; margin-top: 10px;">Entrar</button>
     </form>
   </div>
-  <div class="app" hidden> <aside class="servers" aria-label="Comunidades">
+
+
+  <div class="app" hidden>
+    <aside class="servers" aria-label="Comunidades">
       <div id="home-btn" class="server active" title="Agora" style="background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue)); font-weight: bold; font-size: 24px;">A</div>
       
       <div class="divider"></div>
-
       <div id="joined-servers-list"></div>
-
       <div class="divider"></div>
+      
       <button class="add-btn" id="explore-servers-btn" title="Explorar Comunidades">+</button>
     </aside>
 
@@ -47,7 +49,8 @@
 
     <aside class="channels" aria-label="Canais" hidden>
       <div class="community-card">
-        <div class="community-avatar" id="community-avatar-channel">AG</div>
+        <div class="avatar-display community-avatar" id="community-avatar-channel">AG</div>
+        
         <div class="community-info">
           <div class="community-name" id="community-name-channel">Nome da Comunidade</div>
           <div class="community-sub" id="community-members-count">0 membros</div>
@@ -86,7 +89,7 @@
         <button class="send" id="feedSend">Publicar</button>
       </div>
       <div class="posts" id="posts">
-      </div>
+        </div>
     </section>
 
     <main class="chat" aria-live="polite" id="view-chat" hidden>
@@ -99,7 +102,7 @@
         </div>
       </div>
       <div class="messages" id="messages" role="log">
-      </div>
+        </div>
       <div class="composer">
         <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem para #geral" autocomplete="off" aria-label="Mensagem">
         <button class="send" id="sendBtn">Enviar</button>
@@ -110,9 +113,15 @@
       <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div><span class="meta">— Seu perfil social</span></div></div>
       <div class="profile-body">
         <div class="card">
-          <div class="avatar" style="width:64px;height:64px;border-radius:16px;margin-bottom:8px" id="profileAvatar">VC</div>
+          <div class="avatar-display profile-avatar" id="profileAvatar" style="width:64px;height:64px;border-radius:16px;margin-bottom:8px">VC</div>
+          <label class="mini-btn" for="avatar-upload-input" id="avatar-upload-label" style="display: none; margin-bottom: 8px; justify-content: center;">
+            Mudar Foto
+          </label>
+          <input type="file" id="avatar-upload-input" accept="image/*" hidden>
           <div><strong id="profileName">Você</strong></div>
           <div class="meta" id="profileBio">Apaixonado por comunidades e bate-papo.</div>
+          <div class="meta" id="profileMood" style="color:var(--orkut-pink); margin-top: 4px;"></div>
+
           <div style="margin-top:10px;display:flex;gap:8px">
             <button class="mini-btn" id="editBioBtn">Editar bio</button>
           </div>
@@ -131,68 +140,17 @@
       </div>
     </section>
 
-    <section class="feed" id="view-explore" hidden>
-      <div class="feed-top">
-        <div class="chat-topic"><div class="topic-badge">Explorar</div><span class="meta">— Todos os posts da rede</span></div>
-        <div class="chat-actions"><button class="icon-btn" id="btn-explore-refresh">🔄</button></div>
-      </div>
-      <div class="posts" id="explore-posts">
-      </div>
-    </section>
-
-    <section class="explore-servers" id="view-explore-servers" hidden>
-      <div class="explore-servers-top">
-        <h2>Explorar Comunidades</h2>
-        <button class="mini-btn" id="btn-show-create-community">Criar a Minha</button>
-        <p class="meta">Entre em comunidades públicas e faça novos amigos</p>
-      </div>
-      <div class="community-list" id="community-list-container">
-      </div>
-    </section>
-
-    <section class="create-community" id="view-create-community" hidden>
-      <div class="explore-servers-top">
-            <h2>Criar Nova Comunidade</h2>
-        </div>
-        <div class="profile-body" style="grid-template-columns: 1fr;">
-            <div class="card" style="max-width: 600px;">
-                <form id="create-community-form">
-                    <label for="community-name">Nome da Comunidade:</label>
-                    <input class="input" id="community-name" type="text" required placeholder="Ex: Clube de Programação">
-                    
-                    <label for="community-emoji" style="margin-top: 10px;">Emoji/Ícone (Ex: 💻):</label>
-                    <input class="input" id="community-emoji" type="text" placeholder="Opcional. Ex: 🌟">
-                    
-                    <button class="send" type="submit" style="margin-top: 15px;">Criar e Entrar</button>
-                    <button type="button" class="mini-btn" id="btn-cancel-create" style="margin-left: 10px;">Cancelar</button>
-                </form>
-            </div>
-        </div>
-    </section>
-    
-    <section class="community-content feed" id="view-community-topics" hidden>
-      <div class="feed-top">
-            <div class="chat-topic"><div class="topic-badge" id="current-community-name">Nome Com.</div><span class="meta">— Fórum de Tópicos (Posts)</span></div>
-            <div class="chat-actions"><button class="mini-btn" id="btn-new-topic">Novo Tópico</button></div>
-        </div>
-        <div class="posts" id="community-topic-list">
-            <div class="meta" style="padding: 12px;">Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>
-        </div>
-    </section>
-    <section class="community-content profile-body" id="view-community-members" hidden style="grid-template-columns: 1fr;">
-      <div class="explore-servers-top" style="border-bottom: none;">
-            <h2 id="community-members-title">Membros da Comunidade</h2>
-        </div>
-        <div class="card">
-            <div class="friends" id="community-member-list">
-            </div>
-        </div>
-    </section>
+    <section class="feed" id="view-explore" hidden>...</section>
+    <section class="explore-servers" id="view-explore-servers" hidden>...</section>
+    <section class="create-community" id="view-create-community" hidden>...</section>
+    <section class="community-content feed" id="view-community-topics" hidden>...</section>
+    <section class="community-content profile-body" id="view-community-members" hidden>...</section>
 
 
     <footer class="userbar" role="contentinfo">
       <div class="me clickable" id="userbar-me">
-        <div class="avatar" id="userAvatar">VC</div>
+        <div class="avatar-display userbar-avatar" id="userAvatar">VC</div>
+        
         <div>
           <div id="userName"><strong id="userName">Você</strong> <span class="meta">@orklover</span></div>
           <div class="meta clickable" id="userbar-mood-container" title="Clique para mudar o seu mood">

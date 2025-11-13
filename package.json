@@ -7,8 +7,10 @@
     "start": "node src/server.js"
   },
   "dependencies": {
+    "cloudinary": "^2.8.0",
     "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "pg": "^8.11.3" 
+    "multer": "^2.0.2",
+    "pg": "^8.11.3",
+    "socket.io": "^4.7.5"
   }
 }
