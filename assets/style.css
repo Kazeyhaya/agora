@@ -77,47 +77,49 @@ a{color:inherit;text-decoration:none}
 .hash{opacity:.7}
 
 /* Layout (Grid) */
-/* Modo "Home" (Feed, Explorar, Perfil, Explorar Servidores, Criar Comunidade) */
 .app.view-home {
   grid-template-columns: 80px 1fr;
   grid-template-rows: 64px 1fr 64px;
   grid-template-areas: "servers header" "servers content" "servers userbar";
 }
-/* 👇 MUDANÇA: Adicionado create-community à área content 👇 */
 .app.view-home .feed,
 .app.view-home .profile,
 .app.view-home .explore,
 .app.view-home .explore-servers,
-.app.view-home .create-community { 
+.app.view-home .create-community,
+.app.view-home .community-content { /* Adicionado community-content */
   grid-area: content;
 }
 .app.view-home .channels,
 .app.view-home .chat {
   display: none;
 }
-/* Modo "Comunidade" (Chat) */
 .app.view-community {
   grid-template-columns: 80px 280px 1fr;
   grid-template-rows: 1fr 64px; 
-  grid-template-areas: "servers channels chat" "servers userbar chat";
+  grid-template-areas: "servers channels content" "servers userbar content"; /* MUDANÇA: 'chat' -> 'content' */
 }
-.app.view-community .channels,
-.app.view-community .chat {
-  display: grid; 
+.app.view-community .channels {
+  display: flex; /* Flex-direction column */
+}
+.app.view-community .chat,
+.app.view-community .community-content {
+  display: grid; /* Grid interno */
+  grid-area: content;
 }
 .app.view-community .header,
 .app.view-community .feed,
 .app.view-community .profile,
 .app.view-community .explore,
 .app.view-community .explore-servers,
-.app.view-community .create-community { /* Adicionado create-community */
+.app.view-community .create-community { 
   display: none;
 }
 
 /* Chat */
-.chat{grid-area: chat;background: var(--discord-dark);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:grid;grid-template-rows: 56px 1fr 74px;box-shadow: var(--shadow)}
-/* Feed */
-.feed{
+.chat{background: var(--discord-dark);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:grid;grid-template-rows: 56px 1fr 74px;box-shadow: var(--shadow)}
+/* Feed (e Community Content) */
+.feed, .community-content {
   background: var(--discord-dark);
   border:1px solid rgba(255,255,255,.06);
   border-radius: var(--radius);
@@ -142,6 +144,7 @@ a{color:inherit;text-decoration:none}
 }
 .post{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;display:grid;grid-template-columns:44px 1fr;gap:10px}
 .post .meta{margin:0 0 6px 0}
+.post h3 { margin-bottom: 4px; } /* Para títulos de Fórum */
 .post-actions{display:flex;gap:8px;margin-top:8px}
 .mini-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#fff; padding:6px 10px;border-radius:10px;cursor:pointer}
 .mini-btn:hover{background:rgba(255,255,255,.1)}
@@ -244,12 +247,11 @@ a{color:inherit;text-decoration:none}
 .explore-servers-top {
   padding: 14px;
   border-bottom: 1px solid rgba(255,255,255,.06);
-  /* 👇 MUDANÇA: Novo layout para abrigar o botão "Criar Minha" */
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap; /* Permite quebrar em telas pequenas */
+  flex-wrap: wrap; 
 }
 .explore-servers-top h2 {
   font-size: 1.5rem;
@@ -258,7 +260,6 @@ a{color:inherit;text-decoration:none}
 .explore-servers-top .meta {
   color: var(--text-secondary);
   font-size: 0.9rem;
-  /* Garante que o meta não atrapalhe o botão */
   flex-basis: 100%; 
   margin-top: 5px;
 }
@@ -346,7 +347,7 @@ a{color:inherit;text-decoration:none}
   color: var(--orkut-blue);
 }
 
-/* 👇 NOVO ESTILO: Formulário de Criação 👇 */
+/* Estilo: Formulário de Criação */
 .create-community {
   background: var(--discord-dark);
   border: 1px solid rgba(255, 255, 255, .06);
@@ -361,12 +362,21 @@ a{color:inherit;text-decoration:none}
   margin-bottom: 5px;
 }
 
+/* --- Aprimoramento: Logo de Cabeçalho Clicável --- */
+#header-home-btn {
+    cursor: pointer;
+}
+#header-home-btn:hover {
+    opacity: 0.8;
+}
+
+
 /* Responsivo */
 @media (max-width: 1080px){
   .app.view-community { /* Layout de Chat */
     grid-template-columns:72px 1fr;
     grid-template-rows:auto 1fr 64px; /* Canais em cima */
-    grid-template-areas: "servers channels" "servers chat" "servers userbar";
+    grid-template-areas: "servers channels" "servers content" "servers userbar"; /* MUDANÇA: 'chat' -> 'content' */
   }
   .app.view-home { /* Layout de Feed/Perfil/Explorar */
     grid-template-columns:72px 1fr;
@@ -378,7 +388,7 @@ a{color:inherit;text-decoration:none}
   .app.view-community { /* Layout de Chat */
     grid-template-columns:64px 1fr;
     grid-template-rows:auto 1fr 64px;
-    grid-template-areas: "servers channels" "servers chat" "servers userbar";
+    grid-template-areas: "servers channels" "servers content" "servers userbar"; /* MUDANÇA: 'chat' -> 'content' */
   }
   .app.view-home { /* Layout de Feed/Perfil/Explorar */
     grid-template-columns:64px 1fr;
@@ -386,11 +396,4 @@ a{color:inherit;text-decoration:none}
     grid-template-areas: "servers header" "servers content" "servers userbar";
   }
   .header-actions{display:none} /* Esconde abas em ecrã pequeno */
-}
-/* --- Aprimoramento: Logo de Cabeçalho Clicável --- */
-#header-home-btn {
-  cursor: pointer;
-}
-#header-home-btn:hover {
-  opacity: 0.8;
 }

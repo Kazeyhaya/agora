@@ -1,5 +1,5 @@
 // ===================================================
-// 1. ESTADO GLOBAL E REFERÊNCIAS
+// 1. ESTADO GLOBAL (Sem Referências DOM)
 // ===================================================
 
 // --- Identificação do Usuário ---
@@ -17,89 +17,12 @@ let viewedUsername = currentUser;
 let currentCommunityId = null; 
 let currentCommunityName = null; 
 
-
-// --- Referências do Chat ---
-const chatView = document.getElementById("view-chat"); 
-const chatMessagesEl = document.getElementById("messages");
-const chatTopicBadge = document.getElementById("topic");
-const chatInputEl = document.getElementById("composerInput");
-const chatSendBtn = document.getElementById("sendBtn");
-const channelButtons = document.querySelectorAll(".channel[data-channel]");
-
-// --- Referências do Feed (Pessoal) ---
-const feedView = document.getElementById("view-feed"); 
-const postsEl = document.getElementById("posts");
-const feedInput = document.getElementById("feedInput");
-const feedSend = document.getElementById("feedSend");
-const feedRefreshBtn = document.getElementById("btn-refresh");
-
-// --- Referências do Feed (Explorar) ---
-const exploreView = document.getElementById("view-explore"); 
-const explorePostsEl = document.getElementById("explore-posts");
-const btnExplore = document.getElementById("btn-explore");
-const btnExploreRefresh = document.getElementById("btn-explore-refresh");
-
-// --- Referências do Perfil ---
-const profileView = document.getElementById("view-profile"); 
-const profileAvatarEl = document.getElementById("profileAvatar");
-const profileNameEl = document.getElementById("profileName");
-const profileBioEl = document.getElementById("profileBio");
-const editBioBtn = document.getElementById("editBioBtn");
-const userbarMeBtn = document.getElementById("userbar-me"); 
-const friendsContainer = document.getElementById("friends"); 
-
-// --- Referências dos Depoimentos ---
-const testimonialsEl = document.getElementById("testimonials");
-const testimonialInput = document.getElementById("testimonialInput");
-const testimonialSend = document.getElementById("testimonialSend");
-
-// --- Referências de Comunidades ---
-const exploreServersView = document.getElementById("view-explore-servers");
-const exploreServersBtn = document.getElementById("explore-servers-btn");
-const communityListContainer = document.getElementById("community-list-container");
-const joinedServersList = document.getElementById("joined-servers-list"); 
-
-// --- Referências de Criação de Comunidade ---
-const createCommunityView = document.getElementById("view-create-community");
-const btnShowCreateCommunity = document.getElementById("btn-show-create-community");
-const btnCancelCreate = document.getElementById("btn-cancel-create");
-const createCommunityForm = document.getElementById("create-community-form");
-
-
-// --- Referências do NOVO LAYOUT DE COMUNIDADE (Fórum) ---
-const communityChannelBar = document.querySelector('aside.channels'); 
-const communityTopicList = document.getElementById('community-topic-list');
-const communityTopicView = document.getElementById('view-community-topics'); 
-const communityMembersView = document.getElementById('view-community-members'); 
-const communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); 
-const communityChatChannelsList = document.getElementById('community-chat-channels');
-const currentCommunityNameEl = document.getElementById('current-community-name');
-const communityAvatarChannelEl = document.getElementById('community-avatar-channel');
-const communityMembersCountEl = document.getElementById('community-members-count');
-
-// --- Referências de Visão (Views) ---
-const appEl = document.querySelector(".app");
-const mainHeader = document.querySelector(".header"); 
-const channelsEl = document.querySelector(".channels");
-const viewTabs = document.querySelectorAll(".view-tabs .pill"); 
-const serverBtns = document.querySelectorAll(".servers .server"); 
-const homeBtn = document.getElementById("home-btn"); 
-const headerHomeBtn = document.getElementById("header-home-btn"); 
-
-// --- Objeto de Vistas ---
-const views = {
-  feed: feedView,
-  chat: chatView,
-  profile: profileView,
-  explore: exploreView,
-  "explore-servers": exploreServersView,
-  "create-community": createCommunityView,
-  "community-topics": communityTopicView, 
-  "community-members": communityMembersView 
-};
+// --- Objeto de Referências DOM ---
+let DOM = {}; // 👈 NOVO: Todas as referências DOM viverão aqui.
 
 // --- Conexão Socket.IO (Só para o Chat) ---
 const socket = io();
+
 
 // ===================================================
 // 1.5 AUXILIARES (Para garantir o Hoisting)
@@ -123,7 +46,7 @@ async function apiGetPosts() {
     if (!response.ok) return;
     const data = await response.json();
     renderPosts(data.posts || []); 
-  } catch (err) { console.error("Falha ao buscar posts:", err); postsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>"; }
+  } catch (err) { console.error("Falha ao buscar posts:", err); if (DOM.postsEl) DOM.postsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>"; }
 }
 async function apiGetExplorePosts() {
   try {
@@ -131,18 +54,18 @@ async function apiGetExplorePosts() {
     if (!response.ok) return;
     const data = await response.json();
     renderExplorePosts(data.posts || []); 
-  } catch (err) { console.error("Falha ao buscar posts do explorar:", err); explorePostsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>"; }
+  } catch (err) { console.error("Falha ao buscar posts do explorar:", err); if (DOM.explorePostsEl) DOM.explorePostsEl.innerHTML = "<div class='meta'>Falha ao carregar posts.</div>"; }
 }
 async function apiCreatePost() {
-  const text = feedInput.value.trim();
+  const text = DOM.feedInput.value.trim();
   if (!text) return;
-  feedSend.disabled = true;
+  DOM.feedSend.disabled = true;
   try {
     await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: currentUser, text: text }) });
-    feedInput.value = ""; 
+    DOM.feedInput.value = ""; 
     apiGetPosts(); 
   } catch (err) { console.error("Falha ao criar post:", err); }
-  feedSend.disabled = false;
+  DOM.feedSend.disabled = false;
 }
 async function apiLikePost(postId) {
   try { await fetch(`/api/posts/${postId}/like`, { method: 'POST' }); } catch (err) { console.error("Falha ao dar like:", err); }
@@ -151,14 +74,14 @@ async function apiUnlikePost(postId) {
   try { await fetch(`/api/posts/${postId}/unlike`, { method: 'POST' }); } catch (err) { console.error("Falha ao descurtir:", err); }
 }
 function renderPosts(posts) {
-  if (!postsEl) return;
-  if (posts.length === 0) { postsEl.innerHTML = "<div class='meta' style='padding: 12px;'>O seu feed está vazio. Siga alguém (ou poste algo) para ver aqui!</div>"; return; }
-  renderPostList(postsEl, posts);
+  if (!DOM.postsEl) return;
+  if (posts.length === 0) { DOM.postsEl.innerHTML = "<div class='meta' style='padding: 12px;'>O seu feed está vazio. Siga alguém (ou poste algo) para ver aqui!</div>"; return; }
+  renderPostList(DOM.postsEl, posts);
 }
 function renderExplorePosts(posts) {
-  if (!explorePostsEl) return;
-  if (posts.length === 0) { explorePostsEl.innerHTML = "<div class='meta' style='padding: 12px;'>Ainda não há posts na rede.</div>"; return; }
-  renderPostList(explorePostsEl, posts);
+  if (!DOM.explorePostsEl) return;
+  if (posts.length === 0) { DOM.explorePostsEl.innerHTML = "<div class='meta' style='padding: 12px;'>Ainda não há posts na rede.</div>"; return; }
+  renderPostList(DOM.explorePostsEl, posts);
 }
 function renderPostList(containerElement, posts) {
   containerElement.innerHTML = ""; 
@@ -206,17 +129,17 @@ async function apiGetProfile(username) {
     const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
     if (!res.ok) return;
     const data = await res.json();
-    if (profileBioEl) profileBioEl.textContent = data.bio;
+    if (DOM.profileBioEl) DOM.profileBioEl.textContent = data.bio;
   } catch (err) { console.error("Falha ao buscar bio:", err); }
 } 
 async function apiUpdateBio() {
-  const newBio = prompt("Digite sua nova bio:", profileBioEl.textContent);
+  const newBio = prompt("Digite sua nova bio:", DOM.profileBioEl.textContent);
   if (newBio === null || newBio.trim() === "") return; 
   try {
     const res = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: currentUser, bio: newBio.trim() }) });
     if (!res.ok) return;
     const data = await res.json();
-    if (profileBioEl) profileBioEl.textContent = data.bio;
+    if (DOM.profileBioEl) DOM.profileBioEl.textContent = data.bio;
   } catch (err) { console.error("Falha ao salvar bio:", err); }
 }
 async function apiGetTestimonials(username) { 
@@ -228,29 +151,29 @@ async function apiGetTestimonials(username) {
   } catch (err) { console.error("Falha ao buscar depoimentos:", err); }
 }
 async function apiCreateTestimonial() {
-  const text = testimonialInput.value.trim();
+  const text = DOM.testimonialInput.value.trim();
   if (!text) return; 
-  testimonialSend.disabled = true;
+  DOM.testimonialSend.disabled = true;
   try {
     await fetch('/api/testimonials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_user: currentUser, to_user: viewedUsername, text: text }) });
-    testimonialInput.value = ""; 
+    DOM.testimonialInput.value = ""; 
     apiGetTestimonials(viewedUsername); 
   } catch (err) { console.error("Falha ao salvar depoimento:", err); }
-  testimonialSend.disabled = false;
+  DOM.testimonialSend.disabled = false;
 }
 function renderTestimonials(testimonials) {
-  if (!testimonialsEl) return;
-  if (testimonials.length === 0) { testimonialsEl.innerHTML = "<div class='meta'>Nenhum depoimento ainda.</div>"; return; }
-  testimonialsEl.innerHTML = ""; 
+  if (!DOM.testimonialsEl) return;
+  if (testimonials.length === 0) { DOM.testimonialsEl.innerHTML = "<div class='meta'>Nenhum depoimento ainda.</div>"; return; }
+  DOM.testimonialsEl.innerHTML = ""; 
   testimonials.forEach(item => {
     const node = document.createElement("div");
     node.className = "meta"; 
     node.innerHTML = `<strong>${escapeHtml(item.from_user)}</strong>: ${escapeHtml(item.text)}`;
-    testimonialsEl.appendChild(node);
+    DOM.testimonialsEl.appendChild(node);
   });
 }
 
-// --- Funções de Fórum de Comunidades (Corrigido) ---
+// --- Funções de Fórum de Comunidades ---
 async function apiGetCommunityPosts(communityId) {
     try {
         const res = await fetch(`/api/community/${communityId}/posts`);
@@ -258,15 +181,15 @@ async function apiGetCommunityPosts(communityId) {
         renderCommunityPosts(data.posts || []);
     } catch (err) {
         console.error("Erro ao buscar posts do fórum:", err);
-        communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
+        DOM.communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
     }
 }
 function renderCommunityPosts(posts) {
-    if (!communityTopicList) return;
-    communityTopicList.innerHTML = "";
+    if (!DOM.communityTopicList) return;
+    DOM.communityTopicList.innerHTML = "";
 
     if (posts.length === 0) {
-        communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
+        DOM.communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
         return;
     }
 
@@ -291,7 +214,7 @@ function renderCommunityPosts(posts) {
                     <button class="mini-btn">💬 Comentários</button>
                 </div>
             </div>`;
-        communityTopicList.appendChild(node);
+        DOM.communityTopicList.appendChild(node);
     });
 }
 
@@ -302,18 +225,18 @@ async function apiGetFollowing(username) {
     if (!res.ok) return;
     const data = await res.json();
     renderFollowing(data.following || []);
-  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
+  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); DOM.friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
 }
 function renderFollowing(followingList) {
-  if (!friendsContainer) return;
-  friendsContainer.innerHTML = ""; 
-  if (followingList.length === 0) { friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>"; return; }
+  if (!DOM.friendsContainer) return;
+  DOM.friendsContainer.innerHTML = ""; 
+  if (followingList.length === 0) { DOM.friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>"; return; }
   followingList.forEach(username => {
     const node = document.createElement("div");
     node.className = "friend-card";
     const userInitial = username.slice(0, 2).toUpperCase();
     node.innerHTML = `<div class="avatar">${escapeHtml(userInitial)}</div><strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>`;
-    friendsContainer.appendChild(node);
+    DOM.friendsContainer.appendChild(node);
   });
 }
 async function apiJoinCommunity(communityId, button) {
@@ -324,7 +247,7 @@ async function apiJoinCommunity(communityId, button) {
     if (!res.ok) { throw new Error('Falha ao entrar na comunidade'); }
     const data = await res.json();
     renderJoinedCommunities([data.community]); 
-    activateCommunityView("chat-channels", { community: data.community.id });
+    activateCommunityView("topics", { community: data.community.id }); // MUDANÇA: Ir para Tópicos
   } catch (err) { console.error("Erro ao entrar na comunidade:", err); alert("Falha ao entrar na comunidade."); button.disabled = false; button.textContent = "Entrar"; }
 }
 async function apiCreateCommunity(name, emoji, button) {
@@ -348,7 +271,7 @@ async function apiGetJoinedCommunities() {
   } catch (err) { console.error("Erro ao buscar comunidades do utilizador:", err); }
 }
 function renderJoinedCommunities(communities) {
-  if (!joinedServersList) return;
+  if (!DOM.joinedServersList) return;
   communities.forEach(community => {
     if (document.querySelector(`.community-btn[data-community-id="${community.id}"]`)) { return; }
     const node = document.createElement("div");
@@ -356,14 +279,16 @@ function renderJoinedCommunities(communities) {
     node.dataset.communityId = community.id;
     node.title = community.name;
     node.innerHTML = `<span class="emoji">${escapeHtml(community.emoji)}</span>`;
-    joinedServersList.appendChild(node);
+    DOM.joinedServersList.appendChild(node);
   });
 }
+
+// --- Lógica do Chat (Socket.IO / "Agora") ---
 function renderChannel(name) {
   activeChannel = name; 
-  chatMessagesEl.innerHTML = ""; 
-  chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
-  chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
+  DOM.chatMessagesEl.innerHTML = ""; 
+  DOM.chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
+  DOM.chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
   document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
   const activeBtn = document.querySelector(`.channel[data-channel="${name}"]`);
   if (activeBtn) activeBtn.classList.add("active");
@@ -374,7 +299,7 @@ function addMessageBubble({ user, timestamp, message }) {
   item.className = "msg";
   const userInitial = (user || "V").slice(0, 2).toUpperCase();
   const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
-  const isScrolledToBottom = chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight <= chatMessagesEl.scrollTop + 100;
+  const isScrolledToBottom = DOM.chatMessagesEl.scrollHeight - DOM.chatMessagesEl.clientHeight <= DOM.chatMessagesEl.scrollTop + 100;
   item.innerHTML = `
     <div class="avatar">${escapeHtml(userInitial)}</div>
     <div class="bubble">
@@ -382,37 +307,30 @@ function addMessageBubble({ user, timestamp, message }) {
       <div>${escapeHtml(message)}</div>
     </div>
   `;
-  chatMessagesEl.appendChild(item);
-  if (isScrolledToBottom) { chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
+  DOM.chatMessagesEl.appendChild(item);
+  if (isScrolledToBottom) { DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; }
 }
 function sendChatMessage() {
-  const text = chatInputEl.value.trim();
+  const text = DOM.chatInputEl.value.trim();
   if (!text) return;
   const messageData = { channel: activeChannel, user: currentUser, message: text, timestamp: new Date().toLocaleString('pt-BR') };
   socket.emit('sendMessage', messageData);
-  chatInputEl.value = "";
-  chatInputEl.focus();
+  DOM.chatInputEl.value = "";
+  DOM.chatInputEl.focus();
 }
 socket.on('loadHistory', (messages) => {
-  chatMessagesEl.innerHTML = ""; 
+  DOM.chatMessagesEl.innerHTML = ""; 
   messages.forEach(addMessageBubble);
-  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; 
+  DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; 
 });
 socket.on('newMessage', (data) => {
   if (data.channel === activeChannel) { addMessageBubble(data); }
 });
 
-
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
 
-// --- Eventos do Chat (Socket.IO) ---
-chatSendBtn.addEventListener("click", sendChatMessage);
-chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
-channelButtons.forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
-
-// --- Eventos do Feed (Likes, Comentários e Ver Perfil) ---
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
   if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
@@ -431,110 +349,32 @@ function handlePostClick(e) {
     return;
   }
 }
-postsEl.addEventListener("click", handlePostClick);
-explorePostsEl.addEventListener("click", handlePostClick); 
-
-// --- Eventos dos Botões do Feed (Publicar e Refresh) ---
-feedSend.addEventListener("click", apiCreatePost);
-feedRefreshBtn.addEventListener("click", apiGetPosts);
-btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
-
-// --- Evento de Depoimento ---
-testimonialSend.addEventListener("click", apiCreateTestimonial);
-
-// --- Eventos das Abas ---
-viewTabs.forEach(b => b.addEventListener("click", () => { const viewName = b.dataset.view; activateView(viewName); }));
-
-// --- Evento do Botão Explorar --- 
-btnExplore.addEventListener("click", () => activateView("explore"));
-
-// --- Evento da Userbar (Perfil) --- 
-userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
-
-// --- Evento do Botão Home ---
-headerHomeBtn.addEventListener("click", () => { activateView("feed"); });
-homeBtn.addEventListener("click", () => { activateView("feed"); });
-
-// --- Evento do Botão "+" ---
-exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
-
-// --- Evento de clique no cartão de Amigo ---
-friendsContainer.addEventListener("click", (e) => {
-  const friendLink = e.target.closest('.friend-card-name[data-username]');
-  if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
-});
-
-// --- Evento de clique para Entrar na Comunidade ---
-communityListContainer.addEventListener("click", (e) => {
-  const joinButton = e.target.closest('.join-btn[data-community-id]');
-  if (joinButton) {
-    const communityId = joinButton.dataset.communityId;
-    apiJoinCommunity(communityId, joinButton);
-  }
-});
-
-// --- Evento de clique para Mudar de Comunidade ---
-joinedServersList.addEventListener("click", (e) => {
-  const communityBtn = e.target.closest('.community-btn[data-community-id]');
-  if (communityBtn) {
-    const communityId = communityBtn.dataset.communityId;
-    activateCommunityView("topics", { community: communityId }); // Ativa a vista TÓPICOS
-  }
-});
-
-// --- Evento para Abrir Formulário de Criação ---
-btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
-
-// --- Evento para Cancelar Criação ---
-btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
-
-// --- Evento para Enviar Formulário de Criação ---
-createCommunityForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const nameInput = document.getElementById("community-name");
-    const emojiInput = document.getElementById("community-emoji");
-    const name = nameInput.value.trim();
-    const emoji = emojiInput.value.trim();
-
-    if (!name) return;
-
-    apiCreateCommunity(name, emoji, createCommunityForm.querySelector('button[type="submit"]'));
-});
-
-// --- Eventos das Abas Internas da Comunidade ---
-communityTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        const view = tab.dataset.communityView;
-        activateCommunityView(view, { community: currentCommunityId });
-    });
-});
-
 
 // ===================================================
-// 5. LÓGICA DE TROCA DE VISÃO (Views) E INICIALIZAÇÃO
+// 5. LÓGICA DE TROCA DE VISÃO (Views)
 // ===================================================
 
 function activateView(name, options = {}) {
-  Object.values(views).forEach(view => view.hidden = true);
-  appEl.classList.remove("view-home", "view-community");
+  Object.values(DOM.views).forEach(view => view.hidden = true);
+  DOM.appEl.classList.remove("view-home", "view-community");
   
   document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
   
   if (name === "feed" || name === "explore" || name === "profile" || name === "explore-servers" || name === "create-community") {
     
-    appEl.classList.add("view-home");
-    mainHeader.hidden = false;
-    channelsEl.hidden = true;
-    views[name].hidden = false;
+    DOM.appEl.classList.add("view-home");
+    DOM.mainHeader.hidden = false;
+    DOM.channelsEl.hidden = true;
+    DOM.views[name].hidden = false;
     
-    if (name === 'explore-servers' || name === 'create-community') { exploreServersBtn.classList.add("active"); } else { homeBtn.classList.add("active"); }
+    if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
-    btnExplore.classList.toggle("active", name === "explore");
+    DOM.viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+    DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community') { 
-      viewTabs.forEach(b => b.classList.remove("active"));
-      btnExplore.classList.remove("active");
+      DOM.viewTabs.forEach(b => b.classList.remove("active"));
+      DOM.btnExplore.classList.remove("active");
     }
 
     if (name === "feed") apiGetPosts(); 
@@ -546,70 +386,275 @@ function activateView(name, options = {}) {
 }
 
 function activateCommunityView(name, options = {}) {
-    // 1. Esconde todas as vistas principais (incluindo Home views)
-    Object.values(views).forEach(view => view.hidden = true);
+    Object.values(DOM.views).forEach(view => view.hidden = true);
+    DOM.appEl.classList.add("view-community");
+    DOM.mainHeader.hidden = true; 
+    DOM.channelsEl.hidden = false; 
     
-    // 2. Define o Layout: Modo Comunidade
-    appEl.classList.add("view-community");
-    mainHeader.hidden = true; 
-    channelsEl.hidden = false; // Mostra a barra de canais/abas
-    
-    // 3. Atualiza o estado da Comunidade
     currentCommunityId = options.community;
-    // (Ainda precisamos buscar o nome/emoji da comunidade)
     
-    // 4. Atualiza o ícone ativo na barra de servidores
     document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
     const activeCommunityBtn = document.querySelector(`.community-btn[data-community-id="${options.community}"]`);
     if (activeCommunityBtn) activeCommunityBtn.classList.add("active");
 
-    // 5. Atualiza as abas internas (Topics, Chat-Channels, Members)
-    communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
+    DOM.communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
 
-    // 6. Mostra a sub-vista correta e carrega dados
-    // Zera todas as sub-vistas
-    communityTopicView.hidden = true;
-    communityMembersView.hidden = true;
-    communityChatChannelsList.hidden = true;
-    chatView.hidden = true; 
+    DOM.communityTopicView.hidden = true;
+    DOM.communityMembersView.hidden = true;
+    DOM.communityChatChannelsList.hidden = true;
+    DOM.chatView.hidden = true; 
     
     if (name === "topics") {
-        communityTopicView.hidden = false; 
+        DOM.communityTopicView.hidden = false; 
         apiGetCommunityPosts(currentCommunityId); 
     } else if (name === "chat-channels") {
-        chatView.hidden = false; 
-        communityChatChannelsList.hidden = false; 
-        // Carregar canais (próximo passo)
+        DOM.chatView.hidden = false; 
+        DOM.communityChatChannelsList.hidden = false; 
         renderChannel("geral"); 
     } else if (name === "members") {
-        communityMembersView.hidden = false; 
-        // Carregar membros (próximo passo)
+        DOM.communityMembersView.hidden = false; 
     }
 }
 
 
 // ===================================================
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
-// ... (omissão por brevidade) ...
+// ===================================================
+
+async function showDynamicProfile(username) {
+  if (!username) return;
+  apiGetProfile(username);
+  apiGetTestimonials(username);
+  apiGetFollowing(username); 
+  DOM.profileNameEl.textContent = username;
+  DOM.profileAvatarEl.textContent = username.slice(0, 2).toUpperCase();
+  DOM.editBioBtn.disabled = true; 
+  if (username === currentUser) {
+    DOM.editBioBtn.textContent = "Editar bio";
+    DOM.editBioBtn.onclick = apiUpdateBio; 
+    DOM.editBioBtn.disabled = false;
+  } else {
+    try {
+      const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
+      const data = await res.json();
+      if (data.isFollowing) {
+        DOM.editBioBtn.textContent = "Deixar de Seguir";
+        DOM.editBioBtn.onclick = () => apiUnfollow(username);
+      } else {
+        DOM.editBioBtn.textContent = "Seguir"; 
+        DOM.editBioBtn.onclick = () => apiFollow(username);
+      }
+      DOM.editBioBtn.disabled = false; 
+    } catch (err) {
+      console.error("Erro ao verificar 'follow':", err);
+      DOM.editBioBtn.textContent = "Erro";
+    }
+  }
+}
+async function apiFollow(username) {
+  DOM.editBioBtn.disabled = true;
+  try {
+    await fetch('/api/follow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    DOM.editBioBtn.textContent = "Deixar de Seguir";
+    DOM.editBioBtn.onclick = () => apiUnfollow(username);
+    DOM.editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao seguir:", err);
+    DOM.editBioBtn.disabled = false;
+  }
+}
+async function apiUnfollow(username) {
+  DOM.editBioBtn.disabled = true;
+  try {
+    await fetch('/api/unfollow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    DOM.editBioBtn.textContent = "Seguir";
+    DOM.editBioBtn.onclick = () => apiFollow(username);
+    DOM.editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao deixar de seguir:", err);
+    DOM.editBioBtn.disabled = false;
+  }
+}
 
 // ===================================================
 // 7. LÓGICA DE EXPLORAR COMUNIDADES
-// ... (omissão por brevidade) ...
+// ===================================================
+
+async function apiGetExploreCommunities() {
+  try {
+    const res = await fetch(`/api/communities/explore?user_name=${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderExploreCommunities(data.communities || []);
+  } catch (err) {
+    console.error("Erro ao buscar comunidades:", err);
+    DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
+  }
+}
+
+function renderExploreCommunities(communities) {
+  if (!DOM.communityListContainer) return;
+  DOM.communityListContainer.innerHTML = ""; 
+
+  if (communities.length === 0) {
+    DOM.communityListContainer.innerHTML = "<div class='meta'>Nenhuma comunidade pública para entrar.</div>";
+    return;
+  }
+
+  communities.forEach(community => {
+    const node = document.createElement("div");
+    node.className = "community-card-explore";
+    node.innerHTML = `
+      <div class="emoji">${escapeHtml(community.emoji)}</div>
+      <div class="community-card-explore-info">
+        <h3>${escapeHtml(community.name)}</h3>
+        <div class="meta">${escapeHtml(community.description)}</div>
+      </div>
+      <button class="join-btn" data-community-id="${community.id}">Entrar</button>
+    `;
+    DOM.communityListContainer.appendChild(node);
+  });
+}
 
 // ===================================================
 // 8. LÓGICA DE AMIGOS E ENTRAR EM COMUNIDADES
-// ... (omissão por brevidade) ...
+// ===================================================
+// ... (Funções de Amigos e Comunidade movidas para a Seção 2) ...
 
 // ===================================================
-// 9. LÓGICA DE FÓRUM DA COMUNIDADE (NOVO)
-// ... (omissão por brevidade) ...
+// 9. LÓGICA DE FÓRUM DA COMUNIDADE
+// ===================================================
+// ... (Funções do Fórum movidas para a Seção 2) ...
 
-// --- Inicialização ---
+// ===================================================
+// INICIALIZAÇÃO
+// ===================================================
+
+// 👇 MUDANÇA: A inicialização agora espera o 'connect'
 socket.on('connect', () => {
   console.log('Socket conectado:', socket.id);
+  
+  // 1. Encontra todos os elementos DOM e guarda-os no objeto DOM
+  DOM = {
+    chatView: document.getElementById("view-chat"),
+    chatMessagesEl: document.getElementById("messages"),
+    chatTopicBadge: document.getElementById("topic"),
+    chatInputEl: document.getElementById("composerInput"),
+    chatSendBtn: document.getElementById("sendBtn"),
+    feedView: document.getElementById("view-feed"),
+    postsEl: document.getElementById("posts"),
+    feedInput: document.getElementById("feedInput"),
+    feedSend: document.getElementById("feedSend"),
+    feedRefreshBtn: document.getElementById("btn-refresh"),
+    exploreView: document.getElementById("view-explore"),
+    explorePostsEl: document.getElementById("explore-posts"),
+    btnExplore: document.getElementById("btn-explore"),
+    btnExploreRefresh: document.getElementById("btn-explore-refresh"),
+    profileView: document.getElementById("view-profile"),
+    profileAvatarEl: document.getElementById("profileAvatar"),
+    profileNameEl: document.getElementById("profileName"),
+    profileBioEl: document.getElementById("profileBio"),
+    editBioBtn: document.getElementById("editBioBtn"),
+    userbarMeBtn: document.getElementById("userbar-me"),
+    friendsContainer: document.getElementById("friends"),
+    testimonialsEl: document.getElementById("testimonials"),
+    testimonialInput: document.getElementById("testimonialInput"),
+    testimonialSend: document.getElementById("testimonialSend"),
+    exploreServersView: document.getElementById("view-explore-servers"),
+    exploreServersBtn: document.getElementById("explore-servers-btn"),
+    communityListContainer: document.getElementById("community-list-container"),
+    joinedServersList: document.getElementById("joined-servers-list"),
+    createCommunityView: document.getElementById("view-create-community"),
+    btnShowCreateCommunity: document.getElementById("btn-show-create-community"),
+    btnCancelCreate: document.getElementById("btn-cancel-create"),
+    createCommunityForm: document.getElementById("create-community-form"),
+    communityChannelBar: document.querySelector('aside.channels'),
+    communityTopicList: document.getElementById('community-topic-list'),
+    communityTopicView: document.getElementById('view-community-topics'),
+    communityMembersView: document.getElementById('view-community-members'),
+    communityTabs: document.querySelectorAll('.channels .view-tabs .pill'),
+    communityChatChannelsList: document.getElementById('community-chat-channels'),
+    currentCommunityNameEl: document.getElementById('current-community-name'),
+    communityAvatarChannelEl: document.getElementById('community-avatar-channel'),
+    communityMembersCountEl: document.getElementById('community-members-count'),
+    appEl: document.querySelector(".app"),
+    mainHeader: document.querySelector(".header"),
+    channelsEl: document.querySelector(".channels"),
+    viewTabs: document.querySelectorAll(".view-tabs .pill"),
+    serverBtns: document.querySelectorAll(".servers .server"),
+    homeBtn: document.getElementById("home-btn"),
+    headerHomeBtn: document.getElementById("header-home-btn"),
+    views: {
+        feed: document.getElementById("view-feed"),
+        chat: document.getElementById("view-chat"),
+        profile: document.getElementById("view-profile"),
+        explore: document.getElementById("view-explore"),
+        "explore-servers": document.getElementById("view-explore-servers"),
+        "create-community": document.getElementById("view-create-community"),
+        "community-topics": document.getElementById('view-community-topics'), 
+        "community-members": document.getElementById('view-community-members') 
+    }
+  };
+
+  // 2. Liga todos os eventos
+  DOM.chatSendBtn.addEventListener("click", sendChatMessage);
+  DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+  document.querySelectorAll(".channel[data-channel]").forEach(c => c.addEventListener("click", () => renderChannel(c.getAttribute("data-channel"))));
+  DOM.postsEl.addEventListener("click", handlePostClick);
+  DOM.explorePostsEl.addEventListener("click", handlePostClick); 
+  DOM.feedSend.addEventListener("click", apiCreatePost);
+  DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
+  DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
+  DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+  DOM.viewTabs.forEach(b => b.addEventListener("click", () => { const viewName = b.dataset.view; activateView(viewName); }));
+  DOM.btnExplore.addEventListener("click", () => activateView("explore"));
+  DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
+  DOM.headerHomeBtn.addEventListener("click", () => { activateView("feed"); });
+  DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
+  DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
+  DOM.friendsContainer.addEventListener("click", (e) => {
+    const friendLink = e.target.closest('.friend-card-name[data-username]');
+    if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
+  });
+  DOM.communityListContainer.addEventListener("click", (e) => {
+    const joinButton = e.target.closest('.join-btn[data-community-id]');
+    if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
+  });
+  DOM.joinedServersList.addEventListener("click", (e) => {
+    const communityBtn = e.target.closest('.community-btn[data-community-id]');
+    if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
+  });
+  DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
+  DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
+  DOM.createCommunityForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = document.getElementById("community-name").value.trim();
+      const emoji = document.getElementById("community-emoji").value.trim();
+      if (!name) return;
+      apiCreateCommunity(name, emoji, DOM.createCommunityForm.querySelector('button[type="submit"]'));
+  });
+  DOM.communityTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+          const view = tab.dataset.communityView;
+          activateCommunityView(view, { community: currentCommunityId });
+      });
+  });
+
+  // 3. Define os nomes de utilizador na UI
   document.getElementById("userName").textContent = currentUser;
   document.getElementById("userAvatar").textContent = currentUser.slice(0, 2).toUpperCase();
   
+  // 4. Carrega os dados iniciais
   apiGetJoinedCommunities(); 
   activateView("feed"); 
 });

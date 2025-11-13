@@ -27,13 +27,19 @@ async function setupDatabase() {
     await client.query(`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT)`);
-    await client.query(`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, "from_user" TEXT NOT NULL, "to_user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAZ DEFAULT NOW(), UNIQUE (from_user, to_user, text))`);
+    await client.query(`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, "from_user" TEXT NOT NULL, "to_user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-    await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
+    await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
     await client.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, emoji TEXT, members INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-    await client.query(`CREATE TABLE IF NOT EXISTS community_members (id SERIAL PRIMARY KEY, user_name TEXT NOT NULL, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, timestamp TIMESTAZ DEFAULT NOW(), UNIQUE(user_name, community_id))`);
-    
-    // Tabela de Posts da Comunidade (O Fórum)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS community_members (
+        id SERIAL PRIMARY KEY,
+        user_name TEXT NOT NULL,
+        community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_name, community_id) 
+      )
+    `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS community_posts (
         id SERIAL PRIMARY KEY,
@@ -45,8 +51,6 @@ async function setupDatabase() {
         timestamp TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-
-    // Tabela de Canais (Agora são dinâmicos e ligados a uma Community)
     await client.query(`
       CREATE TABLE IF NOT EXISTS channels (
         id SERIAL PRIMARY KEY,
@@ -82,7 +86,6 @@ async function seedDatabase() {
       const musicId = music.rows[0].id;
       const gamesId = games.rows[0].id;
 
-      // Adiciona canais padrão para cada comunidade de teste
       await client.query(`
         INSERT INTO channels (community_id, name) VALUES
         ($1, 'geral'), ($1, 'programacao'), 
@@ -90,7 +93,6 @@ async function seedDatabase() {
         ($3, 'geral'), ($3, 'retrogaming')
       `, [techId, musicId, gamesId]);
 
-      // Adiciona um post de teste em cada comunidade
       await client.query(`
         INSERT INTO community_posts (community_id, "user", title, content) VALUES
         ($1, 'Admin', 'Bem-vindos ao fórum Tech!', 'O que estão a programar hoje?'),
@@ -116,7 +118,6 @@ app.get('/', (req, res) => {
 });
 
 // --- API (Feed, Perfil, Amigos, etc.) ---
-// ... (omissão por brevidade - as rotas de posts, likes, perfil, seguir, etc. estão no mesmo estado) ...
 app.get('/api/posts', async (req, res) => {
   const { user } = req.query; 
   if (!user) { return res.status(400).json({ error: 'Utilizador não fornecido' }); }
@@ -269,8 +270,48 @@ app.get('/api/communities/joined', async (req, res) => {
     res.json({ communities: result.rows });
   } catch (err) { res.status(500).json({ error: 'Erro ao buscar comunidades do utilizador:', err }); }
 });
-
-// [GET] Obter os posts do fórum de uma comunidade (NOVA ROTA)
+app.post('/api/communities/create', async (req, res) => {
+  const { name, emoji, creator } = req.body;
+  if (!name || !creator) {
+    return res.status(400).json({ error: 'Nome e criador são obrigatórios' });
+  }
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN'); // Inicia a transação
+    
+    // 1. Cria a nova comunidade
+    const newCommResult = await client.query(
+      `INSERT INTO communities (name, emoji, description, members) 
+       VALUES ($1, $2, $3, 1) RETURNING id, name, emoji`,
+      [name, emoji || '🌟', `Comunidade criada por ${creator}`]
+    );
+    const community = newCommResult.rows[0];
+    
+    // 2. Adiciona o criador como membro
+    await client.query(
+      `INSERT INTO community_members (user_name, community_id) VALUES ($1, $2)`,
+      [creator, community.id]
+    );
+    
+    // 3. Cria o canal de texto #geral padrão
+    await client.query(
+      `INSERT INTO channels (community_id, name) VALUES ($1, $2)`,
+      [community.id, 'geral']
+    );
+    
+    await client.query('COMMIT'); // Finaliza a transação
+    
+    res.status(201).json({ community });
+    
+  } catch (err) {
+    await client.query('ROLLBACK'); // Desfaz tudo se houver erro
+    console.error('Erro ao criar comunidade:', err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  } finally {
+    client.release();
+  }
+});
 app.get('/api/community/:id/posts', async (req, res) => {
   const { id } = req.params;
   try {
@@ -284,8 +325,6 @@ app.get('/api/community/:id/posts', async (req, res) => {
     res.status(500).json({ error: 'Erro no servidor' });
   }
 });
-
-// [POST] Criar um post no fórum de uma comunidade (NOVA ROTA)
 app.post('/api/community/:id/posts', async (req, res) => {
   const { id } = req.params;
   const { user, title, content } = req.body;
