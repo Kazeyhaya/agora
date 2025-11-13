@@ -5,16 +5,17 @@ const { Server } = require('socket.io');
 const path = require('path');
 const db = require('./models/db'); // Importa o nosso módulo de BD
 
+// --- CONFIGURAÇÃO INICIAL ---
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server); // Cria o servidor Socket.IO
 const port = process.env.PORT || 3000;
 
-// Middlewares
+// --- MIDDLEWARES ---
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 
-// --- ROTAS DA API (TOTALMENTE REATORADAS) ---
+// --- ROTAS DA API  ---
 
 // 1. ROTAS DE POSTS (Feed, Likes, Comentários)
 const postRoutes = require('./routes/post.routes');
@@ -39,37 +40,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'agora.html')); 
 });
 
-// --- Lógica do Socket.IO (Chat) ---
-const channelsHistory = { 'geral': [], 'scraps': [], 'testimonials': [], 'albums': [], 'voz-g1': [], 'voz-music': [] };
+// --- LÓGICA DO SOCKET.IO (REATORADO) ---
+// Importa o nosso novo "gestor" de chat
+const { initializeSocket } = require('./socket/chat.handler');
+// Passa o nosso servidor 'io' para ele, para que ele possa "ligar-se"
+initializeSocket(io);
 
-io.on('connection', (socket) => {
-  console.log(`Um utilizador conectou-se: ${socket.id}`);
-  
-  socket.on('joinChannel', (data) => {
-    const { channel, user } = data;
-    socket.join(channel);
-    console.log(`${user} entrou no canal: ${channel}`);
-    if (channelsHistory[channel]) {
-      socket.emit('loadHistory', channelsHistory[channel]);
-    }
-  });
-  
-  socket.on('sendMessage', (data) => {
-    const { channel } = data;
-    if (!channelsHistory[channel]) channelsHistory[channel] = [];
-    channelsHistory[channel].push(data);
-    if (channelsHistory[channel].length > 50) {
-      channelsHistory[channel].shift();
-    }
-    io.to(channel).emit('newMessage', data);
-  });
 
-  socket.on('disconnect', () => {
-    console.log(`Utilizador desconectou-se: ${socket.id}`);
-  });
-});
-
-// --- Iniciar o Servidor ---
+// --- INICIAR O SERVIDOR ---
 db.setupDatabase().then(() => {
   server.listen(port, () => {
     console.log(`🚀 Agora a rodar na porta ${port}`);
