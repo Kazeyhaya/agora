@@ -2,8 +2,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-// 👇 MUDANÇA: O caminho agora usa 'path.join' para ser à prova de erros
-const db = require(path.join(__dirname, 'src', 'models', 'db'));
+// 👇 MUDANÇA: Caminho corrigido para a nova estrutura
+const db = require('./src/models/db'); 
 
 const app = express();
 const server = http.createServer(app);
@@ -15,12 +15,11 @@ app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // --- ROTAS DA API ---
-// 👇 MUDANÇA: O caminho agora usa 'path.join'
-const postRoutes = require(path.join(__dirname, 'src', 'routes', 'post.routes'));
+// 👇 MUDANÇA: Caminho corrigido para a nova estrutura
+const postRoutes = require('./src/routes/post.routes');
 app.use('/api/posts', postRoutes);
 
-// (O resto das rotas de perfil, comunidade, etc. ainda estão aqui)
-// (Vamos migrá-las depois que isto funcionar)
+// (Aqui vamos adicionar as outras rotas - /api/profile, /api/community, etc. - no futuro)
 
 
 // --- ROTA PRINCIPAL (O HTML) ---
@@ -29,7 +28,8 @@ app.get('/', (req, res) => {
 });
 
 // --- Lógica do Socket.IO (Chat) ---
-// (A lógica de Socket.IO e setupDatabase ainda está aqui)
+// (Por agora, a lógica do Socket.IO e das tabelas que não são "posts" 
+// ainda pode viver aqui, até a migrarmos)
 io.on('connection', (socket) => {
   console.log(`Um utilizador conectou-se: ${socket.id}`);
   
@@ -47,6 +47,7 @@ io.on('connection', (socket) => {
 });
 
 // --- Iniciar o Servidor ---
+// (A lógica de 'setupDatabase' e 'seedDatabase' foi movida para db.js)
 db.setupDatabase().then(() => {
   server.listen(port, () => {
     console.log(`Agora a rodar na porta ${port}`);

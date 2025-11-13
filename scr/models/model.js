@@ -1,6 +1,5 @@
-const path = require('path');
-// 👇 MUDANÇA: O caminho agora usa 'path.join' para subir um nível (..)
-const db = require(path.join(__dirname, '..', 'models', 'db')); // Importa a nossa ligação 'pool'
+// 👇 MUDANÇA: Caminho corrigido para o mesmo diretório (.)
+const db = require('./db'); // Importa a nossa ligação 'pool'
 
 // [GET] Obter o feed personalizado
 const getPersonalizedFeed = async (userName) => {
