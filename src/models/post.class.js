@@ -1,21 +1,20 @@
 // src/models/post.class.js
 const db = require('./db');
 
-// Esta é a nossa "planta" para um Post
 class Post {
     
-    // O "nascimento" do objeto. Chamado quando fazemos "new Post(...)"
-    constructor({ id, user, text, likes, timestamp }) {
+    // Adicionado avatar_url ao construtor
+    constructor({ id, user, text, likes, timestamp, avatar_url }) {
         this.id = id;
         this.user = user;
         this.text = text;
         this.likes = likes || 0;
         this.timestamp = timestamp || new Date();
+        this.avatar_url = avatar_url || null; // Opcional, vindo do JOIN
     }
 
-    // --- MÉTODOS DE INSTÂNCIA (Coisas que um Post faz a si mesmo) ---
+    // --- MÉTODOS DE INSTÂNCIA (save, addLike, removeLike) ---
     
-    // Guarda este post (seja novo ou uma atualização)
     async save() {
         // Se não tiver ID, é um post novo (INSERT)
         if (!this.id) {
@@ -34,7 +33,6 @@ class Post {
         return this; // Retorna o próprio objeto atualizado
     }
 
-    // Adiciona um like a este post
     async addLike() {
         this.likes++; // Atualiza o estado do objeto na memória
         // E atualiza na base de dados
@@ -42,7 +40,6 @@ class Post {
         return this;
     }
 
-    // Remove um like deste post
     async removeLike() {
         this.likes = Math.max(0, this.likes - 1); // Atualiza o estado
         // E atualiza na base de dados
@@ -51,7 +48,7 @@ class Post {
     }
 
 
-    // --- MÉTODOS ESTÁTICOS (Funções "de fábrica" que encontram ou criam) ---
+    // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
 
     // Encontra um post por ID e retorna um objeto Post
     static async findById(postId) {
@@ -62,11 +59,13 @@ class Post {
         return new Post(result.rows[0]); 
     }
 
-    // Obtém o feed personalizado e retorna uma lista de objetos Post
+    // Query atualizada com LEFT JOIN para buscar avatar_url
     static async getPersonalizedFeed(userName) {
         const result = await db.query(
-            `SELECT p.* FROM posts p
+            `SELECT p.*, prof.avatar_url
+             FROM posts p
              LEFT JOIN follows f ON p."user" = f.following_user
+             LEFT JOIN profiles prof ON p."user" = prof."user"
              WHERE f.follower_user = $1 OR p."user" = $1
              ORDER BY p.timestamp DESC
              LIMIT 30`,
@@ -76,14 +75,19 @@ class Post {
         return result.rows.map(row => new Post(row));
     }
     
-    // Obtém o feed global
+    // Query atualizada com LEFT JOIN para buscar avatar_url
     static async getGlobalFeed() {
-        const result = await db.query(`SELECT * FROM posts ORDER BY timestamp DESC LIMIT 30`);
+        const result = await db.query(
+            `SELECT p.*, prof.avatar_url
+             FROM posts p
+             LEFT JOIN profiles prof ON p."user" = prof."user"
+             ORDER BY p.timestamp DESC 
+             LIMIT 30`
+        );
         return result.rows.map(row => new Post(row));
     }
 
     // --- MÉTODOS ESTÁTICOS PARA COMENTÁRIOS ---
-    // (Poderíamos criar uma Classe Comment, mas para já isto é mais simples)
 
     static async getComments(postId) {
         const result = await db.query(

@@ -21,8 +21,7 @@ function escapeHtml(s) {
   }[m]));
 }
 
-// 👇 NOVA FUNÇÃO (Para renderizar avatares)
-// Recebe um elemento (DOM.profileAvatar) e os dados (user, avatar_url)
+// Função para renderizar avatares
 function renderAvatar(element, { user, avatar_url }) {
   if (!element) return;
 
@@ -86,28 +85,41 @@ function renderExplorePosts(posts) {
   if (posts.length === 0) { DOM.explorePostsEl.innerHTML = "<div class='meta' style='padding: 12px;'>Ainda não há posts na rede.</div>"; return; }
   renderPostList(DOM.explorePostsEl, posts);
 }
+
+// Função ATUALIZADA para usar renderAvatar
 function renderPostList(containerElement, posts) {
   containerElement.innerHTML = ""; 
   posts.forEach(post => {
     const node = document.createElement("div");
     node.className = "post";
-    // Nota: O avatar do post ainda é estático (baseado no nome)
-    // Teríamos de fazer um 'join' na BD para buscar o avatar_url de cada 'post.user'
-    const postUserInitial = (post.user || "?").slice(0, 2).toUpperCase();
+    
+    // 1. Cria o elemento avatar
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'avatar-display post-avatar';
+    
+    // 2. Chama o 'renderAvatar' para o preencher (com imagem ou iniciais)
+    renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
+
     const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
     
-    node.innerHTML = `
-      <div class="avatar-display post-avatar" style="background-image: none;">${escapeHtml(postUserInitial)}</div>
-      <div>
-        <div class="meta"><strong class="post-username" data-username="${escapeHtml(post.user)}">${escapeHtml(post.user)}</strong> • ${postTime}</div>
-        <div>${escapeHtml(post.text)}</div>
-        <div class="post-actions"><button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button><button class="mini-btn" data-comment="${post.id}">Comentar</button></div>
-        <div class="comments" id="comments-for-${post.id}"></div>
-      </div>`;
+    // Cria o resto do post
+    const postContent = document.createElement('div');
+    postContent.innerHTML = `
+      <div class="meta"><strong class="post-username" data-username="${escapeHtml(post.user)}">${escapeHtml(post.user)}</strong> • ${postTime}</div>
+      <div>${escapeHtml(post.text)}</div>
+      <div class="post-actions"><button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button><button class="mini-btn" data-comment="${post.id}">Comentar</button></div>
+      <div class="comments" id="comments-for-${post.id}"></div>
+    `;
+    
+    // Adiciona o avatar e o conteúdo ao 'node' principal
+    node.appendChild(avatarEl);
+    node.appendChild(postContent);
+    
     containerElement.appendChild(node);
     apiGetComments(post.id);
   });
 }
+
 async function apiGetComments(postId) {
   try {
     const res = await fetch(`/api/posts/${postId}/comments`);
@@ -136,25 +148,20 @@ async function apiGetProfile(username) {
     const res = await fetch(`/api/profile/${encodeURIComponent(username)}`);
     if (!res.ok) return;
     
-    // 'data' agora contém { user, bio, mood, avatar_url }
     const profileData = await res.json(); 
     
-    // Atualiza o perfil na Página de Perfil
     if (DOM.profileBioEl) {
       DOM.profileBioEl.textContent = profileData.bio;
     }
     if (DOM.profileMoodEl) {
       DOM.profileMoodEl.textContent = `Mood: ${profileData.mood || "✨"}`;
     }
-    // Renderiza o avatar na Página de Perfil
     renderAvatar(DOM.profileAvatarEl, profileData);
 
-    // Atualiza a Userbar (SÓ se for o utilizador atual)
     if (username === currentUser) {
       if (DOM.userbarMood) {
         DOM.userbarMood.textContent = profileData.mood || "✨";
       }
-      // Renderiza o avatar na Userbar
       renderAvatar(DOM.userAvatarEl, profileData);
     }
 
@@ -198,25 +205,21 @@ async function apiUpdateBio() {
   } catch (err) { console.error("Falha ao salvar bio:", err); }
 }
 
-// 👇 NOVA FUNÇÃO (Para fazer o upload do avatar)
 async function apiUploadAvatar(event) {
   const file = event.target.files[0];
-  if (!file) return; // Nenhum ficheiro selecionado
+  if (!file) return;
 
-  // 1. Mostrar que está a carregar
   if (DOM.profileAvatarEl) DOM.profileAvatarEl.textContent = "⏳";
   if (DOM.userAvatarEl) DOM.userAvatarEl.textContent = "⏳";
 
-  // 2. Preparar os dados (FormData é obrigatório para ficheiros)
   const formData = new FormData();
-  formData.append('avatar', file); // 'avatar' deve ser o mesmo nome do 'upload.single()'
-  formData.append('user', currentUser); // Envia o nome do utilizador
+  formData.append('avatar', file);
+  formData.append('user', currentUser);
 
-  // 3. Enviar para a API
   try {
     const res = await fetch('/api/profile/avatar', {
       method: 'POST',
-      body: formData // Não definimos 'Content-Type', o 'fetch' fá-lo por nós
+      body: formData
     });
 
     if (!res.ok) {
@@ -224,9 +227,8 @@ async function apiUploadAvatar(event) {
       throw new Error(errData.error || 'Erro do servidor');
     }
 
-    const data = await res.json(); // { avatar_url: "http://..." }
+    const data = await res.json(); 
 
-    // 4. Atualizar os avatares na UI com o novo URL
     const profileData = { user: currentUser, avatar_url: data.avatar_url };
     renderAvatar(DOM.profileAvatarEl, profileData);
     renderAvatar(DOM.userAvatarEl, profileData);
@@ -234,80 +236,344 @@ async function apiUploadAvatar(event) {
   } catch (err) {
     console.error("Falha ao fazer upload do avatar:", err);
     alert(`Erro ao fazer upload: ${err.message}`);
-    // Recarrega o perfil antigo em caso de erro
     apiGetProfile(currentUser);
   }
 }
 
-// (O resto das funções de API: Testimonials, Community, etc... ficam iguais)
-async function apiGetTestimonials(username) { /* ... */ }
-function renderTestimonials(testimonials) { /* ... */ }
-async function apiCreateTestimonial() { /* ... */ }
-async function apiGetCommunityPosts(communityId) { /* ... */ }
-function renderCommunityPosts(posts) { /* ... */ }
-async function apiGetFollowing(username) { /* ... */ }
-function renderFollowing(followingList) { /* ... */ }
-async function apiJoinCommunity(communityId, button) { /* ... */ }
-async function apiCreateCommunity(name, emoji, button) { /* ... */ }
-async function apiGetJoinedCommunities() { /* ... */ }
-function renderJoinedCommunities(communities) { /* ... */ }
-async function apiGetExploreCommunities() { /* ... */ }
-function renderExploreCommunities(communities) { /* ... */ }
+// --- Funções de API (Testimonials, Community, etc) ---
+
+async function apiGetTestimonials(username) { 
+  try {
+    const res = await fetch(`/api/testimonials/${encodeURIComponent(username)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderTestimonials(data.testimonials || []);
+  } catch (err) { console.error("Falha ao buscar depoimentos:", err); }
+}
+
+function renderTestimonials(testimonials) {
+  if (!DOM.testimonialsEl) return;
+  if (testimonials.length === 0) { DOM.testimonialsEl.innerHTML = "<div class='meta'>Nenhum depoimento ainda.</div>"; return; }
+  DOM.testimonialsEl.innerHTML = ""; 
+  testimonials.forEach(item => {
+    const node = document.createElement("div");
+    node.className = "meta"; 
+    node.innerHTML = `<strong>${escapeHtml(item.from_user)}</strong>: ${escapeHtml(item.text)}`;
+    DOM.testimonialsEl.appendChild(node);
+  });
+}
+
+async function apiCreateTestimonial() {
+  const text = DOM.testimonialInput.value.trim();
+  if (!text) return; 
+  DOM.testimonialSend.disabled = true;
+  try {
+    await fetch('/api/testimonials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_user: currentUser, to_user: viewedUsername, text: text }) });
+    DOM.testimonialInput.value = ""; 
+    apiGetTestimonials(viewedUsername); 
+  } catch (err) { console.error("Falha ao salvar depoimento:", err); }
+  DOM.testimonialSend.disabled = false;
+}
+
+async function apiGetCommunityPosts(communityId) {
+    try {
+        const res = await fetch(`/api/community/${communityId}/posts`);
+        const data = await res.json();
+        renderCommunityPosts(data.posts || []);
+    } catch (err) {
+        console.error("Erro ao buscar posts do fórum:", err);
+        if (DOM.communityTopicList) DOM.communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
+    }
+}
+
+function renderCommunityPosts(posts) {
+    if (!DOM.communityTopicList) return;
+    DOM.communityTopicList.innerHTML = "";
+    if (posts.length === 0) {
+        DOM.communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
+        return;
+    }
+    posts.forEach(post => {
+        const node = document.createElement("div");
+        node.className = "post"; 
+        const userInitial = post.user.slice(0, 2).toUpperCase();
+        const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
+        node.innerHTML = `
+            <div class="avatar">${escapeHtml(userInitial)}</div>
+            <div>
+                <div class="meta">
+                    <strong class="post-username" data-username="${escapeHtml(post.user)}">
+                        ${escapeHtml(post.user)}
+                    </strong> 
+                    • ${postTime}
+                </div>
+                <h3>${escapeHtml(post.title)}</h3>
+                <div>${escapeHtml(post.content)}</div>
+                <div class="post-actions">
+                    <button class="mini-btn">💬 Comentários</button>
+                </div>
+            </div>`;
+        DOM.communityTopicList.appendChild(node);
+    });
+}
+
+async function apiGetFollowing(username) {
+  try {
+    const res = await fetch(`/api/following/${encodeURIComponent(username)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderFollowing(data.following || []);
+  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); if (DOM.friendsContainer) DOM.friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
+}
+
+function renderFollowing(followingList) {
+  if (!DOM.friendsContainer) return;
+  DOM.friendsContainer.innerHTML = ""; 
+  if (followingList.length === 0) { DOM.friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>"; return; }
+  followingList.forEach(username => {
+    const node = document.createElement("div");
+    node.className = "friend-card";
+    const userInitial = username.slice(0, 2).toUpperCase();
+    node.innerHTML = `<div class="avatar">${escapeHtml(userInitial)}</div><strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>`;
+    DOM.friendsContainer.appendChild(node);
+  });
+}
+
+async function apiJoinCommunity(communityId, button) {
+  button.disabled = true;
+  button.textContent = "Entrando...";
+  try {
+    const res = await fetch('/api/community/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_name: currentUser, community_id: communityId }) });
+    if (!res.ok) { throw new Error('Falha ao entrar na comunidade'); }
+    const data = await res.json();
+    renderJoinedCommunities([data.community]); 
+    activateCommunityView("topics", { community: data.community.id });
+  } catch (err) { console.error("Erro ao entrar na comunidade:", err); alert("Falha ao entrar na comunidade."); button.disabled = false; button.textContent = "Entrar"; }
+}
+
+async function apiCreateCommunity(name, emoji, button) {
+    button.disabled = true;
+    button.textContent = "Criando...";
+    try {
+        const res = await fetch('/api/communities/create', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, emoji, creator: currentUser }), method: 'POST', });
+        if (!res.ok) { throw new Error('Falha ao criar comunidade'); }
+        const data = await res.json();
+        const newComm = data.community;
+        renderJoinedCommunities([newComm]); 
+        activateCommunityView("topics", { community: newComm.id }); 
+    } catch (err) { console.error("Erro ao criar comunidade:", err); alert("Falha ao criar comunidade. Tente novamente."); button.disabled = false; button.textContent = "Criar e Entrar"; }
+}
+
+async function apiGetJoinedCommunities() {
+  try {
+    const res = await fetch(`/api/communities/joined?user_name=${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderJoinedCommunities(data.communities || []);
+  } catch (err) { console.error("Erro ao buscar comunidades do utilizador:", err); }
+}
+
+function renderJoinedCommunities(communities) {
+  if (!DOM.joinedServersList) return;
+  communities.forEach(community => {
+    if (document.querySelector(`.community-btn[data-community-id="${community.id}"]`)) { return; }
+    const node = document.createElement("div");
+    node.className = "server community-btn";
+    node.dataset.communityId = community.id;
+    node.title = community.name;
+    node.innerHTML = `<span class="emoji">${escapeHtml(community.emoji)}</span>`;
+    DOM.joinedServersList.appendChild(node);
+  });
+}
+
+async function apiGetExploreCommunities() {
+  try {
+    const res = await fetch(`/api/communities/explore?user_name=${encodeURIComponent(currentUser)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderExploreCommunities(data.communities || []);
+  } catch (err) {
+    console.error("Erro ao buscar comunidades:", err);
+    if (DOM.communityListContainer) DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
+  }
+}
+
+function renderExploreCommunities(communities) {
+  if (!DOM.communityListContainer) return;
+  DOM.communityListContainer.innerHTML = ""; 
+  if (communities.length === 0) {
+    DOM.communityListContainer.innerHTML = "<div class='meta'>Nenhuma comunidade pública para entrar.</div>";
+    return;
+  }
+  communities.forEach(community => {
+    const node = document.createElement("div");
+    node.className = "community-card-explore";
+    node.innerHTML = `
+      <div class="emoji">${escapeHtml(community.emoji)}</div>
+      <div class="community-card-explore-info">
+        <h3>${escapeHtml(community.name)}</h3>
+        <div class="meta">${escapeHtml(community.description)}</div>
+      </div>
+      <button class="join-btn" data-community-id="${community.id}">Entrar</button>
+    `;
+    DOM.communityListContainer.appendChild(node);
+  });
+}
 
 // ===================================================
 // 3. LÓGICA DO CHAT (Socket.IO)
-// (Secção inteira sem mudanças)
-// ...
-function renderChannel(name) { /* ... */ }
-function addMessageBubble({ user, timestamp, message }) { /* ... */ }
-function sendChatMessage() { /* ... */ }
-socket.on('loadHistory', (messages) => { /* ... */ });
-socket.on('newMessage', (data) => { /* ... */ });
+// ===================================================
+function renderChannel(name) {
+  activeChannel = name; 
+  DOM.chatMessagesEl.innerHTML = ""; 
+  DOM.chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
+  DOM.chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
+  document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
+  const activeBtn = document.querySelector(`.channel[data-channel="${name}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+  socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
+}
+function addMessageBubble({ user, timestamp, message }) {
+  const item = document.createElement("div");
+  item.className = "msg";
+  const userInitial = (user || "V").slice(0, 2).toUpperCase();
+  const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
+  const isScrolledToBottom = DOM.chatMessagesEl.scrollHeight - DOM.chatMessagesEl.clientHeight <= DOM.chatMessagesEl.scrollTop + 100;
+  item.innerHTML = `
+    <div class="avatar">${escapeHtml(userInitial)}</div>
+    <div class="bubble">
+      <div class="meta"><strong>${escapeHtml(user)}</strong> • ${time}</div>
+      <div>${escapeHtml(message)}</div>
+    </div>
+  `;
+  DOM.chatMessagesEl.appendChild(item);
+  if (isScrolledToBottom) { DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; }
+}
+function sendChatMessage() {
+  const text = DOM.chatInputEl.value.trim();
+  if (!text) return;
+  const messageData = { channel: activeChannel, user: currentUser, message: text, timestamp: new Date().toLocaleString('pt-BR') };
+  socket.emit('sendMessage', messageData);
+  DOM.chatInputEl.value = "";
+  DOM.chatInputEl.focus();
+}
+socket.on('loadHistory', (messages) => {
+  if (!DOM.chatMessagesEl) return;
+  DOM.chatMessagesEl.innerHTML = ""; 
+  messages.forEach(addMessageBubble);
+  DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; 
+});
+socket.on('newMessage', (data) => {
+  if (data.channel === activeChannel) { addMessageBubble(data); }
+});
 
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
-// (Secção inteira sem mudanças)
-// ...
-function handlePostClick(e) { /* ... */ }
+// ===================================================
+function handlePostClick(e) {
+  const userLink = e.target.closest('.post-username[data-username]');
+  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
+  const likeButton = e.target.closest('[data-like]');
+  if (likeButton) {
+    const postId = likeButton.dataset.like; 
+    let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
+    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
+    return;
+  }
+  const commentButton = e.target.closest('[data-comment]');
+  if (commentButton) {
+    const postId = commentButton.dataset.comment;
+    const text = prompt("Digite seu comentário:"); 
+    if (text && text.trim()) { apiCreateComment(postId, text.trim()); }
+    return;
+  }
+}
 
 // ===================================================
 // 5. LÓGICA DE TROCA DE VISÃO (Views)
-// (Secção inteira sem mudanças)
-// ...
-function activateView(name, options = {}) { /* ... */ }
-function activateCommunityView(name, options = {}) { /* ... */ }
+// ===================================================
+function activateView(name, options = {}) {
+  Object.values(DOM.views).forEach(view => view.hidden = true);
+  DOM.appEl.classList.remove("view-home", "view-community");
+  document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
+  
+  if (name === "feed" || name === "explore" || name === "profile" || name === "explore-servers" || name === "create-community") {
+    DOM.appEl.classList.add("view-home");
+    DOM.mainHeader.hidden = false;
+    DOM.channelsEl.hidden = true;
+    DOM.views[name].hidden = false;
+    
+    if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
+    
+    DOM.viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+    DOM.btnExplore.classList.toggle("active", name === "explore");
+    
+    if (name === 'profile' || name === 'explore-servers' || name === 'create-community') { 
+      DOM.viewTabs.forEach(b => b.classList.remove("active"));
+      DOM.btnExplore.classList.remove("active");
+    }
+
+    if (name === "feed") apiGetPosts(); 
+    if (name === "explore") apiGetExplorePosts(); 
+    if (name === "profile") showDynamicProfile(viewedUsername); 
+    if (name === "explore-servers") apiGetExploreCommunities(); 
+    
+  } 
+}
+function activateCommunityView(name, options = {}) {
+    Object.values(DOM.views).forEach(view => view.hidden = true);
+    DOM.appEl.classList.remove("view-home");
+    DOM.appEl.classList.add("view-community");
+    
+    DOM.mainHeader.hidden = true; 
+    DOM.channelsEl.hidden = false; 
+    
+    currentCommunityId = options.community;
+    
+    document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
+    const activeCommunityBtn = document.querySelector(`.community-btn[data-community-id="${options.community}"]`);
+    if (activeCommunityBtn) activeCommunityBtn.classList.add("active");
+
+    DOM.communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
+
+    DOM.communityTopicView.hidden = true;
+    DOM.communityMembersView.hidden = true;
+    DOM.communityChatChannelsList.hidden = true;
+    DOM.chatView.hidden = true; 
+    
+    if (name === "topics") {
+        DOM.communityTopicView.hidden = false; 
+        apiGetCommunityPosts(currentCommunityId); 
+    } else if (name === "chat-channels") {
+        DOM.chatView.hidden = false; 
+        DOM.communityChatChannelsList.hidden = false; 
+        renderChannel("geral"); 
+    } else if (name === "members") {
+        DOM.communityMembersView.hidden = false; 
+    }
+}
 
 // ===================================================
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
 // ===================================================
-
 async function showDynamicProfile(username) {
   if (!username) return;
   
-  // Esta função agora carrega bio, mood e avatar
   apiGetProfile(username);
-  
   apiGetTestimonials(username);
   apiGetFollowing(username); 
   DOM.profileNameEl.textContent = username;
   
-  // Limpa o estilo do avatar do perfil (para o caso de ser o dono)
   DOM.profileAvatarEl.classList.remove('is-owner');
   DOM.avatarUploadLabel.style.display = 'none';
 
   DOM.editBioBtn.disabled = true; 
   if (username === currentUser) {
-    // É O DONO DO PERFIL
     DOM.editBioBtn.textContent = "Editar bio";
     DOM.editBioBtn.onclick = apiUpdateBio; 
     DOM.editBioBtn.disabled = false;
-    
-    // 👇 NOVO: Mostra o botão de upload e adiciona o 'hover'
     DOM.profileAvatarEl.classList.add('is-owner');
-    // (A label está escondida, usamos o clique no próprio avatar)
-
   } else {
-    // É OUTRO UTILIZADOR
     DOM.editBioBtn.disabled = false;
     try {
       const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
@@ -325,12 +591,44 @@ async function showDynamicProfile(username) {
     }
   }
 }
-async function apiFollow(username) { /* ... */ }
-async function apiUnfollow(username) { /* ... */ }
+async function apiFollow(username) {
+  DOM.editBioBtn.disabled = true;
+  try {
+    await fetch('/api/follow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    DOM.editBioBtn.textContent = "Deixar de Seguir";
+    DOM.editBioBtn.onclick = () => apiUnfollow(username);
+    DOM.editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao seguir:", err);
+    DOM.editBioBtn.disabled = false;
+  }
+}
+async function apiUnfollow(username) {
+  DOM.editBioBtn.disabled = true;
+  try {
+    await fetch('/api/unfollow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower: currentUser, following: username })
+    });
+    DOM.editBioBtn.textContent = "Seguir";
+    DOM.editBioBtn.onclick = () => apiFollow(username);
+    DOM.editBioBtn.disabled = false;
+    apiGetFollowing(viewedUsername); 
+  } catch (err) {
+    console.error("Erro ao deixar de seguir:", err);
+    DOM.editBioBtn.disabled = false;
+  }
+}
 
 
 // ===================================================
-// 7. INICIALIZAÇÃO (LÓGICA DE LOGIN ATUALIZADA)
+// 7. INICIALIZAÇÃO
 // ===================================================
 
 function mapAppDOM() {
@@ -355,8 +653,7 @@ function mapAppDOM() {
     DOM.profileMoodEl = document.getElementById("profileMood");
     DOM.editBioBtn = document.getElementById("editBioBtn");
     
-    // 👇 NOVO: IDs do Avatar
-    DOM.userAvatarEl = document.getElementById("userAvatar"); // Na userbar
+    DOM.userAvatarEl = document.getElementById("userAvatar");
     DOM.avatarUploadInput = document.getElementById("avatar-upload-input");
     DOM.avatarUploadLabel = document.getElementById("avatar-upload-label");
 
@@ -421,10 +718,7 @@ function bindAppEvents() {
     DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
-    // 👇 NOVO: Eventos de Upload de Avatar
-    // (Liga o 'change' ao input de ficheiro escondido)
     DOM.avatarUploadInput.addEventListener("change", apiUploadAvatar);
-    // (Faz com que clicar no avatar do perfil acione o input de ficheiro)
     DOM.profileAvatarEl.addEventListener("click", () => {
       if (DOM.profileAvatarEl.classList.contains('is-owner')) {
         DOM.avatarUploadInput.click();
@@ -437,11 +731,11 @@ function bindAppEvents() {
     });
     DOM.communityListContainer.addEventListener("click", (e) => {
       const joinButton = e.target.closest('.join-btn[data-community-id]');
-      if (joinButton) { const communityId = joinButton.dataset.Id; apiJoinCommunity(communityId, joinButton); }
+      if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
     });
     DOM.joinedServersList.addEventListener("click", (e) => {
       const communityBtn = e.target.closest('.community-btn[data-community-id]');
-      if (communityBtn) { const communityId = communityBtn.dataset.Id; activateCommunityView("topics", { community: communityId }); }
+      if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
     });
     DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
     DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
@@ -465,11 +759,10 @@ function startApp() {
   mapAppDOM();
   bindAppEvents();
   
-  // Define o nome de utilizador (avatar e mood são carregados pela apiGetProfile)
   document.getElementById("userName").textContent = currentUser;
   
   apiGetJoinedCommunities(); 
-  apiGetProfile(currentUser); // Carrega bio, mood e avatar
+  apiGetProfile(currentUser);
   
   activateView("feed"); 
   DOM.appEl.hidden = false;
@@ -509,5 +802,4 @@ function checkLogin() {
     }
 }
 
-// Inicia todo o processo
 checkLogin();
