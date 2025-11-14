@@ -7,7 +7,7 @@ class Profile {
         this.user = user;
         this.bio = bio || "Nenhuma bio definida.";
         this.mood = mood || "✨ novo por aqui!";
-        this.avatar_url = avatar_url || null; // URL da imagem
+        this.avatar_url = avatar_url || null;
     }
 
     // --- MÉTODOS DE INSTÂNCIA ---
@@ -33,8 +33,6 @@ class Profile {
         return true;
     }
 
-    // 👇 MUDANÇA AQUI (Query com LEFT JOIN) 👇
-    // Obtém a lista de quem este perfil (this.user) segue
     async getFollowing() {
         const result = await db.query(
             `SELECT f.following_user, p.avatar_url 
@@ -43,19 +41,40 @@ class Profile {
              WHERE f.follower_user = $1`, 
             [this.user]
         );
-        // Retorna [{ user: 'ana', avatar_url: '...' }, { user: 'rui', avatar_url: null }]
-        // Renomeia 'following_user' para 'user' para consistência
         return result.rows.map(r => ({
             user: r.following_user,
             avatar_url: r.avatar_url
         }));
     }
-    // 👆 FIM DA MUDANÇA 👆
 
     async isFollowing(userToCheck) {
         const result = await db.query('SELECT 1 FROM follows WHERE follower_user = $1 AND following_user = $2', [this.user, userToCheck]);
         return result.rows.length > 0;
     }
+
+    // 👇 NOVO MÉTODO (para buscar os votos deste perfil) 👇
+    async getRatings() {
+        const result = await db.query(
+            `SELECT rating_type, COUNT(*) as count 
+             FROM profile_ratings 
+             WHERE to_user = $1 
+             GROUP BY rating_type`,
+            [this.user]
+        );
+        
+        // Inicializa os contadores
+        const counts = { confiavel: 0, legal: 0, divertido: 0 };
+        
+        // Preenche com os valores da BD
+        for (const row of result.rows) {
+            if (counts[row.rating_type] !== undefined) {
+                counts[row.rating_type] = parseInt(row.count, 10);
+            }
+        }
+        return counts;
+    }
+    // 👆 FIM DO NOVO MÉTODO 👆
+
 
     // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
     
@@ -64,7 +83,7 @@ class Profile {
         if (result.rows[0]) {
             return new Profile(result.rows[0]);
         }
-        return new Profile({ user: username }); // Cria um perfil "virtual"
+        return new Profile({ user: username });
     }
 
     static async updateMood(username, newMood) {
@@ -82,6 +101,25 @@ class Profile {
         );
         return result.rows[0].avatar_url;
     }
+    
+    // 👇 NOVO MÉTODO (para adicionar um voto) 👇
+    static async addRating(fromUser, toUser, ratingType) {
+        // Validação básica
+        const validTypes = ['confiavel', 'legal', 'divertido'];
+        if (!validTypes.includes(ratingType)) {
+            throw new Error('Tipo de avaliação inválido');
+        }
+        
+        // 'ON CONFLICT DO NOTHING' garante que um utilizador só pode votar uma vez
+        await db.query(
+            `INSERT INTO profile_ratings (from_user, to_user, rating_type) 
+             VALUES ($1, $2, $3) 
+             ON CONFLICT (from_user, to_user, rating_type) DO NOTHING`,
+            [fromUser, toUser, ratingType]
+        );
+        return { success: true };
+    }
+    // 👆 FIM DO NOVO MÉTODO 👆
 }
 
 module.exports = Profile;
