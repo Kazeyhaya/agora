@@ -23,7 +23,7 @@ body{
             radial-gradient(1200px 500px at 110% -10%, rgba(77,163,255,.14), transparent 42%),
             linear-gradient(180deg, #181a1f, #111111 60%);
   color: var(--text-primary);
-  height:100vh;
+  height:100dvh; /* Alterado de 100vh para 100dvh para corrigir bug mobile */
   overflow:hidden;
 }
 a{color:inherit;text-decoration:none}
@@ -31,7 +31,7 @@ a{color:inherit;text-decoration:none}
 /* Layout base */
 .app{
   display:grid;
-  height:100dvh;
+  height:100dvh; /* Alterado de 100vh para 100dvh para corrigir bug mobile */
   gap:12px;
   padding:12px;
 }
@@ -71,61 +71,18 @@ a{color:inherit;text-decoration:none}
 .pill.active{background:rgba(255,255,255,.16);color:#fff}
 
 /* Servers rail */
-.servers{grid-area: servers;background: var(--discord-darker);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);padding: 0 8px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow: var(--shadow)}
-.server{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg, rgba(224,87,161,.22), rgba(77,163,255,.22));border:1px solid rgba(255,255,255,.08);cursor:pointer;transition: .2s transform, .2s background, .2s border-radius;position:relative;overflow:hidden}
-.server:hover{transform: translateY(-2px);border-radius:16px}
-.server.active{background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue))}
-.server .emoji{font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
-/* Ficheiro: assets/style.css */
-
-/* SUBSTITUA o bloco original (linhas 80-89) por este: */
 #home-btn {
-  background: #1e1f22;
-  
-  /* Remove o padding original de 8px para controlarmos manualmente */
-  padding: 0; 
-  
-  /* Ajusta a altura para compensar o padding do container (52px + 10px) */
-  height: 62px; 
-  
-  /* Define os raios para bater certo com o container */
-  border-top-left-radius: var(--radius); /* 14px */
-  border-top-right-radius: var(--radius); /* 14px */
-  
-  /* Mantém o raio de baixo igual aos outros .server */
-  border-bottom-left-radius: 18px; 
-  border-bottom-right-radius: 18px;
-
-  /* Anula o 'place-items: center' do .server para controlarmos o padding */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  /* Padding manual: (10px do topo + 8px originais) (8px laterais) (8px de baixo) */
-  padding: 18px 8px 8px 8px;
+    background: #1e1f22;
+    padding: 8px;
 }
 #home-btn:hover {
-    border-radius: 16px; 
-    transform: translateY(-2px);
-    
-    /* Garante que a altura e o padding se mantêm no hover */
-    height: 62px;
-    padding: 18px 8px 8px 8px;
+    border-radius: 50%; /* <-- MUDANÇA AQUI */
 }
 #home-btn.active {
     background: #1e1f22;
     border: 1px solid var(--orkut-blue);
-    
-    /* Garante que os raios se mantêm no estado ativo */
-    border-radius: 18px; /* Raio base do .server */
-    border-top-left-radius: var(--radius);
-    border-top-right-radius: var(--radius);
-    
-    /* Garante que a altura e o padding se mantêm no ativo */
-    height: 62px;
-    padding: 18px 8px 8px 8px;
+    border-radius: 50%; /* <-- MUDANÇA AQUI */
 }
-/* 👆 FIM DO BLOCO DE SUBSTITUIÇÃO 👆 */
 .divider{width:24px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin:8px 0}
 .add-btn{width:52px;height:52px;border-radius:50%;border:1px dashed rgba(255,255,255,.18);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer;transition:.2s;background: transparent}
 .add-btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
@@ -136,6 +93,11 @@ a{color:inherit;text-decoration:none}
   align-items: center;
   gap: 10px;
 }
+.servers{grid-area: servers;background: var(--discord-darker);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow: var(--shadow)}
+.server{width:52px;height:52px;border-radius: 50%;display:grid;place-items:center;background:linear-gradient(135deg, rgba(224,87,161,.22), rgba(77,163,255,.22));border:1px solid rgba(255,255,255,.08);cursor:pointer;transition: .2s transform, .2s background, .2s border-radius;position:relative;overflow:hidden} /* <-- MUDANÇA AQUI */
+.server:hover{transform: translateY(-2px);border-radius: 50%;} /* <-- MUDANÇA AQUI */
+.server.active{background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue))}
+.server .emoji{font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
 
 /* Channels */
 .channels{grid-area: channels;background: var(--discord-panel);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow: var(--shadow);min-width:240px}
@@ -467,113 +429,6 @@ a{color:inherit;text-decoration:none}
 }
 
 
-/* Responsivo */
-/* Responsivo */
-/* Ficheiro: assets/style.css */
-
-/* ... (Todos os estilos anteriores) ... */
-
-
-/* Responsivo */
-#btn-mobile-menu {
-  display: none; /* Escondido por padrão no PC */
-  border: none;
-  font-size: 1.5rem;
-  margin-right: 5px;
-}
-
-@media (max-width: 1080px){
-  .app.view-community {
-    grid-template-columns:72px 1fr;
-    grid-template-rows:auto 1fr 64px;
-    grid-template-areas: "servers channels" "servers content" "servers userbar";
-  }
-  .app.view-home {
-    grid-template-columns:72px 1fr;
-    grid-template-rows:64px 1fr 64px;
-    grid-template-areas: "servers header" "servers content" "servers userbar";
-  }
-}
-
-/* Tablet (720px) - Mantém botões, esconde título */
-@media (max-width: 720px){
-  .app.view-community {
-    grid-template-columns:64px 1fr;
-    grid-template-rows:auto 1fr 64px;
-    grid-template-areas: "servers channels" "servers content" "servers userbar";
-  }
-  .app.view-home {
-    grid-template-columns:64px 1fr;
-    grid-template-rows:64px 1fr 64px;
-    grid-template-areas: "servers header" "servers content" "servers userbar";
-  }
-  
-  .brand-title {
-    display: none; 
-  }
-}
-
-/* Smartphone (640px) - Lógica do Menu Hamburger */
-@media (max-width: 640px) {
-  .app {
-    padding: 8px;
-    gap: 8px;
-    /* Evita que o grid se mova quando o menu abrir */
-    overflow-x: hidden; 
-  }
-  
-  #btn-mobile-menu {
-    display: grid; /* Mostra o botão hambúrguer */
-  }
-
-  .servers {
-    /* Faz a barra de servidores "flutuar" por cima */
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100dvh; /* Altura total */
-    z-index: 50; /* Fica por cima do conteúdo */
-    border-radius: 0; /* Remove bordas redondas */
-    
-    /* Lógica para esconder/mostrar */
-    transform: translateX(-100%); /* Começa escondido à esquerda */
-    transition: transform 0.3s ease;
-  }
-  
-  /* ESTADO ATIVO: Mostra a barra */
-  .servers.is-open {
-    transform: translateX(0);
-    box-shadow: 0 0 40px rgba(0,0,0,.5);
-  }
-
-  .app.view-home {
-    grid-template-columns: 1fr;
-    grid-template-rows: 64px 1fr 64px;
-    grid-template-areas: 
-      "header"
-      "content"
-      "userbar";
-  }
-
-  .app.view-community {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr 64px;
-    grid-template-areas: 
-      "channels"
-      "content"
-      "userbar";
-  }
-  
-  .channels {
-    min-width: unset;
-  }
-  
-  .profile-body {
-    grid-template-columns: 1fr;
-  }
-}
-
-
 /* --- Estilos do Avatar (Novo) --- */
 .avatar-display {
   background-size: cover;
@@ -725,11 +580,105 @@ a{color:inherit;text-decoration:none}
   border-color: var(--accent);
   color: var(--accent);
 }
-
-/* ESTILO DO BOTÃO ATIVO */
 #ratings-vote-container .mini-btn.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
 /* 👆 FIM DOS NOVOS ESTILOS 👆 */
+
+
+/* Responsivo */
+#btn-mobile-menu {
+  display: none; /* Escondido por padrão no PC */
+  border: none;
+  font-size: 1.5rem;
+  margin-right: 5px;
+}
+
+@media (max-width: 1080px){
+  .app.view-community {
+    grid-template-columns:72px 1fr;
+    grid-template-rows:auto 1fr 64px;
+    grid-template-areas: "servers channels" "servers content" "servers userbar";
+  }
+  .app.view-home {
+    grid-template-columns:72px 1fr;
+    grid-template-rows:64px 1fr 64px;
+    grid-template-areas: "servers header" "servers content" "servers userbar";
+  }
+}
+
+/* Tablet (720px) - Mantém botões, esconde título */
+@media (max-width: 720px){
+  .app.view-community {
+    grid-template-columns:64px 1fr;
+    grid-template-rows:auto 1fr 64px;
+    grid-template-areas: "servers channels" "servers content" "servers userbar";
+  }
+  .app.view-home {
+    grid-template-columns:64px 1fr;
+    grid-template-rows:64px 1fr 64px;
+    grid-template-areas: "servers header" "servers content" "servers userbar";
+  }
+  
+  .brand-title {
+    display: none; 
+  }
+}
+
+/* Smartphone (640px) - Lógica do Menu Hamburger */
+@media (max-width: 640px) {
+  .app {
+    padding: 8px;
+    gap: 8px;
+    overflow-x: hidden; 
+  }
+  
+  #btn-mobile-menu {
+    display: grid; 
+  }
+
+  .servers {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100dvh; 
+    z-index: 50; 
+    border-radius: 0; 
+    
+    transform: translateX(-100%); 
+    transition: transform 0.3s ease;
+  }
+  
+  .servers.is-open {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0,0,0,.5);
+  }
+
+  .app.view-home {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px 1fr 64px;
+    grid-template-areas: 
+      "header"
+      "content"
+      "userbar";
+  }
+
+  .app.view-community {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr 64px;
+    grid-template-areas: 
+      "channels"
+      "content"
+      "userbar";
+  }
+  
+  .channels {
+    min-width: unset;
+  }
+  
+  .profile-body {
+    grid-template-columns: 1fr;
+  }
+}
