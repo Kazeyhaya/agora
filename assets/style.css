@@ -430,6 +430,19 @@ a{color:inherit;text-decoration:none}
 
 /* Responsivo */
 /* Responsivo */
+/* Ficheiro: assets/style.css */
+
+/* ... (Todos os estilos anteriores) ... */
+
+
+/* Responsivo */
+#btn-mobile-menu {
+  display: none; /* Escondido por padrão no PC */
+  border: none;
+  font-size: 1.5rem;
+  margin-right: 5px;
+}
+
 @media (max-width: 1080px){
   .app.view-community {
     grid-template-columns:72px 1fr;
@@ -456,27 +469,46 @@ a{color:inherit;text-decoration:none}
     grid-template-areas: "servers header" "servers content" "servers userbar";
   }
   
-  /* 👇 MUDANÇA AQUI 👇 */
-  /* Esconde o "Agora" para dar espaço aos botões */
   .brand-title {
     display: none; 
   }
-  /* A linha ".header-actions{display:none}" foi REMOVIDA */
 }
 
-/* Smartphone (640px) - Esconde servers, empilha tudo */
+/* Smartphone (640px) - Lógica do Menu Hamburger */
 @media (max-width: 640px) {
   .app {
-    padding: 8px; /* Menos espaço nas bordas */
+    padding: 8px;
     gap: 8px;
+    /* Evita que o grid se mova quando o menu abrir */
+    overflow-x: hidden; 
+  }
+  
+  #btn-mobile-menu {
+    display: grid; /* Mostra o botão hambúrguer */
   }
 
   .servers {
-    display: none; /* Esconde a barra de servidores */
+    /* Faz a barra de servidores "flutuar" por cima */
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100dvh; /* Altura total */
+    z-index: 50; /* Fica por cima do conteúdo */
+    border-radius: 0; /* Remove bordas redondas */
+    
+    /* Lógica para esconder/mostrar */
+    transform: translateX(-100%); /* Começa escondido à esquerda */
+    transition: transform 0.3s ease;
   }
   
+  /* ESTADO ATIVO: Mostra a barra */
+  .servers.is-open {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0,0,0,.5);
+  }
+
   .app.view-home {
-    grid-template-columns: 1fr; /* Coluna única */
+    grid-template-columns: 1fr;
     grid-template-rows: 64px 1fr 64px;
     grid-template-areas: 
       "header"
@@ -485,8 +517,8 @@ a{color:inherit;text-decoration:none}
   }
 
   .app.view-community {
-    grid-template-columns: 1fr; /* Coluna única */
-    grid-template-rows: auto 1fr 64px; /* O 'auto' é para os canais */
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr 64px;
     grid-template-areas: 
       "channels"
       "content"
@@ -494,10 +526,9 @@ a{color:inherit;text-decoration:none}
   }
   
   .channels {
-    min-width: unset; /* Remove a largura mínima */
+    min-width: unset;
   }
   
-  /* Faz o perfil ter uma só coluna */
   .profile-body {
     grid-template-columns: 1fr;
   }

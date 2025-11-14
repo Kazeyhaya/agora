@@ -938,6 +938,8 @@ function mapAppDOM() {
     DOM.profileBioEl = document.getElementById("profileBio");
     DOM.profileMoodEl = document.getElementById("profileMood");
     DOM.editBioBtn = document.getElementById("editBioBtn");
+    DOM.btnMobileMenu = document.getElementById("btn-mobile-menu");
+    DOM.serversList = document.querySelector(".servers");
     
     DOM.userAvatarEl = document.getElementById("userAvatar");
     DOM.avatarUploadInput = document.getElementById("avatar-upload-input");
@@ -1029,6 +1031,16 @@ function bindAppEvents() {
     DOM.headerHomeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
+    DOM.btnMobileMenu.addEventListener("click", () => {
+    DOM.serversList.classList.toggle("is-open");
+    DOM.serversList.addEventListener("click", (e) => {
+  // Se o ecrã for pequeno E o menu estiver aberto E clicámos num botão
+  if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
+      if (e.target.closest(".server") || e.target.closest(".add-btn")) {
+          DOM.serversList.classList.remove("is-open");
+      }
+  }
+});
     
     DOM.modalCancelBtn.addEventListener("click", () => {
         DOM.modalView.hidden = true;
