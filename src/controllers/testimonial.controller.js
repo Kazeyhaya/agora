@@ -1,11 +1,10 @@
 // src/controllers/testimonial.controller.js
-const Testimonial = require('../models/testimonial.class'); // MUDANÇA: Importa a Classe
+const Testimonial = require('../models/testimonial.class');
 
 // [GET] /api/testimonials/:username
 const getTestimonialsForUser = async (req, res) => {
     try {
         const { username } = req.params;
-        // Usa o método estático da classe
         const testimonials = await Testimonial.findForUser(username);
         res.json({ testimonials });
     } catch (err) {
@@ -18,13 +17,20 @@ const getTestimonialsForUser = async (req, res) => {
 const createNewTestimonial = async (req, res) => {
     try {
         const { from_user, to_user, text } = req.body;
+        
+        // --- VALIDAÇÃO ---
         if (!from_user || !to_user || !text) {
             return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
         }
-        
-        // 1. Cria o objeto na memória
+        if (text.length > 500) {
+            return res.status(400).json({ error: 'O depoimento não pode exceder 500 caracteres.' });
+        }
+        if (from_user === to_user) {
+            return res.status(400).json({ error: 'Não pode escrever um depoimento para si mesmo.' });
+        }
+        // --- FIM DA VALIDAÇÃO ---
+
         const testimonial = new Testimonial({ from_user, to_user, text });
-        // 2. Diz-lhe para se salvar
         await testimonial.save();
         
         res.status(201).json(testimonial);

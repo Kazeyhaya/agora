@@ -1,5 +1,5 @@
 // src/controllers/community.controller.js
-const Community = require('../models/community.class'); // MUDANÇA: Importa a Classe
+const Community = require('../models/community.class');
 
 // [GET] /api/communities/joined
 const getJoined = async (req, res) => {
@@ -37,13 +37,11 @@ const join = async (req, res) => {
             return res.status(400).json({ error: 'user_name e community_id são obrigatórios' });
         }
         
-        // 1. Encontra a comunidade
         const community = await Community.findById(community_id);
         if (!community) {
             return res.status(404).json({ error: 'Comunidade não encontrada' });
         }
         
-        // 2. Diz-lhe para adicionar o membro
         await community.addMember(user_name);
         
         res.status(201).json({ community });
@@ -57,15 +55,21 @@ const join = async (req, res) => {
 const create = async (req, res) => {
     try {
         const { name, emoji, creator } = req.body;
+        
+        // --- VALIDAÇÃO ---
         if (!name || !creator) {
             return res.status(400).json({ error: 'Nome e criador são obrigatórios' });
         }
+        if (name.length > 50) {
+            return res.status(400).json({ error: 'O nome da comunidade não pode exceder 50 caracteres.' });
+        }
+        if (emoji && emoji.length > 5) { // Emoji é opcional, mas se existir, limita o tamanho
+             return res.status(400).json({ error: 'O emoji é muito longo.' });
+        }
+        // --- FIM DA VALIDAÇÃO ---
         
-        // 1. Cria o objeto
         const community = new Community({ name, emoji, members: 1 });
-        // 2. Salva-o (para obter o ID)
         await community.save();
-        // 3. Adiciona o criador como primeiro membro
         await community.addMember(creator);
 
         res.status(201).json({ community });
@@ -85,7 +89,6 @@ const getPosts = async (req, res) => {
             return res.status(404).json({ error: 'Comunidade não encontrada' });
         }
         
-        // Pede os posts à instância da comunidade
         const posts = await community.getPosts();
         
         res.json({ posts });

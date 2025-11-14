@@ -6,7 +6,7 @@ const getProfileBio = async (req, res) => {
     try {
         const { username } = req.params;
         const profile = await Profile.findByUser(username);
-        res.json(profile);
+        res.json(profile); 
     } catch (err) {
         console.error("Erro no controlador getProfileBio:", err);
         res.status(500).json({ error: 'Erro ao buscar perfil' });
@@ -17,12 +17,20 @@ const getProfileBio = async (req, res) => {
 const updateProfileBio = async (req, res) => {
     try {
         const { user, bio } = req.body;
+        
+        // --- VALIDAÇÃO ---
         if (!user || bio === undefined) {
             return res.status(400).json({ error: 'Utilizador e bio são obrigatórios' });
         }
+        if (bio.length > 150) {
+            return res.status(400).json({ error: 'A bio não pode exceder 150 caracteres.' });
+        }
+        // --- FIM DA VALIDAÇÃO ---
+
         const profile = await Profile.findByUser(user);
         profile.bio = bio;
         await profile.save();
+        
         res.status(200).json(profile);
     } catch (err) {
         console.error("Erro no controlador updateProfileBio:", err);
@@ -34,9 +42,16 @@ const updateProfileBio = async (req, res) => {
 const updateUserMood = async (req, res) => {
     try {
         const { user, mood } = req.body;
+        
+        // --- VALIDAÇÃO ---
         if (!user || mood === undefined) {
             return res.status(400).json({ error: 'Utilizador e mood são obrigatórios' });
         }
+        if (mood.length > 30) {
+             return res.status(400).json({ error: 'O mood não pode exceder 30 caracteres.' });
+        }
+        // --- FIM DA VALIDAÇÃO ---
+
         const newMood = await Profile.updateMood(user, mood);
         res.status(200).json({ mood: newMood });
     } catch (err) {
@@ -45,11 +60,9 @@ const updateUserMood = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR (Para o upload)
 // [POST] /api/profile/avatar
 const updateUserAvatar = async (req, res) => {
     try {
-        // 'req.file' vem do 'multer'. 'req.body.user' vem do frontend.
         const { file, body } = req; 
         
         if (!file) {
@@ -59,7 +72,6 @@ const updateUserAvatar = async (req, res) => {
             return res.status(400).json({ error: 'Utilizador não especificado.' });
         }
 
-        // 'file.path' é o URL seguro que o Cloudinary nos devolve
         const newAvatarUrl = await Profile.updateAvatar(body.user, file.path);
         
         res.status(200).json({ avatar_url: newAvatarUrl });
@@ -70,7 +82,7 @@ const updateUserAvatar = async (req, res) => {
     }
 };
 
-// (...o resto dos controladores: getFollowingList, getIsFollowing, addFollow, removeFollow ... ficam iguais)
+// [GET] /api/following/:username
 const getFollowingList = async (req, res) => {
     try {
         const { username } = req.params;
@@ -82,6 +94,8 @@ const getFollowingList = async (req, res) => {
         res.status(500).json({ error: 'Erro ao buscar amigos' });
     }
 };
+
+// [GET] /api/isfollowing/:username
 const getIsFollowing = async (req, res) => {
     try {
         const { username: userToCheck } = req.params;
@@ -97,6 +111,8 @@ const getIsFollowing = async (req, res) => {
         res.status(500).json({ error: 'Erro ao verificar' });
     }
 };
+
+// [POST] /api/follow
 const addFollow = async (req, res) => {
     try {
         const { follower, following } = req.body;
@@ -111,6 +127,8 @@ const addFollow = async (req, res) => {
         res.status(500).json({ error: 'Erro ao seguir' });
     }
 };
+
+// [POST] /api/unfollow
 const removeFollow = async (req, res) => {
     try {
         const { follower, following } = req.body;
@@ -130,7 +148,7 @@ module.exports = {
   getProfileBio,
   updateProfileBio,
   updateUserMood,
-  updateUserAvatar, // <-- Exporta o novo controlador
+  updateUserAvatar,
   getFollowingList,
   getIsFollowing,
   addFollow,

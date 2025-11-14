@@ -1,6 +1,4 @@
 // src/controllers/post.controller.js
-
-// MUDANÇA: Importamos a CLASSE em vez do ficheiro de modelo antigo
 const Post = require('../models/post.class'); 
 
 // [GET] /api/posts (Feed Pessoal)
@@ -10,7 +8,6 @@ const getFeed = async (req, res) => {
     return res.status(400).json({ error: 'Utilizador não fornecido' });
   }
   try {
-    // Usamos o método estático da classe
     const posts = await Post.getPersonalizedFeed(user);
     res.json({ posts });
   } catch (err) {
@@ -22,7 +19,6 @@ const getFeed = async (req, res) => {
 // [GET] /api/posts/explore (Feed Global)
 const getExplore = async (req, res) => {
   try {
-    // Usamos o método estático da classe
     const posts = await Post.getGlobalFeed();
     res.json({ posts });
   } catch (err) {
@@ -34,17 +30,20 @@ const getExplore = async (req, res) => {
 // [POST] /api/posts (Criar Post)
 const createNewPost = async (req, res) => {
   const { user, text } = req.body;
+  
+  // --- VALIDAÇÃO ---
   if (!user || !text) {
     return res.status(400).json({ error: 'Usuário e texto são obrigatórios' });
   }
+  if (text.length > 500) {
+     return res.status(400).json({ error: 'O post não pode exceder 500 caracteres.' });
+  }
+  // --- FIM DA VALIDAÇÃO ---
+
   try {
-    // 1. Cria um novo objeto "Post" na memória
     const post = new Post({ user: user, text: text });
-    
-    // 2. Diz ao objeto para se salvar a si mesmo
     await post.save(); 
-    
-    res.status(201).json(post); // Envia o objeto 'post' (agora com ID)
+    res.status(201).json(post);
   } catch (err) {
     console.error('Erro no controlador createNewPost:', err);
     res.status(500).json({ error: 'Erro no servidor' });
@@ -55,17 +54,12 @@ const createNewPost = async (req, res) => {
 const addLike = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // 1. Encontra o post e cria um objeto "vivo"
     const post = await Post.findById(id); 
     if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' });
     }
-    
-    // 2. Diz ao objeto para adicionar um like a si mesmo
     await post.addLike(); 
-    
-    res.status(200).json(post); // Envia o objeto atualizado
+    res.status(200).json(post);
   } catch (err) {
     console.error('Erro no controlador addLike:', err);
     res.status(500).json({ error: 'Erro no servidor' });
@@ -76,30 +70,24 @@ const addLike = async (req, res) => {
 const removeLike = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // 1. Encontra o post
     const post = await Post.findById(id);
     if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' });
     }
-    
-    // 2. Diz ao objeto para remover um like de si mesmo
     await post.removeLike();
-    
-    res.status(200).json(post); // Envia o objeto atualizado
+    res.status(200).json(post);
   } catch (err) {
     console.error('Erro no controlador removeLike:', err);
     res.status(500).json({ error: 'Erro no servidor' });
   }
 };
 
-// --- CONTROLADORES DE COMENTÁRIOS (Usando a Classe) ---
+// --- CONTROLADORES DE COMENTÁRIOS ---
 
 // [GET] /api/posts/:id/comments
 const getPostComments = async (req, res) => {
     try {
         const { id } = req.params;
-        // Usamos o método estático da classe Post
         const comments = await Post.getComments(id);
         res.json({ comments });
     } catch (err) {
@@ -113,17 +101,21 @@ const addPostComment = async (req, res) => {
     try {
         const { id } = req.params; // ID do Post
         const { user, text } = req.body;
+
+        // --- VALIDAÇÃO ---
         if (!user || !text) {
             return res.status(400).json({ error: 'Utilizador e texto são obrigatórios' });
         }
+        if (text.length > 280) {
+             return res.status(400).json({ error: 'O comentário não pode exceder 280 caracteres.' });
+        }
+        // --- FIM DA VALIDAÇÃO ---
         
-        // Verificamos se o Post existe (boa prática)
         const post = await Post.findById(id);
         if (!post) {
              return res.status(404).json({ error: 'Post não encontrado' });
         }
         
-        // Usamos o método estático da classe Post
         const newComment = await Post.createComment(id, user, text);
         res.status(201).json(newComment);
     } catch (err) {
