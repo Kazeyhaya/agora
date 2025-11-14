@@ -28,8 +28,10 @@
 
   <div class="app" hidden>
     <aside class="servers" aria-label="Comunidades">
-      <div id="home-btn" class="server active" title="Agora" style="background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue)); font-weight: bold; font-size: 24px;">A</div>
       
+      <div id="home-btn" class="server active" title="Agora">
+        <img src="/assets/Agora-logo.png" alt="Agora Home" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
       <div class="divider"></div>
       <div id="joined-servers-list"></div>
       <div class="divider"></div>
@@ -39,9 +41,8 @@
 
     <header class="header" role="banner">
       <div class="brand" aria-label="Agora" id="header-home-btn">
-        <div class="brand-badge">
-            <img src="/assets/Agora-logo.png" alt="Agora Logo">
-        </div>
+        
+        <div class="brand-badge">A</div>
         <div class="brand-title">Agora</div>
       </div>
       <div class="header-actions">
@@ -86,7 +87,7 @@
 
     <section class="feed" id="view-feed">
       <div class="feed-top">
-        <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Posts de quem você segue</span></div>
+        <div class="chat-topic"><div class="topic-badge">Feed</div><span class="meta">— Posts de quem você segue</span></div>
         <div class="chat-actions"><button class="icon-btn" id="btn-refresh">🔄</button></div>
       </div>
       <div class="composer-feed">

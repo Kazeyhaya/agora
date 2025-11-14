@@ -48,21 +48,22 @@ a{color:inherit;text-decoration:none}
 }
 .brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.4px}
 
-/* 👇 MUDANÇA: Estilos do Logo 👇 */
+/* 👇 MUDANÇA: Revertido para o estilo original 👇 */
 .brand-badge{
   width:36px;
   height:36px;
   border-radius:10px;
-  background: #1e1f22; /* Fundo escuro para o logo */
+  background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue));
   display:grid;
   place-items:center;
+  color:#fff;
+  font-weight:900;
   box-shadow: 0 6px 20px rgba(109,156,255,.35);
-  padding: 4px; /* Espaço para o logo respirar */
 }
 .brand-badge img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* Garante que o logo caiba */
+  object-fit: contain;
 }
 /* 👆 FIM DA MUDANÇA 👆 */
 
@@ -79,6 +80,21 @@ a{color:inherit;text-decoration:none}
 .server:hover{transform: translateY(-2px);border-radius:16px}
 .server.active{background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue))}
 .server .emoji{font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+
+/* 👇 MUDANÇA: Estilo para o botão Home com o logo 👇 */
+#home-btn {
+    background: #1e1f22; /* Fundo escuro */
+    padding: 8px; /* Espaço para o logo respirar */
+}
+#home-btn:hover {
+    border-radius: 16px; /* Mantém o hover */
+}
+#home-btn.active {
+    background: #1e1f22; /* Fundo escuro mesmo quando ativo */
+    border: 1px solid var(--orkut-blue); /* Borda azul quando ativo */
+}
+/* 👆 FIM DA MUDANÇA 👆 */
+
 .divider{width:24px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin:8px 0}
 .add-btn{width:52px;height:52px;border-radius:50%;border:1px dashed rgba(255,255,255,.18);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer;transition:.2s;background: transparent}
 .add-btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
@@ -200,7 +216,7 @@ a{color:inherit;text-decoration:none}
   align-items: center;
   gap: 8px;
 }
-.friend-card .avatar-display { /* MUDANÇA: 'avatar' para 'avatar-display' */
+.friend-card .avatar-display {
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -240,7 +256,7 @@ a{color:inherit;text-decoration:none}
 /* User bar */
 .userbar{grid-area: userbar;background: var(--discord-panel);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:flex;align-items:center;justify-content:space-between;padding:0 12px;box-shadow: var(--shadow)}
 .me{display:flex;align-items:center;gap:10px}
-.me .avatar-display { /* MUDANÇA: 'avatar' para 'avatar-display' */
+.me .avatar-display {
   width:36px;
   height:36px;
   border-radius:10px
@@ -442,10 +458,9 @@ a{color:inherit;text-decoration:none}
   background-position: center;
   background-repeat: no-repeat;
   overflow: hidden; 
-  /* Estilos de 'fallback' para as iniciais */
   display: grid;
   place-items: center;
-  background-color: var(--discord-panel); /* Cor de fundo se não houver imagem */
+  background-color: var(--discord-panel);
   font-weight: 800;
 }
 .avatar-display img {
