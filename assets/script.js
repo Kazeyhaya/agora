@@ -86,23 +86,18 @@ function renderExplorePosts(posts) {
   renderPostList(DOM.explorePostsEl, posts);
 }
 
-// Função ATUALIZADA para usar renderAvatar
 function renderPostList(containerElement, posts) {
   containerElement.innerHTML = ""; 
   posts.forEach(post => {
     const node = document.createElement("div");
     node.className = "post";
     
-    // 1. Cria o elemento avatar
     const avatarEl = document.createElement('div');
     avatarEl.className = 'avatar-display post-avatar';
-    
-    // 2. Chama o 'renderAvatar' para o preencher (com imagem ou iniciais)
     renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
 
     const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
     
-    // Cria o resto do post
     const postContent = document.createElement('div');
     postContent.innerHTML = `
       <div class="meta"><strong class="post-username" data-username="${escapeHtml(post.user)}">${escapeHtml(post.user)}</strong> • ${postTime}</div>
@@ -111,7 +106,6 @@ function renderPostList(containerElement, posts) {
       <div class="comments" id="comments-for-${post.id}"></div>
     `;
     
-    // Adiciona o avatar e o conteúdo ao 'node' principal
     node.appendChild(avatarEl);
     node.appendChild(postContent);
     
@@ -232,6 +226,8 @@ async function apiUploadAvatar(event) {
     const profileData = { user: currentUser, avatar_url: data.avatar_url };
     renderAvatar(DOM.profileAvatarEl, profileData);
     renderAvatar(DOM.userAvatarEl, profileData);
+    
+    apiGetPosts(); // Recarrega o feed para mostrar o novo avatar
 
   } catch (err) {
     console.error("Falha ao fazer upload do avatar:", err);
@@ -296,10 +292,11 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
+        
         const userInitial = post.user.slice(0, 2).toUpperCase();
         const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
         node.innerHTML = `
-            <div class="avatar">${escapeHtml(userInitial)}</div>
+            <div class="avatar-display post-avatar">${escapeHtml(userInitial)}</div>
             <div>
                 <div class="meta">
                     <strong class="post-username" data-username="${escapeHtml(post.user)}">
@@ -333,8 +330,10 @@ function renderFollowing(followingList) {
   followingList.forEach(username => {
     const node = document.createElement("div");
     node.className = "friend-card";
+    
     const userInitial = username.slice(0, 2).toUpperCase();
-    node.innerHTML = `<div class="avatar">${escapeHtml(userInitial)}</div><strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>`;
+    node.innerHTML = `<div class="avatar-display post-avatar" style="width: 32px; height: 32px; border-radius: 8px; font-size: 0.9rem;">${escapeHtml(userInitial)}</div><strong class="friend-card-name" data-username="${escapeHtml(username)}">${escapeHtml(username)}</strong>`;
+    
     DOM.friendsContainer.appendChild(node);
   });
 }
@@ -439,8 +438,13 @@ function addMessageBubble({ user, timestamp, message }) {
   const userInitial = (user || "V").slice(0, 2).toUpperCase();
   const time = timestamp ? timestamp.split(' ')[1] : 'agora'; 
   const isScrolledToBottom = DOM.chatMessagesEl.scrollHeight - DOM.chatMessagesEl.clientHeight <= DOM.chatMessagesEl.scrollTop + 100;
+  
+  const avatarEl = document.createElement('div');
+  avatarEl.className = 'avatar-display post-avatar';
+  renderAvatar(avatarEl, { user: user, avatar_url: null });
+
   item.innerHTML = `
-    <div class="avatar">${escapeHtml(userInitial)}</div>
+    ${avatarEl.outerHTML}
     <div class="bubble">
       <div class="meta"><strong>${escapeHtml(user)}</strong> • ${time}</div>
       <div>${escapeHtml(message)}</div>
@@ -568,13 +572,22 @@ async function showDynamicProfile(username) {
   DOM.avatarUploadLabel.style.display = 'none';
 
   DOM.editBioBtn.disabled = true; 
+  
+  // 👇 MUDANÇA: Lógica para esconder/mostrar o form de depoimento 👇
   if (username === currentUser) {
+    // É O DONO DO PERFIL
     DOM.editBioBtn.textContent = "Editar bio";
     DOM.editBioBtn.onclick = apiUpdateBio; 
     DOM.editBioBtn.disabled = false;
     DOM.profileAvatarEl.classList.add('is-owner');
+    
+    DOM.testimonialFormContainer.hidden = true; // Esconde o form
+    
   } else {
+    // É OUTRO UTILIZADOR
     DOM.editBioBtn.disabled = false;
+    DOM.testimonialFormContainer.hidden = false; // Mostra o form
+    
     try {
       const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
       const data = await res.json();
@@ -664,6 +677,10 @@ function mapAppDOM() {
     DOM.testimonialsEl = document.getElementById("testimonials");
     DOM.testimonialInput = document.getElementById("testimonialInput");
     DOM.testimonialSend = document.getElementById("testimonialSend");
+    
+    // 👇 MUDANÇA: Adiciona o novo ID
+    DOM.testimonialFormContainer = document.getElementById("testimonial-form-container");
+    
     DOM.exploreServersView = document.getElementById("view-explore-servers");
     DOM.exploreServersBtn = document.getElementById("explore-servers-btn");
     DOM.communityListContainer = document.getElementById("community-list-container");
