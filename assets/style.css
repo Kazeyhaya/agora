@@ -76,38 +76,56 @@ a{color:inherit;text-decoration:none}
 .server:hover{transform: translateY(-2px);border-radius:16px}
 .server.active{background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue))}
 .server .emoji{font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+/* Ficheiro: assets/style.css */
+
+/* SUBSTITUA o bloco original (linhas 80-89) por este: */
 #home-btn {
   background: #1e1f22;
-  padding: 8px;
-
-  /* 👇 LINHAS ADICIONADAS 👇 */
-  width: 100%; /* Faz ocupar a largura total do container (que tem 8px de padding) */
-  margin-bottom: 0; /* Garante que cola no próximo item */
-
-  /* Adiciona o padding que removemos do container (10px) + o padding original (8px) */
-  padding-top: 18px; 
-
+  
+  /* Remove o padding original de 8px para controlarmos manualmente */
+  padding: 0; 
+  
+  /* Ajusta a altura para compensar o padding do container (52px + 10px) */
+  height: 62px; 
+  
   /* Define os raios para bater certo com o container */
-  border-top-left-radius: var(--radius);
-  border-top-right-radius: var(--radius);
-
-  /* Mantém o raio de baixo igual aos outros .server (18px) */
-  border-bottom-left-radius: 18px;
+  border-top-left-radius: var(--radius); /* 14px */
+  border-top-right-radius: var(--radius); /* 14px */
+  
+  /* Mantém o raio de baixo igual aos outros .server */
+  border-bottom-left-radius: 18px; 
   border-bottom-right-radius: 18px;
+
+  /* Anula o 'place-items: center' do .server para controlarmos o padding */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* Padding manual: (10px do topo + 8px originais) (8px laterais) (8px de baixo) */
+  padding: 18px 8px 8px 8px;
 }
 #home-btn:hover {
-    border-radius: 16px; /* Mantém o :hover original do .server */
+    border-radius: 16px; 
     transform: translateY(-2px);
+    
+    /* Garante que a altura e o padding se mantêm no hover */
+    height: 62px;
+    padding: 18px 8px 8px 8px;
 }
 #home-btn.active {
     background: #1e1f22;
     border: 1px solid var(--orkut-blue);
-
+    
     /* Garante que os raios se mantêm no estado ativo */
     border-radius: 18px; /* Raio base do .server */
-    border-top-left-radius: var(--radius); /* Sobrescreve o topo */
-    border-top-right-radius: var(--radius); /* Sobrescreve o topo */
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+    
+    /* Garante que a altura e o padding se mantêm no ativo */
+    height: 62px;
+    padding: 18px 8px 8px 8px;
 }
+/* 👆 FIM DO BLOCO DE SUBSTITUIÇÃO 👆 */
 .divider{width:24px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin:8px 0}
 .add-btn{width:52px;height:52px;border-radius:50%;border:1px dashed rgba(255,255,255,.18);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer;transition:.2s;background: transparent}
 .add-btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
