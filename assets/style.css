@@ -47,7 +47,25 @@ a{color:inherit;text-decoration:none}
   backdrop-filter: blur(6px);
 }
 .brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.4px}
-.brand-badge{width:36px;height:36px;border-radius:10px;background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue));display:grid;place-items:center;color:#fff;font-weight:900;box-shadow: 0 6px 20px rgba(109,156,255,.35)}
+
+/* 👇 MUDANÇA: Estilos do Logo 👇 */
+.brand-badge{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  background: #1e1f22; /* Fundo escuro para o logo */
+  display:grid;
+  place-items:center;
+  box-shadow: 0 6px 20px rgba(109,156,255,.35);
+  padding: 4px; /* Espaço para o logo respirar */
+}
+.brand-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Garante que o logo caiba */
+}
+/* 👆 FIM DA MUDANÇA 👆 */
+
 .brand-title{display:flex;gap:8px;align-items:baseline}
 .header-actions{display:flex;gap:8px}
 .view-tabs{display:flex;gap:8px}
@@ -65,7 +83,6 @@ a{color:inherit;text-decoration:none}
 .add-btn{width:52px;height:52px;border-radius:50%;border:1px dashed rgba(255,255,255,.18);color:var(--text-secondary);display:grid;place-items:center;cursor:pointer;transition:.2s;background: transparent}
 .add-btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
 
-/* 👇 CORREÇÃO: Gap entre os botões de comunidade 👇 */
 #joined-servers-list {
   display: flex;
   flex-direction: column;
@@ -183,7 +200,7 @@ a{color:inherit;text-decoration:none}
   align-items: center;
   gap: 8px;
 }
-.friend-card .avatar {
+.friend-card .avatar-display { /* MUDANÇA: 'avatar' para 'avatar-display' */
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -223,7 +240,11 @@ a{color:inherit;text-decoration:none}
 /* User bar */
 .userbar{grid-area: userbar;background: var(--discord-panel);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:flex;align-items:center;justify-content:space-between;padding:0 12px;box-shadow: var(--shadow)}
 .me{display:flex;align-items:center;gap:10px}
-.me .avatar{width:36px;height:36px;border-radius:10px}
+.me .avatar-display { /* MUDANÇA: 'avatar' para 'avatar-display' */
+  width:36px;
+  height:36px;
+  border-radius:10px
+}
 .presence{width:10px;height:10px;border-radius:50%;background:var(--success);border:2px solid var(--discord-panel)}
 .user-actions{display:flex;gap:8px}
 /* Utilities */
@@ -389,93 +410,49 @@ a{color:inherit;text-decoration:none}
 
 /* Responsivo */
 @media (max-width: 1080px){
-  .app.view-community { /* Layout de Chat */
+  .app.view-community {
     grid-template-columns:72px 1fr;
-    grid-template-rows:auto 1fr 64px; /* Canais em cima */
+    grid-template-rows:auto 1fr 64px;
     grid-template-areas: "servers channels" "servers content" "servers userbar";
   }
-  .app.view-home { /* Layout de Feed/Perfil/Explorar */
+  .app.view-home {
     grid-template-columns:72px 1fr;
     grid-template-rows:64px 1fr 64px;
     grid-template-areas: "servers header" "servers content" "servers userbar";
   }
 }
 @media (max-width: 720px){
-  .app.view-community { /* Layout de Chat */
+  .app.view-community {
     grid-template-columns:64px 1fr;
     grid-template-rows:auto 1fr 64px;
     grid-template-areas: "servers channels" "servers content" "servers userbar";
   }
-  .app.view-home { /* Layout de Feed/Perfil/Explorar */
+  .app.view-home {
     grid-template-columns:64px 1fr;
     grid-template-rows:64px 1fr 64px;
     grid-template-areas: "servers header" "servers content" "servers userbar";
   }
-  .header-actions{display:none} /* Esconde abas em ecrã pequeno */
+  .header-actions{display:none}
 }
 
 
-/*
-/* --- 👇 Estilos da Tela de Login 👇 ---
-*/
-.login-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  /* Efeito de "vidro fosco" */
-  background: rgba(10, 10, 10, 0.5);
-  backdrop-filter: blur(10px);
-  z-index: 100; /* Garante que fica por cima de tudo */
-  
-  /* Escondido por JS, mas 'hidden' é a regra principal */
-  display: none;
-}
-.login-overlay[hidden] {
-  display: none;
-}
-/* Quando o JS o mostrar (removendo 'hidden'), ele aparece */
-.login-overlay:not([hidden]) {
-  display: grid;
-}
-
-.login-card {
-  /* Reutilizamos o estilo 'card' do perfil */
-  background: var(--discord-panel);
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 100%;
-  max-width: 400px;
-  
-  /* Layout interno */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: var(--shadow);
-}
 /* --- Estilos do Avatar (Novo) --- */
-
-/* O 'display' (a caixa do avatar) */
 .avatar-display {
-  /* Garante que a imagem preenche o espaço */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  
-  /* Se for uma imagem (img), não a distorce */
   overflow: hidden; 
+  /* Estilos de 'fallback' para as iniciais */
+  display: grid;
+  place-items: center;
+  background-color: var(--discord-panel); /* Cor de fundo se não houver imagem */
+  font-weight: 800;
 }
 .avatar-display img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Garante que a imagem cobre o espaço */
+  object-fit: cover;
 }
-
-/* Tamanhos específicos */
 .userbar-avatar {
   width: 36px;
   height: 36px;
@@ -491,13 +468,10 @@ a{color:inherit;text-decoration:none}
   height: 44px;
   border-radius: 12px;
 }
-
-/* Estilo do botão de Upload no Perfil */
 #profileAvatar {
   cursor: pointer;
   position: relative;
 }
-/* Efeito 'hover' no avatar do perfil (só para o dono) */
 .profile-avatar.is-owner:hover::after {
   content: 'Mudar Foto';
   position: absolute;
@@ -512,4 +486,39 @@ a{color:inherit;text-decoration:none}
   color: #fff;
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;
+}
+
+
+/* --- Estilos da Tela de Login --- */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 10, 10, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  display: none;
+}
+.login-overlay[hidden] {
+  display: none;
+}
+.login-overlay:not([hidden]) {
+  display: grid;
+}
+
+.login-card {
+  background: var(--discord-panel);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow);
 }

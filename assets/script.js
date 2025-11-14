@@ -441,14 +441,12 @@ function renderExploreCommunities(communities) {
 // 3. LÓGICA DO CHAT (Socket.IO)
 // ===================================================
 
-// 👇 MUDANÇA: 'renderChannel' agora restaura a UI da comunidade
 function renderChannel(name) {
   activeChannel = name; 
   DOM.chatMessagesEl.innerHTML = ""; 
   DOM.chatTopicBadge.textContent = `# ${name.replace("-", " ")}`;
   DOM.chatInputEl.placeholder = `Envie uma mensagem para #${name}`;
 
-  // RESTAURA A UI DE COMUNIDADE (que o DM escondeu)
   DOM.communityChatChannelsList.hidden = false;
   DOM.communityTabs.forEach(b => b.style.display = 'flex');
   if (DOM.communityCard) DOM.communityCard.hidden = false;
@@ -459,42 +457,34 @@ function renderChannel(name) {
   socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
 
-// 👇 NOVA FUNÇÃO: 'renderDirectMessage'
 function renderDirectMessage(roomName, targetUser) {
-    activeChannel = roomName; // Define o canal global para o socket
+    activeChannel = roomName;
     
-    // 1. Ativa a visão de "chat" (reutilizando a lógica de 'community')
     activateCommunityView('chat-channels', { community: null });
     
-    // 2. Sobrescreve a UI do chat para DMs
-    DOM.chatTopicBadge.textContent = `@ ${targetUser}`; // Mostra o nome do utilizador
+    DOM.chatTopicBadge.textContent = `@ ${targetUser}`;
     DOM.chatInputEl.placeholder = `Envie uma mensagem para @${targetUser}`;
     
-    // 3. Desativa todos os botões de canal da comunidade
     document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
     
-    // 4. Esconde a UI específica de Comunidades ("Hack" de UI)
     DOM.communityChatChannelsList.hidden = true;
     DOM.communityTabs.forEach(b => b.style.display = 'none');
     if (DOM.communityCard) DOM.communityCard.hidden = true;
 
-    // 5. Entra na sala do socket
     socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
-// 👆 FIM DA NOVA FUNÇÃO
 
-// 👇 NOVA FUNÇÃO: 'startDM'
 function startDM(targetUser) {
-    if (targetUser === currentUser) return; // Não podes enviar DM para ti mesmo
-    
-    // Gera o nome da sala (ex: alexandre_tsuki)
+    if (targetUser === currentUser) return;
     const roomName = [currentUser, targetUser].sort().join('_');
     renderDirectMessage(roomName, targetUser);
 }
-// 👆 FIM DA NOVA FUNÇÃO
 
 
-function addMessageBubble({ user, timestamp, message }) {
+// 👇 MUDANÇA: 'addMessageBubble' agora usa o 'avatar_url'
+function addMessageBubble(data) {
+  const { user, timestamp, message, avatar_url } = data; // Obtém o avatar_url
+  
   const item = document.createElement("div");
   item.className = "msg";
   const time = timestamp ? new Date(timestamp).toLocaleString('pt-BR').split(' ')[1] : 'agora';
@@ -502,7 +492,8 @@ function addMessageBubble({ user, timestamp, message }) {
   
   const avatarEl = document.createElement('div');
   avatarEl.className = 'avatar-display post-avatar';
-  renderAvatar(avatarEl, { user: user, avatar_url: null }); 
+  // Passa os dados de avatar (incluindo o URL) para o renderAvatar
+  renderAvatar(avatarEl, { user: user, avatar_url: avatar_url }); 
 
   item.innerHTML = `
     ${avatarEl.outerHTML}
@@ -514,6 +505,8 @@ function addMessageBubble({ user, timestamp, message }) {
   DOM.chatMessagesEl.appendChild(item);
   if (isScrolledToBottom) { DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; }
 }
+// 👆 FIM DA MUDANÇA 👆
+
 function sendChatMessage() {
   const text = DOM.chatInputEl.value.trim();
   if (!text) return;
@@ -641,13 +634,13 @@ async function showDynamicProfile(username) {
     DOM.profileAvatarEl.classList.add('is-owner');
     
     DOM.testimonialFormContainer.hidden = true;
-    DOM.dmBtn.style.display = 'none'; // Esconde o botão de DM
+    DOM.dmBtn.style.display = 'none';
     
   } else {
     DOM.editBioBtn.disabled = false;
     DOM.testimonialFormContainer.hidden = false;
-    DOM.dmBtn.style.display = 'flex'; // Mostra o botão de DM
-    DOM.dmBtn.onclick = () => startDM(username); // Define o clique
+    DOM.dmBtn.style.display = 'flex';
+    DOM.dmBtn.onclick = () => startDM(username);
     
     try {
       const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
@@ -740,10 +733,8 @@ function mapAppDOM() {
     DOM.testimonialSend = document.getElementById("testimonialSend");
     DOM.testimonialFormContainer = document.getElementById("testimonial-form-container");
     
-    // 👇 MUDANÇA: Adiciona IDs para DMs
     DOM.dmBtn = document.getElementById("dmBtn");
     DOM.communityCard = document.querySelector('.community-card');
-    // 👆 FIM DA MUDANÇA
     
     DOM.exploreServersView = document.getElementById("view-explore-servers");
     DOM.exploreServersBtn = document.getElementById("explore-servers-btn");
