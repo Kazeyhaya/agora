@@ -15,11 +15,6 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 
-// Rota "fantasma" para calar o erro do favicon.ico
-app.get('/favicon.ico', (req, res) => {
-  res.status(204).end(); // 204 = No Content (Sem Conteúdo)
-});
-
 
 // --- ROTAS DA API (TOTALMENTE REATORADAS) ---
 
