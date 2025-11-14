@@ -194,7 +194,7 @@ async function apiGetProfile(username) {
 
   } catch (err) { 
     console.error("Falha ao buscar perfil:", err);
-    // 👇 MUDANÇA: Define o estado de erro
+    // Define o estado de erro (para corrigir o bug da 'foto fantasma')
     if (DOM.profileBioEl) DOM.profileBioEl.textContent = "Erro ao carregar bio.";
     if (DOM.profileMoodEl) DOM.profileMoodEl.textContent = "Mood: (erro)";
     if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
@@ -763,12 +763,10 @@ function activateCommunityView(name, options = {}) {
 // ===================================================
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
 // ===================================================
-
-// 👇 MUDANÇA: 'showDynamicProfile' agora limpa os dados antigos 👇
 async function showDynamicProfile(username) {
   if (!username) return;
 
-  // 1. Limpa os dados do perfil anterior (para evitar "fantasmas")
+  // 1. Limpa os dados do perfil anterior
   DOM.profileNameEl.textContent = username;
   DOM.profileBioEl.textContent = "Carregando bio...";
   DOM.profileMoodEl.textContent = "Mood: ...";
@@ -822,8 +820,6 @@ async function showDynamicProfile(username) {
     }
   }
 }
-// 👆 FIM DA MUDANÇA 👆
-
 
 async function apiFollow(username) {
   DOM.editBioBtn.disabled = true;
