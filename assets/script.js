@@ -493,7 +493,6 @@ function renderExploreCommunities(communities) {
 // 3. LÓGICA DO CHAT (Socket.IO)
 // ===================================================
 
-// 👇 MUDANÇA: 'renderChannel' agora restaura a UI da comunidade
 function renderChannel(name) {
   activeChannel = name; 
   DOM.chatMessagesEl.innerHTML = ""; 
@@ -510,38 +509,34 @@ function renderChannel(name) {
   socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
 
-// 👇 MUDANÇA: 'renderDirectMessage' (função DM) CORRIGIDA
 function renderDirectMessage(roomName, targetUser) {
-    activeChannel = roomName; // Define o canal global
+    activeChannel = roomName;
     
-    // --- 1. Lógica Manual de 'activateView'/'activateCommunityView' ---
+    // --- Lógica Manual de 'activateView' ---
     Object.values(DOM.views).forEach(view => view.hidden = true);
     DOM.appEl.classList.remove("view-home");
     DOM.appEl.classList.add("view-community");
     
     DOM.mainHeader.hidden = true; 
     DOM.channelsEl.hidden = false;
-    DOM.chatView.hidden = false;
+    DOM.chatView.hidden = false; // Mostra a view de chat
     
     document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
     DOM.homeBtn.classList.add("active"); // Ativa o "A" de Home
     // --- Fim da lógica manual ---
 
-    // 2. Limpa o chat e define a UI para DM
     DOM.chatMessagesEl.innerHTML = "";
     DOM.chatTopicBadge.textContent = `@ ${targetUser}`;
     DOM.chatInputEl.placeholder = `Envie uma mensagem para @${targetUser}`;
     
-    // 3. Esconde a UI específica de Comunidades
     document.querySelectorAll(".channel").forEach(c => c.classList.remove("active"));
+    
     DOM.communityChatChannelsList.hidden = true;
     DOM.communityTabs.forEach(b => b.style.display = 'none');
     if (DOM.communityCard) DOM.communityCard.hidden = true;
 
-    // 4. Entra na sala (agora com o 'activeChannel' correto)
     socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
 }
-// 👆 FIM DA MUDANÇA
 
 function startDM(targetUser) {
     if (targetUser === currentUser) return;
@@ -645,6 +640,8 @@ function activateView(name, options = {}) {
     
   } 
 }
+
+// 👇 MUDANÇA: 'activateCommunityView' (função de Comunidade) CORRIGIDA
 function activateCommunityView(name, options = {}) {
     Object.values(DOM.views).forEach(view => view.hidden = true);
     DOM.appEl.classList.remove("view-home");
@@ -653,6 +650,13 @@ function activateCommunityView(name, options = {}) {
     DOM.mainHeader.hidden = true; 
     DOM.channelsEl.hidden = false; 
     
+    // --- CORREÇÃO (Resetar a UI) ---
+    // Restaura a UI da comunidade que o DM (renderDirectMessage) escondeu
+    DOM.communityChatChannelsList.hidden = false; 
+    DOM.communityTabs.forEach(b => b.style.display = 'flex');
+    if (DOM.communityCard) DOM.communityCard.hidden = false;
+    // --- Fim da Correção ---
+
     currentCommunityId = options.community;
     
     document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
@@ -663,7 +667,6 @@ function activateCommunityView(name, options = {}) {
 
     DOM.communityTopicView.hidden = true;
     DOM.communityMembersView.hidden = true;
-    DOM.communityChatChannelsList.hidden = true;
     DOM.chatView.hidden = true; 
     
     if (name === "topics") {
@@ -671,12 +674,13 @@ function activateCommunityView(name, options = {}) {
         apiGetCommunityPosts(currentCommunityId); 
     } else if (name === "chat-channels") {
         DOM.chatView.hidden = false; 
-        DOM.communityChatChannelsList.hidden = false; 
+        DOM.communityChatChannelsList.hidden = false; // Garante que a lista está visível
         renderChannel("geral"); 
     } else if (name === "members") {
         DOM.communityMembersView.hidden = false; 
     }
 }
+// 👆 FIM DA MUDANÇA
 
 // ===================================================
 // 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
