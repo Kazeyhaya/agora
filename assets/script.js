@@ -231,29 +231,31 @@ function renderRatings(ratings) {
 }
 
 async function apiAddRating(ratingType) {
-    try {
-        const res = await fetch('/api/profile/rate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from_user: currentUser,
-                to_user: viewedUsername,
-                rating_type: ratingType
-            })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error);
-        }
-        
-        DOM.ratingsVoteContainer.hidden = true;
-        apiGetProfile(viewedUsername); 
-        
-    } catch (err) {
-        console.error("Falha ao enviar avaliação:", err);
-        alert(`Erro ao avaliar: ${err.message}`);
-    }
+  try {
+      const res = await fetch('/api/profile/rate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              from_user: currentUser,
+              to_user: viewedUsername,
+              rating_type: ratingType
+          })
+      });
+      
+      if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error);
+      }
+      
+      // DOM.ratingsVoteContainer.hidden = true; // <-- LINHA REMOVIDA/COMENTADA
+      
+      // Apenas atualiza o perfil (com os novos votos)
+      apiGetProfile(viewedUsername); 
+      
+  } catch (err) {
+      console.error("Falha ao enviar avaliação:", err);
+      alert(`Erro ao avaliar: ${err.message}`);
+  }
 }
 
 async function apiUpdateMood() {
