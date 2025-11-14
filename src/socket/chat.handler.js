@@ -1,59 +1,61 @@
 // src/socket/chat.handler.js
 
-// Armazena o histórico de mensagens em memória (enquanto o servidor estiver ligado)
-const channelsHistory = { 
-    'geral': [], 
-    'scraps': [], 
-    'testimonials': [], 
-    'albums': [], 
-    'voz-g1': [], 
-    'voz-music': [] 
-  };
-  
-  // Esta função irá "ligar" a lógica ao servidor Socket.IO principal
-  function initializeSocket(io) {
-  
-    // Isto é o que estava no server.js:
-    io.on('connection', (socket) => {
-      console.log(`Um utilizador conectou-se: ${socket.id}`);
-      
-      // Quando um utilizador entra num canal
-      socket.on('joinChannel', (data) => {
+// Importa a nossa nova Classe de Mensagem
+const Message = require('../models/message.class');
+
+// O 'channelsHistory' em memória foi REMOVIDO.
+
+function initializeSocket(io) {
+
+  io.on('connection', (socket) => {
+    console.log(`Um utilizador conectou-se: ${socket.id}`);
+    
+    // Quando um utilizador entra num canal
+    socket.on('joinChannel', async (data) => {
+      try {
         const { channel, user } = data;
         socket.join(channel);
         console.log(`${user} entrou no canal: ${channel}`);
         
-        // Envia o histórico (se existir) apenas para este socket
-        if (channelsHistory[channel]) {
-          socket.emit('loadHistory', channelsHistory[channel]);
-        }
-      });
-      
-      // Quando um utilizador envia uma mensagem
-      socket.on('sendMessage', (data) => {
-        const { channel } = data;
+        // Vai buscar o histórico à BASE DE DADOS
+        const history = await Message.getHistory(channel);
         
-        // Guarda a mensagem no histórico do canal
-        if (!channelsHistory[channel]) channelsHistory[channel] = [];
-        channelsHistory[channel].push(data);
+        // Envia o histórico (da BD) apenas para este socket
+        socket.emit('loadHistory', history);
         
-        // Limita o histórico para as últimas 50 mensagens
-        if (channelsHistory[channel].length > 50) {
-          channelsHistory[channel].shift();
-        }
-        
-        // Envia a nova mensagem para todos nesse canal
-        io.to(channel).emit('newMessage', data);
-      });
-  
-      // Quando o utilizador se desconecta
-      socket.on('disconnect', () => {
-        console.log(`Utilizador desconectou-se: ${socket.id}`);
-      });
+      } catch (err) {
+        console.error("Erro em 'joinChannel':", err);
+      }
     });
-  }
-  
-  // Exportamos a função de inicialização
-  module.exports = {
-    initializeSocket
-  };
+    
+    // Quando um utilizador envia uma mensagem
+    socket.on('sendMessage', async (data) => {
+      try {
+        const { channel, user, message } = data;
+        
+        // Cria um novo objeto Message (ignora o timestamp do cliente)
+        const newMessage = new Message({ channel, user, message });
+        
+        // Salva a mensagem na BASE DE DADOS
+        await newMessage.save(); // O 'save' atualiza o objeto com o timestamp da BD
+        
+        // Envia a nova mensagem (agora com o timestamp da BD)
+        // para todos nesse canal
+        io.to(channel).emit('newMessage', newMessage);
+
+      } catch (err) {
+         console.error("Erro em 'sendMessage':", err);
+      }
+    });
+
+    // Quando o utilizador se desconecta
+    socket.on('disconnect', () => {
+      console.log(`Utilizador desconectou-se: ${socket.id}`);
+    });
+  });
+}
+
+// Exportamos a função de inicialização
+module.exports = {
+  initializeSocket
+};
