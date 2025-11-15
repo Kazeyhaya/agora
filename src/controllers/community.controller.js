@@ -94,7 +94,7 @@ const getPosts = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR ADICIONADO 👇
+// 👇 A FUNÇÃO QUE PROVAVELMENTE ESTÁ EM FALTA NO SEU SERVIDOR 👇
 // [GET] /api/community/:id/members
 const getMembers = async (req, res) => {
     try {
@@ -122,5 +122,5 @@ module.exports = {
   join,
   create,
   getPosts,
-  getMembers // <-- Exporta o novo controlador
+  getMembers // <-- A EXPORTAÇÃO QUE PROVAVELMENTE ESTÁ EM FALTA
 };
