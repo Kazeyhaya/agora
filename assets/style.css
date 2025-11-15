@@ -225,7 +225,12 @@ a{color:inherit;text-decoration:none}
   color: var(--orkut-blue);
 }
 .chat-top{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.06);background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);border-top-left-radius: var(--radius);border-top-right-radius: var(--radius); min-height: 56px;}
-.chat-topic{display:flex;align-items:center;gap:10px}
+.chat-topic{display:flex;align-items:center;gap:10px;min-width:0}
+.chat-topic .meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .topic-badge{color:#fff;background:linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue));padding:6px 10px;border-radius:999px;font-weight:600}
 .chat-actions{display:flex;gap:8px}
 .icon-btn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#fff8;transition:.2s}
