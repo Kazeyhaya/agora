@@ -24,6 +24,10 @@ communityRouter.post('/join', communityController.join);
 // [GET] /api/community/:id/posts
 communityRouter.get('/:id/posts', communityController.getPosts);
 
+// 👇 NOVA ROTA ADICIONADA 👇
+// [GET] /api/community/:id/members
+communityRouter.get('/:id/members', communityController.getMembers);
+
 
 // Exportamos os dois routers
 module.exports = {

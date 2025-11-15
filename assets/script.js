@@ -547,6 +547,62 @@ function renderFollowing(followingList) {
   });
 }
 
+// 👇 NOVA FUNÇÃO (apiGetCommunityMembers) 👇
+async function apiGetCommunityMembers(communityId) {
+  try {
+    const res = await fetch(`/api/community/${communityId}/members`);
+    if (!res.ok) {
+        throw new Error(`Falha na API: ${res.status}`);
+    }
+    const data = await res.json();
+    renderCommunityMembers(data.members || []);
+  } catch (err) { 
+    console.error("Erro ao buscar lista de membros:", err); 
+    if (DOM.communityMemberList) DOM.communityMemberList.innerHTML = "<div class='meta'>Falha ao carregar membros.</div>"; 
+  }
+}
+// 👆 FIM DA NOVA FUNÇÃO 👆
+
+// 👇 NOVA FUNÇÃO (renderCommunityMembers) 👇
+function renderCommunityMembers(members) {
+  if (!DOM.communityMemberList) return;
+  DOM.communityMemberList.innerHTML = ""; 
+  
+  if (DOM.communityMembersTitle) {
+      DOM.communityMembersTitle.textContent = `Membros da Comunidade (${members.length})`;
+  }
+  
+  if (members.length === 0) { 
+    DOM.communityMemberList.innerHTML = "<div class='meta'>Nenhum membro encontrado.</div>"; 
+    return; 
+  }
+  
+  members.forEach(member => {
+    const node = document.createElement("div");
+    node.className = "friend-card"; // Reutiliza o estilo dos "amigos"
+    
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'avatar-display';
+    avatarEl.style.width = '32px';
+    avatarEl.style.height = '32px';
+    avatarEl.style.borderRadius = '8px';
+    avatarEl.style.fontSize = '0.9rem';
+    renderAvatar(avatarEl, member); // 'member' já tem { user: '...', avatar_url: '...' }
+    
+    const nameEl = document.createElement('strong');
+    nameEl.className = 'friend-card-name'; // Permite o clique
+    nameEl.dataset.username = member.user;
+    nameEl.textContent = escapeHtml(member.user);
+
+    node.appendChild(avatarEl);
+    node.appendChild(nameEl);
+    
+    DOM.communityMemberList.appendChild(node);
+  });
+}
+// 👆 FIM DA NOVA FUNÇÃO 👆
+
+
 async function apiJoinCommunity(communityId, button) {
   button.disabled = true;
   button.textContent = "Entrando...";
@@ -794,6 +850,8 @@ function activateCommunityView(name, options = {}) {
         apiGetCommunityPosts(currentCommunityId); 
     } else if (name === "members") {
         DOM.communityMembersView.hidden = false; 
+        // 👇 LINHA ADICIONADA 👇
+        apiGetCommunityMembers(currentCommunityId); // Busca os membros quando a aba é clicada
     }
 }
 
@@ -962,6 +1020,10 @@ function mapAppDOM() {
     DOM.communityAvatarChannelEl = document.getElementById('community-avatar-channel');
     DOM.communityMembersCountEl = document.getElementById('community-members-count');
     
+    // 👇 ADICIONADO PARA OS MEMBROS 👇
+    DOM.communityMemberList = document.getElementById("community-member-list");
+    DOM.communityMembersTitle = document.getElementById("community-members-title");
+
     DOM.btnNewTopic = document.getElementById("btn-new-topic");
     DOM.createTopicView = document.getElementById("view-create-topic");
     DOM.createTopicForm = document.getElementById("create-topic-form");
@@ -993,7 +1055,6 @@ function mapAppDOM() {
         "create-topic": DOM.createTopicView
     };
 
-    // 👇 ADICIONADO PARA O MENU HAMBÚRGUER 👇
     DOM.btnMobileMenu = document.getElementById("btn-mobile-menu");
     DOM.serversList = document.querySelector(".servers");
 }
@@ -1030,6 +1091,18 @@ function bindAppEvents() {
       const friendLink = e.target.closest('.friend-card-name[data-username]');
       if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
     });
+    
+    // 👇 ADICIONADO PARA OS MEMBROS (clicar no nome) 👇
+    if (DOM.communityMemberList) {
+        DOM.communityMemberList.addEventListener("click", (e) => {
+          const memberLink = e.target.closest('.friend-card-name[data-username]');
+          if (memberLink) { 
+            viewedUsername = memberLink.dataset.username; 
+            activateView("profile"); 
+          }
+        });
+    }
+
     DOM.communityListContainer.addEventListener("click", (e) => {
       const joinButton = e.target.closest('.join-btn[data-community-id]');
       if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
@@ -1080,13 +1153,11 @@ function bindAppEvents() {
         });
     });
 
-    // 👇 ADICIONADO PARA O MENU HAMBÚRGUER 👇
     DOM.btnMobileMenu.addEventListener("click", () => {
         DOM.serversList.classList.toggle("is-open");
     });
 
     DOM.serversList.addEventListener("click", (e) => {
-        // Se o ecrã for pequeno E o menu estiver aberto E clicámos num botão
         if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
             if (e.target.closest(".server") || e.target.closest(".add-btn")) {
                 DOM.serversList.classList.remove("is-open");

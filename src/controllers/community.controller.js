@@ -66,9 +66,7 @@ const create = async (req, res) => {
              return res.status(400).json({ error: 'O emoji é muito longo.' });
         }
         
-        // 👇 MUDANÇA: Usa o novo método estático da Classe
         const community = await Community.create(name, emoji, creator);
-        // 👆 FIM DA MUDANÇA
         
         res.status(201).json({ community });
     } catch (err) {
@@ -96,10 +94,33 @@ const getPosts = async (req, res) => {
     }
 };
 
+// 👇 NOVO CONTROLADOR ADICIONADO 👇
+// [GET] /api/community/:id/members
+const getMembers = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const community = await Community.findById(id);
+        if (!community) {
+            return res.status(404).json({ error: 'Comunidade não encontrada' });
+        }
+        
+        const members = await community.getMembers();
+        
+        res.json({ members });
+    } catch (err) {
+        console.error("Erro no controlador getMembers:", err);
+        res.status(500).json({ error: 'Erro ao buscar membros da comunidade' });
+    }
+};
+// 👆 FIM DO NOVO CONTROLADOR 👆
+
+
 module.exports = {
   getJoined,
   getExplore,
   join,
   create,
-  getPosts
+  getPosts,
+  getMembers // <-- Exporta o novo controlador
 };
