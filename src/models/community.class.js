@@ -15,11 +15,20 @@ class Community {
     // --- MÉTODOS DE INSTÂNCIA ---
 
     async save() {
-        const result = await db.query(
-            'INSERT INTO communities (name, emoji, description, members, owner_user) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [this.name, this.emoji, this.description, this.members, this.owner_user]
-        );
-        this.id = result.rows[0].id;
+        // Se não tem ID, é novo (INSERT)
+        if (!this.id) {
+            const result = await db.query(
+                'INSERT INTO communities (name, emoji, description, members, owner_user) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [this.name, this.emoji, this.description, this.members, this.owner_user]
+            );
+            this.id = result.rows[0].id;
+        } else {
+            // Se tem ID, é atualização (UPDATE)
+             await db.query(
+                'UPDATE communities SET name = $1, emoji = $2, description = $3 WHERE id = $4',
+                [this.name, this.emoji, this.description, this.id]
+            );
+        }
         return this;
     }
 
@@ -45,7 +54,6 @@ class Community {
         return result.rows;
     }
 
-    // 👇 NOVO MÉTODO ADICIONADO 👇
     async getMembers() {
         const result = await db.query(
             `SELECT cm.user_name, p.avatar_url
@@ -55,13 +63,11 @@ class Community {
              ORDER BY cm.timestamp ASC`,
             [this.id]
         );
-        // Renomeia 'user_name' para 'user' para consistência
         return result.rows.map(row => ({
             user: row.user_name,
             avatar_url: row.avatar_url
         }));
     }
-    // 👆 FIM DO NOVO MÉTODO 👆
 
     // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
 
@@ -101,6 +107,16 @@ class Community {
         await community.addMember(creator);
         return community;
     }
+    
+    // 👇 NOVO MÉTODO ESTÁTICO ADICIONADO 👇
+    static async updateDetails(communityId, newName, newEmoji) {
+        const result = await db.query(
+            'UPDATE communities SET name = $1, emoji = $2 WHERE id = $3 RETURNING *',
+            [newName, newEmoji, communityId]
+        );
+        return new Community(result.rows[0]);
+    }
+    // 👆 FIM DO NOVO MÉTODO 👆
 }
 
 module.exports = Community;

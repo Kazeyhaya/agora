@@ -1,6 +1,7 @@
 // src/controllers/community.controller.js
 const Community = require('../models/community.class');
 
+// ... (getJoined, getExplore, join, create, getPosts, getMembers... continuam iguais) ...
 // [GET] /api/communities/joined
 const getJoined = async (req, res) => {
     try {
@@ -113,7 +114,6 @@ const getMembers = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR ADICIONADO 👇
 // [GET] /api/community/:id/details
 const getDetails = async (req, res) => {
     try {
@@ -122,11 +122,43 @@ const getDetails = async (req, res) => {
         if (!community) {
             return res.status(404).json({ error: 'Comunidade não encontrada' });
         }
-        // O método findById já retorna um objeto Community
         res.json({ community }); 
     } catch (err) {
         console.error("Erro no controlador getDetails:", err);
         res.status(500).json({ error: 'Erro ao buscar detalhes da comunidade' });
+    }
+};
+
+// 👇 NOVO CONTROLADOR ADICIONADO 👇
+// [POST] /api/community/:id/update
+const updateDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, emoji, user } = req.body; // 'user' é quem está a tentar editar
+
+        // Validação
+        if (!name || !user) {
+            return res.status(400).json({ error: 'Nome e utilizador são obrigatórios' });
+        }
+
+        // 1. Encontra a comunidade
+        const community = await Community.findById(id);
+        if (!community) {
+            return res.status(404).json({ error: 'Comunidade não encontrada' });
+        }
+
+        // 2. Verifica se o utilizador é o dono
+        if (community.owner_user !== user) {
+            return res.status(403).json({ error: 'Apenas o dono pode editar a comunidade.' });
+        }
+        
+        // 3. Atualiza na base de dados
+        const updatedCommunity = await Community.updateDetails(id, name, emoji || '💬');
+        
+        res.json({ community: updatedCommunity });
+    } catch (err) {
+        console.error("Erro no controlador updateDetails:", err);
+        res.status(500).json({ error: 'Erro ao atualizar comunidade' });
     }
 };
 // 👆 FIM DO NOVO CONTROLADOR 👆
@@ -139,5 +171,6 @@ module.exports = {
   create,
   getPosts,
   getMembers,
-  getDetails // <-- Exporta o novo controlador
+  getDetails,
+  updateDetails // <-- Exporta o novo controlador
 };
