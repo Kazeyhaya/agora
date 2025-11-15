@@ -626,8 +626,8 @@ function renderCommunityDetails(community) {
         DOM.communityAvatarChannel.textContent = escapeHtml(community.emoji);
     }
     
-    // 👇 LÓGICA DE VISIBILIDADE DO BOTÃO DE EDITAR 👇
     if (DOM.btnEditCommunity) {
+        // Mostra o botão APENAS SE o user atual for o dono
         if (community.owner_user === currentUser) {
             DOM.btnEditCommunity.hidden = false;
         } else {
@@ -1061,7 +1061,7 @@ function mapAppDOM() {
 
     DOM.communityNameChannel = document.getElementById("community-name-channel");
     DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
-    DOM.btnEditCommunity = document.getElementById("btn-edit-community"); // <-- Botão de Editar
+    DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
 
     DOM.btnNewTopic = document.getElementById("btn-new-topic");
     DOM.createTopicView = document.getElementById("view-create-topic");
@@ -1207,19 +1207,42 @@ function bindAppEvents() {
         }
     });
 
-    // 👇 EVENT LISTENER PARA O BOTÃO DE EDITAR 👇
+    // 👇 EVENT LISTENER ATUALIZADO (para o botão de editar) 👇
     DOM.btnEditCommunity.addEventListener("click", () => {
         const currentName = DOM.communityNameChannel.textContent;
+        // Pega o emoji (que não tem a tag de 'escapeHtml')
+        const currentEmoji = DOM.communityAvatarChannel.textContent; 
+
         openInputModal({
             title: "Editar Nome da Comunidade",
-            initialValue: currentName,
-            onSave: (newName) => {
-                // TODO: Chamar a API de update
-                console.log("Novo nome (a salvar):", newName);
-                
-                // Por agora, apenas atualiza localmente:
-                DOM.communityNameChannel.textContent = newName;
-                alert("A funcionalidade de salvar no backend ainda não foi implementada!");
+            initialValue: currentName, // TODO: Adicionar emoji ao modal
+            onSave: async (newName) => {
+                try {
+                    const res = await fetch(`/api/community/${currentCommunityId}/update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: newName,
+                            emoji: currentEmoji, // TODO: Permitir editar o emoji
+                            user: currentUser 
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error);
+                    }
+                    
+                    const data = await res.json();
+                    // Atualiza a barra lateral com os novos dados
+                    renderCommunityDetails(data.community); 
+
+                } catch (err) {
+                    console.error("Falha ao atualizar comunidade:", err);
+                    alert(`Erro ao salvar: ${err.message}`);
+                    // Recarrega os dados antigos em caso de falha
+                    apiGetCommunityDetails(currentCommunityId);
+                }
             }
         });
     });

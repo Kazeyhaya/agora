@@ -15,9 +15,11 @@ communityRouter.post('/join', communityController.join);
 communityRouter.get('/:id/posts', communityController.getPosts);
 communityRouter.get('/:id/members', communityController.getMembers);
 communityRouter.get('/:id/details', communityController.getDetails);
-communityRouter.post('/:id/update', communityController.updateDetails); // Rota de Edição (da msg anterior)
 
-// 👇 NOVA ROTA ADICIONADA (POST para criar tópico) 👇
+// 👇 ROTA DE ATUALIZAÇÃO (EDITAR) ADICIONADA 👇
+communityRouter.post('/:id/update', communityController.updateDetails);
+
+// Rota para criar posts (tópicos)
 communityRouter.post('/posts', communityController.createCommunityPost);
 
 
