@@ -1141,9 +1141,6 @@ function mapAppDOM() {
     DOM.appEl = document.querySelector(".app");
     DOM.mainHeader = document.querySelector(".header"); 
     DOM.channelsEl = document.querySelector(".channels");
-    
-    // DOM.viewTabs e DOM.headerHomeBtn já não existem no novo HTML
-    
     DOM.serverBtns = document.querySelectorAll(".servers .server"); 
     DOM.homeBtn = document.getElementById("home-btn"); 
     
@@ -1163,6 +1160,151 @@ function mapAppDOM() {
     DOM.serversList = document.querySelector(".servers");
     DOM.btnCommunityMenu = document.getElementById("btn-community-menu"); 
 }
+
+// 👇 A FUNÇÃO QUE ESTAVA A FALTAR 👇
+function bindAppEvents() {
+    DOM.chatSendBtn.addEventListener("click", sendChatMessage);
+    DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+    DOM.postsEl.addEventListener("click", handlePostClick);
+    DOM.explorePostsEl.addEventListener("click", handlePostClick); 
+    DOM.feedSend.addEventListener("click", apiCreatePost);
+    DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
+    DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
+    DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+    DOM.btnExplore.addEventListener("click", () => activateView("explore"));
+    DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
+    DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
+    DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
+    
+    DOM.modalCancelBtn.addEventListener("click", () => {
+        DOM.modalView.hidden = true;
+    });
+    
+    DOM.avatarUploadInput.addEventListener("change", apiUploadAvatar);
+    DOM.profileAvatarEl.addEventListener("click", () => {
+      if (DOM.profileAvatarEl.classList.contains('is-owner')) {
+        DOM.avatarUploadInput.click();
+      }
+    });
+
+    DOM.friendsContainer.addEventListener("click", (e) => {
+      const friendLink = e.target.closest('.friend-card-name[data-username]');
+      if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
+    });
+    
+    if (DOM.communityMemberList) {
+        DOM.communityMemberList.addEventListener("click", (e) => {
+          const memberLink = e.target.closest('.friend-card-name[data-username]');
+          if (memberLink) { 
+            viewedUsername = memberLink.dataset.username; 
+            activateView("profile"); 
+          }
+        });
+    }
+
+    DOM.communityListContainer.addEventListener("click", (e) => {
+      const joinButton = e.target.closest('.join-btn[data-community-id]');
+      if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
+    });
+    DOM.joinedServersList.addEventListener("click", (e) => {
+      const communityBtn = e.target.closest('.community-btn[data-community-id]');
+      if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
+    });
+    DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
+    DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
+    DOM.createCommunityForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("community-name").value.trim();
+        const emoji = document.getElementById("community-emoji").value.trim();
+        if (!name) return;
+        apiCreateCommunity(name, emoji, DOM.createCommunityForm.querySelector('button[type="submit"]'));
+    });
+    
+    DOM.btnNewTopic.addEventListener("click", () => {
+        activateView("create-topic"); 
+    });
+    DOM.btnCancelTopic.addEventListener("click", () => {
+        activateCommunityView("topics", { community: currentCommunityId });
+    });
+    DOM.createTopicForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        apiCreateCommunityPost(DOM.createTopicForm);
+    });
+    
+    DOM.communityTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const view = tab.dataset.communityView;
+            if (view) {
+                activateCommunityView(view, { community: currentCommunityId });
+            }
+        });
+    });
+    
+    DOM.ratingVoteButtons.forEach(button => {
+        button.addEventListener("click", () => {
+            const ratingType = button.dataset.rating;
+            
+            if (button.classList.contains('active')) {
+                apiRemoveRating(ratingType);
+            } else {
+                apiAddRating(ratingType);
+            }
+        });
+    });
+
+    const toggleServersMenu = () => {
+        DOM.serversList.classList.toggle("is-open");
+    };
+    
+    DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
+    DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
+
+    DOM.serversList.addEventListener("click", (e) => {
+        if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
+            if (e.target.closest(".server") || e.target.closest(".add-btn")) {
+                DOM.serversList.classList.remove("is-open");
+            }
+        }
+    });
+
+    DOM.btnEditCommunity.addEventListener("click", () => {
+        const currentName = DOM.communityNameChannel.textContent;
+        const currentEmoji = DOM.communityAvatarChannel.textContent; 
+
+        openInputModal({
+            title: "Editar Nome da Comunidade",
+            initialValue: currentName,
+            onSave: async (newName) => {
+                try {
+                    const res = await fetch(`/api/community/${currentCommunityId}/update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: newName,
+                            emoji: currentEmoji, 
+                            user: currentUser 
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error);
+                    }
+                    
+                    const data = await res.json();
+                    renderCommunityDetails(data.community); 
+
+                } catch (err) {
+                    console.error("Falha ao atualizar comunidade:", err);
+                    alert(`Erro ao salvar: ${err.message}`);
+                    apiGetCommunityDetails(currentCommunityId);
+                }
+            }
+        });
+    });
+}
+// 👆 FIM DA FUNÇÃO BINDAPPEVENTS 👆
 
 function startApp() {
   console.log('Socket conectado:', socket.id);
