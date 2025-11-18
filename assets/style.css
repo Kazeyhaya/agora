@@ -73,7 +73,6 @@ a{color:inherit;text-decoration:none}
 /* Servers rail */
 #home-btn {
     background: #1e1f22;
-    /* padding: 8px; <-- Removido para o ícone encaixar */ 
 }
 #home-btn:hover {
     border-radius: 50%; 
@@ -167,27 +166,24 @@ a{color:inherit;text-decoration:none}
   min-height: 0;
 }
 
-/* Layout para o Feed Principal (3 linhas) */
+/* Layout para o Feed Principal */
 #view-feed {
-  grid-template-rows: 56px auto 1fr; /* Topo, Compositor, Posts */
+  grid-template-rows: 56px auto 1fr; 
 }
 
-/* Layout para Tópicos, Explorar, Membros (2 linhas) */
 #view-community-topics,
 #view-explore,
 #view-community-members {
-  grid-template-rows: 56px 1fr; /* Topo, Lista */
+  grid-template-rows: 56px 1fr; 
 }
 
-/* Layout para Perfil (2 linhas) */
 #view-profile {
-  grid-template-rows: 56px 1fr; /* Topo, Corpo */
+  grid-template-rows: 56px 1fr; 
 }
 
-/* Layout para Criar Tópico/Comunidade (2 linhas) */
 #view-create-community,
 #view-create-topic {
-  grid-template-rows: auto 1fr; /* Topo (auto), Formulário */
+  grid-template-rows: auto 1fr; 
 }
 
 
@@ -211,7 +207,7 @@ a{color:inherit;text-decoration:none}
 .mini-btn.liked{ background: var(--orkut-pink); border-color: var(--orkut-pink); color: #fff; }
 .comments{margin-top:8px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px;display:flex;flex-direction:column;gap:6px}
 
-/* Perfil (já coberto pela regra base, mas mantemos o topo) */
+/* Perfil */
 .profile-top{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.06);background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);border-top-left-radius: var(--radius);border-top-right-radius: var(--radius); min-height: 56px;}
 .profile-body{overflow:auto;padding:14px;display:grid;grid-template-columns:300px 1fr;gap:14px}
 .card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
@@ -239,7 +235,7 @@ a{color:inherit;text-decoration:none}
   color: var(--orkut-blue);
 }
 .chat-top{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.06);background: linear-gradient(180deg, rgba(255,255,255,.03), transparent);border-top-left-radius: var(--radius);border-top-right-radius: var(--radius); min-height: 56px;}
-.chat-topic{display:flex;align-items:center;gap:10px;min-width:0} /* Adicionado min-width:0 */
+.chat-topic{display:flex;align-items:center;gap:10px;min-width:0}
 .chat-topic .meta {
   white-space: nowrap;
   overflow: hidden;
@@ -267,6 +263,7 @@ a{color:inherit;text-decoration:none}
 .input:focus{border-color: rgba(109,156,255,.6);box-shadow:0 0 0 3px rgba(109,156,255,.15)}
 .send{background: linear-gradient(135deg, var(--orkut-pink), var(--orkut-blue));border:none;border-radius:12px;color:#fff;padding:12px 14px;cursor:pointer;font-weight:700;transition:.2s;box-shadow:0 8px 16px rgba(109,156,255,.25)}
 .send:hover{transform: translateY(-1px)}
+
 /* User bar */
 .userbar{grid-area: userbar;background: var(--discord-panel);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:flex;align-items:center;justify-content:space-between;padding:0 12px;box-shadow: var(--shadow)}
 .me{display:flex;align-items:center;gap:10px}
@@ -277,6 +274,7 @@ a{color:inherit;text-decoration:none}
 }
 .presence{width:10px;height:10px;border-radius:50%;background:var(--success);border:2px solid var(--discord-panel)}
 .user-actions{display:flex;gap:8px}
+
 /* Utilities */
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .clickable { cursor: pointer; }
@@ -303,7 +301,6 @@ a{color:inherit;text-decoration:none}
 
 /* Estilos "EXPLORAR SERVIDORES" */
 .explore-servers {
-  /* ... (regras base já aplicadas) ... */
   display: grid;
   grid-template-rows: auto 1fr;
 }
@@ -380,39 +377,15 @@ a{color:inherit;text-decoration:none}
   cursor: not-allowed;
 }
 
-
 /* Estilos "AMIGOS" */
 .friends {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 8px;
 }
-.friend-card {
-  background: rgba(255, 255, 255, .06);
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 10px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.friend-card .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-.friend-card strong {
-  cursor: pointer;
-  transition: .2s;
-}
-.friend-card strong:hover {
-  color: var(--orkut-blue);
-}
 
 /* Estilo: Formulário de Criação */
 .create-community {
-  /* ... (regras base já aplicadas) ... */
   display: grid;
   grid-template-rows: auto 1fr;
 }
@@ -423,11 +396,9 @@ a{color:inherit;text-decoration:none}
 }
 
 .create-topic {
-  /* ... (regras base já aplicadas) ... */
   display: grid;
   grid-template-rows: auto 1fr;
 }
-
 
 /* --- Logo de Cabeçalho Clicável --- */
 #header-home-btn {
@@ -437,8 +408,7 @@ a{color:inherit;text-decoration:none}
     opacity: 0.8;
 }
 
-
-/* --- Estilos do Avatar (Novo) --- */
+/* --- Estilos do Avatar --- */
 .avatar-display {
   background-size: cover;
   background-position: center;
@@ -489,7 +459,6 @@ a{color:inherit;text-decoration:none}
   border-bottom-right-radius: 16px;
 }
 
-
 /* --- Estilos da Tela de Login --- */
 .login-overlay {
   position: fixed;
@@ -524,7 +493,7 @@ a{color:inherit;text-decoration:none}
   box-shadow: var(--shadow);
 }
 
-/* --- Estilos do Modal de Input Genérico --- */
+/* --- Estilos do Modal --- */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -558,7 +527,7 @@ a{color:inherit;text-decoration:none}
   box-shadow: var(--shadow);
 }
 
-/* 👇 NOVO: Estilos para Avaliações (Ratings) 👇 */
+/* Estilos para Avaliações (Ratings) */
 .ratings-display {
   display: flex;
   flex-direction: column;
@@ -594,12 +563,82 @@ a{color:inherit;text-decoration:none}
   border-color: var(--accent);
   color: #fff;
 }
-/* 👆 FIM DOS NOVOS ESTILOS 👆 */
+
+
+/* --- NOVO: Estilos da Vibe do Dia --- */
+.vibe-box {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.2);
+  border-left: 3px solid #fff; /* Cor padrão */
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vibe-icon {
+  font-style: normal;
+  font-size: 1.1rem;
+}
+
+/* --- NOVO: Notificações Toast --- */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none; 
+}
+.toast {
+  background: var(--discord-panel);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid var(--orkut-blue);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  min-width: 250px;
+  animation: slideIn 0.3s ease forwards;
+  pointer-events: auto; 
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast.error { border-left-color: var(--danger); }
+.toast.success { border-left-color: var(--success); }
+.toast.magic { border-left-color: var(--orkut-pink); background: linear-gradient(to right, #313338, #2b1c2b); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+  to { opacity: 0; transform: translateY(10px); }
+}
+
+/* --- NOVO: Botão "Estou com Sorte" --- */
+#lucky-btn {
+  background: linear-gradient(135deg, #FFD700, #FFA500); 
+  color: #000;
+  font-weight: bold;
+  border: none;
+  font-size: 1.2rem;
+  position: relative;
+  overflow: hidden;
+}
+#lucky-btn:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+}
 
 
 /* Responsivo */
 #btn-mobile-menu {
-  display: none; /* Escondido por padrão no PC */
+  display: none; 
   border: none;
   font-size: 1.5rem;
   margin-right: 5px;
@@ -614,7 +653,6 @@ a{color:inherit;text-decoration:none}
   height: 44px;
 }
 
-
 @media (max-width: 1080px){
   .app.view-community {
     grid-template-columns:72px 1fr;
@@ -628,7 +666,6 @@ a{color:inherit;text-decoration:none}
   }
 }
 
-/* Tablet (720px) - Esconde título, mas MOSTRA botões */
 @media (max-width: 720px){
   .app.view-community {
     grid-template-columns:64px 1fr;
@@ -640,15 +677,11 @@ a{color:inherit;text-decoration:none}
     grid-template-rows:64px 1fr 64px;
     grid-template-areas: "servers header" "servers content" "servers userbar";
   }
-  
   .brand-title {
     display: none; 
   }
-  
-  /* A regra que escondia os botões foi removida */
 }
 
-/* Smartphone (640px) - Lógica do Menu Hamburger */
 @media (max-width: 640px) {
   .app {
     padding: 8px;

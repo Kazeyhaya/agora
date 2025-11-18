@@ -50,6 +50,30 @@ function openInputModal({ title, initialValue = '', placeholder = '', onSave }) 
     };
 }
 
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+    if (type === 'magic') icon = '✨';
+
+    toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(message)}</span>`;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.5s forwards';
+        toast.addEventListener('animationend', () => {
+            toast.remove();
+        });
+    }, 4000);
+}
+
 // ===================================================
 // 2. LÓGICA DE API E RENDERIZAÇÃO
 // ===================================================
@@ -78,7 +102,11 @@ async function apiCreatePost() {
     await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: currentUser, text: text }) });
     DOM.feedInput.value = ""; 
     apiGetPosts(); 
-  } catch (err) { console.error("Falha ao criar post:", err); }
+    showToast("Post publicado!", "success");
+  } catch (err) { 
+      console.error("Falha ao criar post:", err); 
+      showToast("Erro ao publicar post.", "error");
+  }
   DOM.feedSend.disabled = false;
 }
 async function apiLikePost(postId) {
@@ -160,7 +188,7 @@ async function apiCreateComment(postId) {
         apiGetComments(postId);
       } catch (err) { 
         console.error("Falha ao criar comentário:", err); 
-        alert("Falha ao salvar comentário.");
+        showToast("Falha ao salvar comentário.", "error");
       }
     }
   });
@@ -192,10 +220,11 @@ async function apiEditPost(postId) {
                 }
                 
                 textElement.textContent = newText;
+                showToast("Post atualizado com sucesso!", "success");
 
             } catch (err) {
                 console.error("Falha ao editar post:", err);
-                alert(`Erro ao salvar: ${err.message}`);
+                showToast(`Erro ao salvar: ${err.message}`, "error");
             }
         }
     });
@@ -298,10 +327,11 @@ async function apiAddRating(ratingType) {
         }
         
         apiGetProfile(viewedUsername); 
+        showToast("Avaliação enviada!", "success");
         
     } catch (err) {
         console.error("Falha ao enviar avaliação:", err);
-        alert(`Erro ao avaliar: ${err.message}`);
+        showToast(`Erro ao avaliar: ${err.message}`, "error");
     }
 }
 
@@ -323,10 +353,11 @@ async function apiRemoveRating(ratingType) {
         }
         
         apiGetProfile(viewedUsername); 
+        showToast("Avaliação removida.", "info");
         
     } catch (err) {
         console.error("Falha ao remover avaliação:", err);
-        alert(`Erro ao remover avaliação: ${err.message}`);
+        showToast(`Erro ao remover avaliação: ${err.message}`, "error");
     }
 }
 
@@ -348,10 +379,11 @@ async function apiUpdateMood() {
         if (!res.ok) throw new Error('Falha ao salvar');
         const data = await res.json();
         DOM.userbarMood.textContent = data.mood;
+        showToast("Mood atualizado!", "success");
       } catch (err) {
         console.error("Falha ao salvar mood:", err);
         DOM.userbarMood.textContent = currentMood;
-        alert("Não foi possível salvar seu mood.");
+        showToast("Não foi possível salvar seu mood.", "error");
       }
     }
   });
@@ -373,9 +405,10 @@ async function apiUpdateBio() {
         if (!res.ok) throw new Error('Falha ao salvar');
         const data = await res.json();
         if (DOM.profileBioEl) DOM.profileBioEl.textContent = data.bio;
+        showToast("Bio salva com sucesso!", "success");
       } catch (err) { 
         console.error("Falha ao salvar bio:", err); 
-        alert("Falha ao salvar bio.");
+        showToast("Falha ao salvar bio.", "error");
       }
     }
   });
@@ -409,11 +442,12 @@ async function apiUploadAvatar(event) {
     renderAvatar(DOM.profileAvatarEl, profileData);
     renderAvatar(DOM.userAvatarEl, profileData);
     
+    showToast("Foto de perfil atualizada!", "success");
     apiGetPosts();
 
   } catch (err) {
     console.error("Falha ao fazer upload do avatar:", err);
-    alert(`Erro ao fazer upload: ${err.message}`);
+    showToast(`Erro ao fazer upload: ${err.message}`, "error");
     apiGetProfile(currentUser);
   }
 }
@@ -449,6 +483,7 @@ async function apiCreateTestimonial() {
     await fetch('/api/testimonials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_user: currentUser, to_user: viewedUsername, text: text }) });
     DOM.testimonialInput.value = ""; 
     apiGetTestimonials(viewedUsername); 
+    showToast("Depoimento enviado!", "success");
   } catch (err) { console.error("Falha ao salvar depoimento:", err); }
   DOM.testimonialSend.disabled = false;
 }
@@ -469,7 +504,7 @@ async function apiCreateCommunityPost(form) {
     const content = DOM.topicContentInput.value.trim();
     
     if (!title || !content) {
-        alert("Título e conteúdo são obrigatórios.");
+        showToast("Título e conteúdo são obrigatórios.", "error");
         return;
     }
     
@@ -497,10 +532,11 @@ async function apiCreateCommunityPost(form) {
         DOM.topicTitleInput.value = "";
         DOM.topicContentInput.value = "";
         activateCommunityView("topics", { community: currentCommunityId });
+        showToast("Tópico criado!", "success");
 
     } catch (err) {
         console.error("Erro ao criar tópico:", err);
-        alert(`Falha ao criar tópico: ${err.message}`);
+        showToast(`Falha ao criar tópico: ${err.message}`, "error");
     }
     
     button.disabled = false;
@@ -517,7 +553,6 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
-        // Adiciona IDs para permitir Like/Comentar/Editar
         node.dataset.user = post.user;
         node.dataset.postid = post.id;
         
@@ -527,7 +562,6 @@ function renderCommunityPosts(posts) {
         avatarEl.className = 'avatar-display post-avatar';
         renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
         
-        // Botão de editar (se for dono)
         const editButton = (post.user === currentUser) 
           ? `<button class="mini-btn" data-edit-post="${post.id}">Editar</button>` 
           : '';
@@ -554,7 +588,6 @@ function renderCommunityPosts(posts) {
         node.appendChild(contentEl);
         
         DOM.communityTopicList.appendChild(node);
-        // 👇 CHAMA PARA CARREGAR COMENTÁRIOS DO TÓPICO 👇
         apiGetComments(post.id);
     });
 }
@@ -708,10 +741,11 @@ async function apiLeaveCommunity() {
         // Se sair com sucesso, volta para o feed e recarrega a lista de comunidades
         activateView("feed"); 
         apiGetJoinedCommunities();
+        showToast("Você saiu da comunidade.", "info");
 
     } catch (err) {
         console.error("Falha ao sair da comunidade:", err);
-        alert(`Erro ao sair: ${err.message}`);
+        showToast(`Erro ao sair: ${err.message}`, "error");
     }
 }
 
@@ -724,7 +758,8 @@ async function apiJoinCommunity(communityId, button) {
     const data = await res.json();
     renderJoinedCommunities([data.community]); 
     activateCommunityView("topics", { community: data.community.id });
-  } catch (err) { console.error("Erro ao entrar na comunidade:", err); alert("Falha ao entrar na comunidade."); button.disabled = false; button.textContent = "Entrar"; }
+    showToast(`Bem-vindo a ${data.community.name}!`, "success");
+  } catch (err) { console.error("Erro ao entrar na comunidade:", err); showToast("Falha ao entrar na comunidade.", "error"); button.disabled = false; button.textContent = "Entrar"; }
 }
 
 async function apiCreateCommunity(name, emoji, button) {
@@ -737,7 +772,8 @@ async function apiCreateCommunity(name, emoji, button) {
         const newComm = data.community;
         renderJoinedCommunities([newComm]); 
         activateCommunityView("topics", { community: newComm.id }); 
-    } catch (err) { console.error("Erro ao criar comunidade:", err); alert("Falha ao criar comunidade. Tente novamente."); button.disabled = false; button.textContent = "Criar e Entrar"; }
+        showToast("Comunidade criada com sucesso!", "success");
+    } catch (err) { console.error("Erro ao criar comunidade:", err); showToast("Falha ao criar comunidade.", "error"); button.disabled = false; button.textContent = "Criar e Entrar"; }
 }
 
 async function apiGetJoinedCommunities() {
@@ -794,6 +830,42 @@ function renderExploreCommunities(communities) {
     `;
     DOM.communityListContainer.appendChild(node);
   });
+}
+
+// --- FUNÇÃO LUCKY DIP (Comunidade Aleatória) ---
+async function apiLuckyDip() {
+    const btn = document.getElementById('lucky-btn');
+    btn.disabled = true;
+    
+    btn.style.transition = "transform 1s";
+    btn.style.transform = "rotate(360deg)";
+
+    try {
+        const res = await fetch('/api/community/lucky', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_name: currentUser })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error);
+        }
+
+        showToast(data.message, 'magic');
+        renderJoinedCommunities([data.community]); 
+        activateCommunityView("topics", { community: data.community.id }); 
+
+    } catch (err) {
+        console.error("Sorte falhou:", err);
+        showToast(err.message || "Falha ao testar a sorte.", 'error');
+    } finally {
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.style.transform = "none";
+        }, 1000);
+    }
 }
 
 // ===================================================
@@ -1002,6 +1074,10 @@ async function showDynamicProfile(username) {
   DOM.friendsContainer.innerHTML = "<div class='meta'>Carregando amigos...</div>";
   renderAvatar(DOM.profileAvatarEl, { user: username, avatar_url: null });
   
+  // Reset da Vibe do Dia
+  const vibeBox = document.getElementById('profileVibe');
+  vibeBox.hidden = true;
+
   DOM.ratingVoteButtons.forEach(button => button.classList.remove('active'));
   
   DOM.profileAvatarEl.classList.remove('is-owner');
@@ -1015,6 +1091,23 @@ async function showDynamicProfile(username) {
   apiGetTestimonials(username);
   apiGetFollowing(username); 
   
+  // 👇 BUSCAR VIBE DO DIA 👇
+  try {
+      const res = await fetch(`/api/profile/${encodeURIComponent(username)}/vibe`);
+      if (res.ok) {
+          const data = await res.json();
+          const vibe = data.vibe;
+          if (vibe) {
+              const vibeText = document.getElementById('profileVibeText');
+              vibeText.textContent = vibe.message;
+              vibeBox.style.borderLeftColor = vibe.color;
+              vibeBox.hidden = false;
+          }
+      }
+  } catch (e) {
+      console.error("Erro ao carregar vibe:", e);
+  }
+
   if (username === currentUser) {
     DOM.editBioBtn.textContent = "Editar bio";
     DOM.editBioBtn.onclick = apiUpdateBio;
@@ -1060,9 +1153,11 @@ async function apiFollow(username) {
     DOM.editBioBtn.onclick = () => apiUnfollow(username);
     DOM.editBioBtn.disabled = false;
     apiGetFollowing(viewedUsername); 
+    showToast(`Você agora segue ${username}`, "success");
   } catch (err) {
     console.error("Erro ao seguir:", err);
     DOM.editBioBtn.disabled = false;
+    showToast("Erro ao seguir.", "error");
   }
 }
 async function apiUnfollow(username) {
@@ -1077,9 +1172,11 @@ async function apiUnfollow(username) {
     DOM.editBioBtn.onclick = () => apiFollow(username);
     DOM.editBioBtn.disabled = false;
     apiGetFollowing(viewedUsername); 
+    showToast(`Você deixou de seguir ${username}`, "info");
   } catch (err) {
     console.error("Erro ao deixar de seguir:", err);
     DOM.editBioBtn.disabled = false;
+    showToast("Erro ao deixar de seguir.", "error");
   }
 }
 
@@ -1201,7 +1298,6 @@ function bindAppEvents() {
     DOM.postsEl.addEventListener("click", handlePostClick);
     DOM.explorePostsEl.addEventListener("click", handlePostClick); 
     
-    // 👇 ADICIONADO: Listener para a lista de tópicos da comunidade 👇
     if (DOM.communityTopicList) {
         DOM.communityTopicList.addEventListener("click", handlePostClick);
     }
@@ -1333,19 +1429,24 @@ function bindAppEvents() {
                     
                     const data = await res.json();
                     renderCommunityDetails(data.community); 
+                    showToast("Comunidade atualizada!", "success");
 
                 } catch (err) {
                     console.error("Falha ao atualizar comunidade:", err);
-                    alert(`Erro ao salvar: ${err.message}`);
+                    showToast(`Erro ao salvar: ${err.message}`, "error");
                     apiGetCommunityDetails(currentCommunityId);
                 }
             }
         });
     });
 
-    // 👇 NOVO EVENT LISTENER: SAIR DA COMUNIDADE 👇
     if (DOM.btnLeaveCommunity) {
         DOM.btnLeaveCommunity.addEventListener("click", apiLeaveCommunity);
+    }
+    
+    const luckyBtn = document.getElementById("lucky-btn");
+    if (luckyBtn) {
+        luckyBtn.addEventListener("click", apiLuckyDip);
     }
 }
 

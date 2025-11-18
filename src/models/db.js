@@ -23,7 +23,7 @@ async function setupDatabase() {
     await client.query(`CREATE TABLE IF NOT EXISTS community_posts (id SERIAL PRIMARY KEY, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, "user" TEXT NOT NULL, title TEXT NOT NULL, content TEXT, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS channels (id SERIAL PRIMARY KEY, community_id INT NOT NULL REFERENCES communities(id) ON DELETE CASCADE, name TEXT NOT NULL, is_voice BOOLEAN DEFAULT FALSE, timestamp TIMESTAMPTZ DEFAULT NOW())`);
 
-    // Tabela de Avaliações (A que está a causar o Erro 500)
+    // Tabela de Avaliações
     await client.query(`CREATE TABLE IF NOT EXISTS profile_ratings (
         id SERIAL PRIMARY KEY,
         from_user TEXT NOT NULL,
@@ -32,28 +32,28 @@ async function setupDatabase() {
         timestamp TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(from_user, to_user, rating_type)
     )`);
+
+    // 👇 NOVA TABELA: Vibe do Dia (Sorte) 👇
+    await client.query(`CREATE TABLE IF NOT EXISTS profile_vibes (
+        user_name TEXT NOT NULL,
+        vibe_date DATE NOT NULL,
+        message TEXT NOT NULL,
+        color TEXT NOT NULL,
+        PRIMARY KEY (user_name, vibe_date)
+    )`);
     
     console.log('Tabelas verificadas/criadas.');
 
     // --- 2. MIGRAÇÃO DA BD ---
     try {
         await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mood TEXT');
-        console.log('MIGRAÇÃO OK: Coluna "mood" verificada/adicionada.');
-    } catch (e) {
-        if (e.code !== '42701') console.error('Erro migração "mood":', e.message);
-    }
+    } catch (e) {}
     try {
         await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT');
-        console.log('MIGRAÇÃO OK: Coluna "avatar_url" verificada/adicionada.');
-    } catch (e) {
-        if (e.code !== '42701') console.error('Erro migração "avatar_url":', e.message);
-    }
+    } catch (e) {}
     try {
         await client.query('ALTER TABLE communities ADD COLUMN IF NOT EXISTS owner_user TEXT');
-        console.log('MIGRAÇÃO OK: Coluna "owner_user" (Dono) verificada/adicionada.');
-    } catch (e) {
-        if (e.code !== '42701') console.error('Erro migração "owner_user":', e.message);
-    }
+    } catch (e) {}
 
     await seedDatabase(client);
     

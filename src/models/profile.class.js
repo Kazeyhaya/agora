@@ -11,8 +11,7 @@ class Profile {
     }
 
     // --- MÉTODOS DE INSTÂNCIA ---
-    // (save, follow, unfollow, getFollowing, isFollowing... continuam iguais)
-    
+
     async save() {
         const result = await db.query(
             'INSERT INTO profiles ("user", bio, mood, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT ("user") DO UPDATE SET bio = $2, mood = $3, avatar_url = $4 RETURNING *',
@@ -53,17 +52,13 @@ class Profile {
         return result.rows.length > 0;
     }
 
-
-    // 👇 MÉTODO ATUALIZADO (getRatings) 👇
-    // Agora aceita 'currentViewer' para saber quem está a ver o perfil
     async getRatings(currentViewer) {
-        // Query 1: Busca os totais de votos (como antes)
         const totalsResult = await db.query(
             `SELECT rating_type, COUNT(*) as count 
              FROM profile_ratings 
              WHERE to_user = $1 
              GROUP BY rating_type`,
-            [this.user] // 'this.user' é o dono do perfil (ex: 'Alexandre')
+            [this.user]
         );
         
         const totals = { confiavel: 0, legal: 0, divertido: 0 };
@@ -73,24 +68,59 @@ class Profile {
             }
         }
 
-        // Query 2: Busca os votos específicos que o 'currentViewer' deu a este perfil
         let userVotes = [];
         if (currentViewer) {
             const userVotesResult = await db.query(
                 `SELECT rating_type 
                  FROM profile_ratings 
                  WHERE to_user = $1 AND from_user = $2`,
-                [this.user, currentViewer] // [Dono do Perfil, Quem está a Ver]
+                [this.user, currentViewer]
             );
-            // Retorna ex: ['confiavel', 'legal']
             userVotes = userVotesResult.rows.map(row => row.rating_type);
         }
         
-        // Retorna ambos os objetos
         return { totals, userVotes };
     }
-    // 👆 FIM DA ATUALIZAÇÃO 👆
 
+    // 👇 MÉTODOS PARA A "VIBE DO DIA" 👇
+    static async getDailyVibe(username) {
+        // 1. Tenta encontrar a vibe de hoje no banco
+        const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        
+        const result = await db.query(
+            `SELECT * FROM profile_vibes WHERE user_name = $1 AND vibe_date = $2`,
+            [username, today]
+        );
+
+        if (result.rows[0]) {
+            return result.rows[0];
+        }
+
+        // 2. Se não existir, gera uma nova
+        const vibesList = [
+            { msg: "Hoje a sorte sorri para os audazes.", color: "#4caf50" }, // Verde
+            { msg: "Um velho amigo trará novidades.", color: "#2196f3" }, // Azul
+            { msg: "Cuidado com gastos impulsivos hoje.", color: "#ef5350" }, // Vermelho
+            { msg: "A cor roxa trará boas energias.", color: "#9c27b0" }, // Roxo
+            { msg: "Foque nos estudos e o resultado virá.", color: "#ff9800" }, // Laranja
+            { msg: "O amor está no ar... ou será fome?", color: "#e91e63" }, // Rosa
+            { msg: "Dia perfeito para ouvir música alta.", color: "#00bcd4" }, // Ciano
+            { msg: "Evite tretas desnecessárias.", color: "#607d8b" }, // Cinza
+            { msg: "Sua criatividade está em alta hoje!", color: "#ffeb3b" }, // Amarelo
+            { msg: "Um mistério será revelado.", color: "#673ab7" } // Roxo escuro
+        ];
+
+        const randomVibe = vibesList[Math.floor(Math.random() * vibesList.length)];
+
+        // 3. Salva no banco
+        await db.query(
+            `INSERT INTO profile_vibes (user_name, vibe_date, message, color) VALUES ($1, $2, $3, $4)`,
+            [username, today, randomVibe.msg, randomVibe.color]
+        );
+
+        return { user_name: username, vibe_date: today, message: randomVibe.msg, color: randomVibe.color };
+    }
+    // 👆 FIM DA VIBE DO DIA 👆
 
     // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
     
@@ -132,13 +162,11 @@ class Profile {
         return { success: true };
     }
     
-    // 👇 NOVO MÉTODO (removeRating) 👇
     static async removeRating(fromUser, toUser, ratingType) {
         const validTypes = ['confiavel', 'legal', 'divertido'];
         if (!validTypes.includes(ratingType)) {
             throw new Error('Tipo de avaliação inválido');
         }
-        
         await db.query(
             `DELETE FROM profile_ratings 
              WHERE from_user = $1 AND to_user = $2 AND rating_type = $3`,
@@ -146,7 +174,6 @@ class Profile {
         );
         return { success: true };
     }
-    // 👆 FIM DO NOVO MÉTODO 👆
 }
 
 module.exports = Profile;

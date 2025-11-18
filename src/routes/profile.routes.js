@@ -14,7 +14,10 @@ router.post('/profile/avatar', upload.single('avatar'), profileController.update
 
 // Rotas de Avaliação (Rating)
 router.post('/profile/rate', profileController.addProfileRating);
-router.post('/profile/unrate', profileController.removeProfileRating); // <-- NOVA ROTA
+router.post('/profile/unrate', profileController.removeProfileRating);
+
+// 👇 NOVA ROTA: Vibe do Dia 👇
+router.get('/profile/:username/vibe', profileController.getDailyVibe);
 
 // Rotas de "Seguir" (Amigos)
 router.get('/following/:username', profileController.getFollowingList);

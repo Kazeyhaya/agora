@@ -11,6 +11,8 @@
 </head>
 <body>
 
+  <div id="toast-container"></div>
+
   <div class="login-overlay" id="login-view" hidden>
     <form class="login-card" id="login-form">
       <div class="brand-badge" style="margin-bottom: 12px; background: none;">
@@ -47,6 +49,9 @@
       <div id="joined-servers-list"></div>
       <div class="divider"></div>
       
+      <button class="server" id="lucky-btn" title="Estou com Sorte! (Entrar em comunidade aleatória)">🎲</button>
+      <div class="divider"></div>
+
       <button class="add-btn" id="explore-servers-btn" title="Explorar Comunidades">+</button>
     </aside>
 
@@ -132,6 +137,10 @@
           <div><strong id="profileName">Você</strong></div>
           <div class="meta" id="profileBio">Apaixonado por comunidades e bate-papo.</div>
           <div class="meta" id="profileMood" style="color:var(--orkut-pink); margin-top: 4px;"></div>
+          
+          <div id="profileVibe" class="vibe-box" hidden>
+            <span class="vibe-icon">🔮</span> <span id="profileVibeText"></span>
+          </div>
 
           <div style="margin-top:10px;display:flex;gap:8px">
             <button class="mini-btn" id="editBioBtn">Editar bio</button>
