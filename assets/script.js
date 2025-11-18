@@ -842,28 +842,15 @@ socket.on('newMessage', (data) => {
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
-
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { 
-    viewedUsername = userLink.dataset.username; 
-    activateView("profile"); 
-    return; 
-  }
+  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
   
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { 
-      apiUnlikePost(postId); 
-      likeButton.classList.remove('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes - 1}`; 
-    } else { 
-      apiLikePost(postId); 
-      likeButton.classList.add('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes + 1}`; 
-    }
+    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
     return;
   }
   
@@ -904,11 +891,10 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    DOM.viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+    // REMOVIDA A LINHA QUE CAUSAVA O ERRO (DOM.viewTabs.forEach)
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
-      // Não há mais DOM.viewTabs para remover a classe active
       DOM.btnExplore.classList.remove("active");
     }
 
@@ -1328,9 +1314,8 @@ function handleLoginSubmit(e) {
     viewedUsername = currentUser;
     localStorage.setItem("agora:user", currentUser);
     
-    // Solução para o "Ecrã Preto": Iniciar imediatamente
+    socket.connect();
     startApp();
-    socket.connect(); 
 }
 
 function checkLogin() {
@@ -1341,15 +1326,12 @@ function checkLogin() {
 
     const storedUser = localStorage.getItem("agora:user");
     
-    // Removemos o socket.on('connect', startApp) daqui para evitar espera
-    
     if (storedUser && storedUser.trim()) {
         currentUser = storedUser.trim();
         viewedUsername = currentUser;
         
-        // Iniciar imediatamente
-        startApp();
         socket.connect();
+        startApp();
     } else {
         LoginDOM.view.hidden = false;
         DOM.appEl.hidden = true;
