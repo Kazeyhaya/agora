@@ -1141,6 +1141,9 @@ function mapAppDOM() {
     DOM.appEl = document.querySelector(".app");
     DOM.mainHeader = document.querySelector(".header"); 
     DOM.channelsEl = document.querySelector(".channels");
+    
+    // DOM.viewTabs e DOM.headerHomeBtn já não existem no novo HTML
+    
     DOM.serverBtns = document.querySelectorAll(".servers .server"); 
     DOM.homeBtn = document.getElementById("home-btn"); 
     
@@ -1161,7 +1164,6 @@ function mapAppDOM() {
     DOM.btnCommunityMenu = document.getElementById("btn-community-menu"); 
 }
 
-// 👇 A FUNÇÃO QUE ESTAVA A FALTAR 👇
 function bindAppEvents() {
     DOM.chatSendBtn.addEventListener("click", sendChatMessage);
     DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
@@ -1171,10 +1173,16 @@ function bindAppEvents() {
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+    
+    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
+    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
+    
+    // Removido: DOM.headerHomeBtn.addEventListener...
+    
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); 
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {
@@ -1304,7 +1312,6 @@ function bindAppEvents() {
         });
     });
 }
-// 👆 FIM DA FUNÇÃO BINDAPPEVENTS 👆
 
 function startApp() {
   console.log('Socket conectado:', socket.id);
