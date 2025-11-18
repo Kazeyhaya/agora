@@ -1141,9 +1141,6 @@ function mapAppDOM() {
     DOM.appEl = document.querySelector(".app");
     DOM.mainHeader = document.querySelector(".header"); 
     DOM.channelsEl = document.querySelector(".channels");
-    
-    // DOM.viewTabs e DOM.headerHomeBtn já não existem no novo HTML
-    
     DOM.serverBtns = document.querySelectorAll(".servers .server"); 
     DOM.homeBtn = document.getElementById("home-btn"); 
     
