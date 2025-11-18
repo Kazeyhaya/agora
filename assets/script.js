@@ -52,7 +52,7 @@ function openInputModal({ title, initialValue = '', placeholder = '', onSave }) 
 
 // ===================================================
 // 2. LÓGICA DE API E RENDERIZAÇÃO
-// ===================================================
+// =================_==================
 
 async function apiGetPosts() {
   try {
@@ -195,7 +195,7 @@ async function apiEditPost(postId) {
 
             } catch (err) {
                 console.error("Falha ao editar post:", err);
-                    alert(`Erro ao salvar: ${err.message}`);
+                alert(`Erro ao salvar: ${err.message}`);
             }
         }
     });
@@ -904,7 +904,7 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    // LINHA PROBLEMÁTICA REMOVIDA: DOM.viewTabs.forEach...
+    // REMOVIDA A LINHA QUE CAUSAVA O ERRO (DOM.viewTabs.forEach)
     
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
@@ -1166,14 +1166,26 @@ function bindAppEvents() {
     DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
     DOM.postsEl.addEventListener("click", handlePostClick);
     DOM.explorePostsEl.addEventListener("click", handlePostClick); 
+    
+    // 👇 NOVO: Adiciona listener para a lista de tópicos da comunidade 👇
+    if (DOM.communityTopicList) {
+        DOM.communityTopicList.addEventListener("click", handlePostClick);
+    }
+    
     DOM.feedSend.addEventListener("click", apiCreatePost);
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+    
+    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
+    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
+    
+    // Removido: DOM.headerHomeBtn.addEventListener...
+    
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {
