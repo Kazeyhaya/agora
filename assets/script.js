@@ -515,6 +515,7 @@ async function apiCreateCommunityPost(form) {
     button.textContent = "Publicar Tópico";
 }
 
+// 👇 FUNÇÃO ATUALIZADA (renderCommunityPosts) 👇
 function renderCommunityPosts(posts) {
     if (!DOM.communityTopicList) return;
     DOM.communityTopicList.innerHTML = "";
@@ -525,6 +526,9 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
+        // Adiciona IDs para permitir Like/Comentar/Editar
+        node.dataset.user = post.user;
+        node.dataset.postid = post.id;
         
         const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
         
@@ -532,7 +536,13 @@ function renderCommunityPosts(posts) {
         avatarEl.className = 'avatar-display post-avatar';
         renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
         
+        // Botão de editar (se for dono)
+        const editButton = (post.user === currentUser) 
+          ? `<button class="mini-btn" data-edit-post="${post.id}">Editar</button>` 
+          : '';
+        
         const contentEl = document.createElement('div');
+        // Adiciona ID ao texto para edição
         contentEl.innerHTML = `
             <div class="meta">
                 <strong class="post-username" data-username="${escapeHtml(post.user)}">
@@ -541,18 +551,24 @@ function renderCommunityPosts(posts) {
                 • ${postTime}
             </div>
             <h3>${escapeHtml(post.title)}</h3>
-            <div>${escapeHtml(post.content)}</div>
+            <div id="post-text-${post.id}">${escapeHtml(post.content)}</div>
             <div class="post-actions">
-                <button class="mini-btn">💬 Comentários</button>
+                <button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button>
+                <button class="mini-btn" data-comment="${post.id}">Comentar</button>
+                ${editButton}
             </div>
+            <div class="comments" id="comments-for-${post.id}"></div>
         `;
         
         node.appendChild(avatarEl);
         node.appendChild(contentEl);
         
         DOM.communityTopicList.appendChild(node);
+        // Busca comentários para este post também!
+        apiGetComments(post.id);
     });
 }
+// 👆 FIM DA ATUALIZAÇÃO 👆
 
 async function apiGetFollowing(username) {
   try {
@@ -842,15 +858,28 @@ socket.on('newMessage', (data) => {
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
+
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
+  if (userLink) { 
+    viewedUsername = userLink.dataset.username; 
+    activateView("profile"); 
+    return; 
+  }
   
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
+    if (likeButton.classList.contains('liked')) { 
+      apiUnlikePost(postId); 
+      likeButton.classList.remove('liked'); 
+      likeButton.innerHTML = `❤ ${currentLikes - 1}`; 
+    } else { 
+      apiLikePost(postId); 
+      likeButton.classList.add('liked'); 
+      likeButton.innerHTML = `❤ ${currentLikes + 1}`; 
+    }
     return;
   }
   
@@ -891,7 +920,7 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    // REMOVIDA A LINHA QUE CAUSAVA O ERRO (DOM.viewTabs.forEach)
+    DOM.viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
@@ -1127,6 +1156,9 @@ function mapAppDOM() {
     DOM.appEl = document.querySelector(".app");
     DOM.mainHeader = document.querySelector(".header"); 
     DOM.channelsEl = document.querySelector(".channels");
+    
+    // DOM.viewTabs e DOM.headerHomeBtn já não existem no novo HTML
+    
     DOM.serverBtns = document.querySelectorAll(".servers .server"); 
     DOM.homeBtn = document.getElementById("home-btn"); 
     
@@ -1150,8 +1182,16 @@ function mapAppDOM() {
 function bindAppEvents() {
     DOM.chatSendBtn.addEventListener("click", sendChatMessage);
     DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+    
+    // Adiciona listener para a lista de posts do feed (e explorar)
     DOM.postsEl.addEventListener("click", handlePostClick);
     DOM.explorePostsEl.addEventListener("click", handlePostClick); 
+
+    // 👇 ADICIONADO: Listener para a lista de tópicos da comunidade 👇
+    if (DOM.communityTopicList) {
+        DOM.communityTopicList.addEventListener("click", handlePostClick);
+    }
+    
     DOM.feedSend.addEventListener("click", apiCreatePost);
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
@@ -1314,8 +1354,9 @@ function handleLoginSubmit(e) {
     viewedUsername = currentUser;
     localStorage.setItem("agora:user", currentUser);
     
-    socket.connect();
+    // Solução para o "Ecrã Preto": Iniciar imediatamente
     startApp();
+    socket.connect(); 
 }
 
 function checkLogin() {
@@ -1326,12 +1367,15 @@ function checkLogin() {
 
     const storedUser = localStorage.getItem("agora:user");
     
+    // Removemos o socket.on('connect', startApp) daqui para evitar espera
+    
     if (storedUser && storedUser.trim()) {
         currentUser = storedUser.trim();
         viewedUsername = currentUser;
         
-        socket.connect();
+        // Iniciar imediatamente
         startApp();
+        socket.connect();
     } else {
         LoginDOM.view.hidden = false;
         DOM.appEl.hidden = true;
