@@ -1173,16 +1173,10 @@ function bindAppEvents() {
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
-    
-    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
-    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    
-    // Removido: DOM.headerHomeBtn.addEventListener...
-    
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); 
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {
