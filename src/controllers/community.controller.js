@@ -1,7 +1,8 @@
 // src/controllers/community.controller.js
 const Community = require('../models/community.class');
 
-// ... (getJoined, getExplore, join, create, getPosts, getMembers, getDetails, updateDetails... continuam iguais) ...
+// ... (getJoined, getExplore, join, create, getPosts, getMembers, getDetails, updateDetails continuam iguais) ...
+
 // [GET] /api/communities/joined
 const getJoined = async (req, res) => {
     try {
@@ -157,13 +158,11 @@ const updateDetails = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR ADICIONADO 👇
 // [POST] /api/community/posts (Criar Tópico)
 const createCommunityPost = async (req, res) => {
     try {
         const { community_id, user, title, content } = req.body;
 
-        // Validação
         if (!community_id || !user || !title || !content) {
             return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         }
@@ -171,19 +170,46 @@ const createCommunityPost = async (req, res) => {
             return res.status(400).json({ error: 'O título não pode exceder 100 caracteres.' });
         }
 
-        // 1. Verifica se a comunidade existe
         const community = await Community.findById(community_id);
         if (!community) {
             return res.status(404).json({ error: 'Comunidade não encontrada' });
         }
 
-        // 2. Cria o post
         const newPost = await Community.createPost(community_id, user, title, content);
         
         res.status(201).json({ post: newPost });
     } catch (err) {
         console.error("Erro no controlador createCommunityPost:", err);
         res.status(500).json({ error: 'Erro ao criar tópico na comunidade' });
+    }
+};
+
+// 👇 NOVO CONTROLADOR ADICIONADO 👇
+// [POST] /api/community/leave
+const leaveCommunity = async (req, res) => {
+    try {
+        const { user_name, community_id } = req.body;
+        
+        if (!user_name || !community_id) {
+            return res.status(400).json({ error: 'Utilizador e ID da comunidade são obrigatórios.' });
+        }
+
+        const community = await Community.findById(community_id);
+        if (!community) {
+             return res.status(404).json({ error: 'Comunidade não encontrada.' });
+        }
+
+        // Não permite que o dono saia (ele deve transferir a posse primeiro, mas por agora, apenas bloqueamos)
+        if (community.owner_user === user_name) {
+             return res.status(403).json({ error: 'O dono não pode sair da comunidade.' });
+        }
+        
+        await Community.removeMember(user_name, community_id);
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Erro no controlador leaveCommunity:", err);
+        res.status(500).json({ error: 'Erro ao sair da comunidade' });
     }
 };
 // 👆 FIM DO NOVO CONTROLADOR 👆
@@ -198,5 +224,6 @@ module.exports = {
   getMembers,
   getDetails,
   updateDetails,
-  createCommunityPost // <-- Exporta o novo controlador
+  createCommunityPost,
+  leaveCommunity // <-- Exporta o novo controlador
 };

@@ -263,27 +263,19 @@ function renderRatings(ratings) {
     
     if (items.every(item => item.count === 0)) {
         DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
-    } else {
-        items.forEach(item => {
-            if (item.count > 0) {
-                const node = document.createElement('div');
-                node.className = 'rating-item';
-                node.innerHTML = `
-                    <span class="rating-icon">${item.icon}</span>
-                    <span class="rating-label">${item.label}</span>
-                    <span class="rating-count">${item.count}</span>
-                `;
-                DOM.ratingsDisplayContainer.appendChild(node);
-            }
-        });
+        return; 
     }
     
-    DOM.ratingVoteButtons.forEach(button => {
-        const ratingType = button.dataset.rating;
-        if (userVotes.includes(ratingType)) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
+    items.forEach(item => {
+        if (item.count > 0) {
+            const node = document.createElement('div');
+            node.className = 'rating-item';
+            node.innerHTML = `
+                <span class="rating-icon">${item.icon}</span>
+                <span class="rating-label">${item.label}</span>
+                <span class="rating-count">${item.count}</span>
+            `;
+            DOM.ratingsDisplayContainer.appendChild(node);
         }
     });
 }
@@ -525,9 +517,6 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
-        // Adiciona IDs para permitir Like/Comentar/Editar
-        node.dataset.user = post.user;
-        node.dataset.postid = post.id;
         
         const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
         
@@ -541,7 +530,6 @@ function renderCommunityPosts(posts) {
           : '';
         
         const contentEl = document.createElement('div');
-        // Adiciona ID ao texto para edição
         contentEl.innerHTML = `
             <div class="meta">
                 <strong class="post-username" data-username="${escapeHtml(post.user)}">
@@ -918,8 +906,11 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
+    // LINHA PROBLEMÁTICA REMOVIDA: DOM.viewTabs.forEach...
+    
+    DOM.btnExplore.classList.toggle("active", name === "explore");
+    
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
-      // DOM.viewTabs já não é usado aqui
       DOM.btnExplore.classList.remove("active");
     }
 
@@ -1187,16 +1178,10 @@ function bindAppEvents() {
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
-    
-    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
-    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    
-    // Removido: DOM.headerHomeBtn.addEventListener...
-    
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {

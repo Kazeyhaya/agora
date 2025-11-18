@@ -3,16 +3,18 @@ const db = require('./db');
 
 class Community {
     
+    // Adicionado 'owner_user'
     constructor({ id, name, description, emoji, members, owner_user }) {
         this.id = id;
         this.name = name;
         this.description = description || "Bem-vindo a esta comunidade!";
         this.emoji = emoji || '💬';
         this.members = members || 0;
-        this.owner_user = owner_user || null; 
+        this.owner_user = owner_user || null; // O dono da comunidade
     }
 
     // --- MÉTODOS DE INSTÂNCIA ---
+
     async save() {
         if (!this.id) {
             const result = await db.query(
@@ -38,6 +40,23 @@ class Community {
         await db.query('UPDATE communities SET members = $1 WHERE id = $2', [this.members, this.id]);
         return this;
     }
+    
+    // 👇 NOVO MÉTODO: REMOVE MEMBER 👇
+    static async removeMember(userName, communityId) {
+        // 1. Remove o utilizador
+        await db.query(
+            `DELETE FROM community_members WHERE user_name = $1 AND community_id = $2`, 
+            [userName, communityId]
+        );
+
+        // 2. Atualiza a contagem da comunidade
+        const countResult = await db.query('SELECT COUNT(*) FROM community_members WHERE community_id = $1', [communityId]);
+        const newCount = parseInt(countResult.rows[0].count, 10);
+        await db.query('UPDATE communities SET members = $1 WHERE id = $2', [newCount, communityId]);
+        
+        return { success: true };
+    }
+    // 👆 FIM DO NOVO MÉTODO 👆
     
     async getPosts() {
         const result = await db.query(
@@ -113,7 +132,6 @@ class Community {
         return new Community(result.rows[0]);
     }
     
-    // 👇 NOVO MÉTODO ESTÁTICO ADICIONADO 👇
     static async createPost(communityId, user, title, content) {
         const result = await db.query(
             `INSERT INTO community_posts (community_id, "user", title, content) 
@@ -123,7 +141,6 @@ class Community {
         );
         return result.rows[0];
     }
-    // 👆 FIM DO NOVO MÉTODO 👆
 }
 
 module.exports = Community;
