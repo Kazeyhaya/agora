@@ -98,7 +98,6 @@ function renderExplorePosts(posts) {
   renderPostList(DOM.explorePostsEl, posts);
 }
 
-// 👇 FUNÇÃO MODIFICADA (renderPostList) 👇
 function renderPostList(containerElement, posts) {
   containerElement.innerHTML = ""; 
   posts.forEach(post => {
@@ -139,7 +138,6 @@ function renderPostList(containerElement, posts) {
     apiGetComments(post.id);
   });
 }
-// 👆 FIM DA MODIFICAÇÃO 👆
 
 async function apiGetComments(postId) {
   try {
@@ -171,26 +169,22 @@ async function apiCreateComment(postId) {
   });
 }
 
-// 👇 NOVA FUNÇÃO (apiEditPost) 👇
 async function apiEditPost(postId) {
-    // 1. Encontra o texto atual no DOM
     const textElement = document.getElementById(`post-text-${postId}`);
     if (!textElement) return;
     
     const currentText = textElement.textContent;
 
-    // 2. Abre o modal
     openInputModal({
         title: "Editar Publicação",
         initialValue: currentText,
         onSave: async (newText) => {
             try {
-                // 3. Envia a atualização para a API
                 const res = await fetch(`/api/posts/${postId}/update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        user: currentUser, // Envia o utilizador para verificação de dono
+                        user: currentUser, 
                         text: newText
                     })
                 });
@@ -200,7 +194,6 @@ async function apiEditPost(postId) {
                     throw new Error(err.error);
                 }
                 
-                // 4. Atualiza o texto no DOM (localmente)
                 textElement.textContent = newText;
 
             } catch (err) {
@@ -210,7 +203,6 @@ async function apiEditPost(postId) {
         }
     });
 }
-// 👆 FIM DA NOVA FUNÇÃO 👆
 
 function renderComments(postId, comments) {
   const container = document.getElementById(`comments-for-${postId}`);
@@ -854,9 +846,7 @@ socket.on('newMessage', (data) => {
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
 
-// 👇 FUNÇÃO MODIFICADA (handlePostClick) 👇
 function handlePostClick(e) {
-  // Clique no nome de utilizador
   const userLink = e.target.closest('.post-username[data-username]');
   if (userLink) { 
     viewedUsername = userLink.dataset.username; 
@@ -864,7 +854,6 @@ function handlePostClick(e) {
     return; 
   }
   
-  // Clique no botão Like
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
@@ -881,7 +870,6 @@ function handlePostClick(e) {
     return;
   }
   
-  // Clique no botão Comentar
   const commentButton = e.target.closest('[data-comment]');
   if (commentButton) {
     const postId = commentButton.dataset.comment;
@@ -889,7 +877,6 @@ function handlePostClick(e) {
     return;
   }
   
-  // Clique no botão Editar Post
   const editButton = e.target.closest('[data-edit-post]');
   if (editButton) {
       const postId = editButton.dataset.editPost;
@@ -897,7 +884,6 @@ function handlePostClick(e) {
       return;
   }
 }
-// 👆 FIM DA MODIFICAÇÃO 👆
 
 // ===================================================
 // 5. LÓGICA DE TROCA DE VISÃO (Views)
@@ -925,7 +911,7 @@ function activateView(name, options = {}) {
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
-      DOM.viewTabs.forEach(b => b.classList.remove("active"));
+      // Não há mais DOM.viewTabs para remover a classe active
       DOM.btnExplore.classList.remove("active");
     }
 
@@ -1074,262 +1060,260 @@ async function apiUnfollow(username) {
 // ===================================================
 
 function mapAppDOM() {
-  DOM.chatView = document.getElementById("view-chat"); 
-  DOM.chatMessagesEl = document.getElementById("messages");
-  DOM.chatTopicBadge = document.getElementById("topic");
-  DOM.chatInputEl = document.getElementById("composerInput");
-  DOM.chatSendBtn = document.getElementById("sendBtn");
-  DOM.feedView = document.getElementById("view-feed"); 
-  DOM.postsEl = document.getElementById("posts");
-  DOM.feedInput = document.getElementById("feedInput");
-  DOM.feedSend = document.getElementById("feedSend");
-  DOM.feedRefreshBtn = document.getElementById("btn-refresh");
-  DOM.exploreView = document.getElementById("view-explore"); 
-  DOM.explorePostsEl = document.getElementById("explore-posts");
-  DOM.btnExplore = document.getElementById("btn-explore");
-  DOM.btnExploreRefresh = document.getElementById("btn-explore-refresh");
-  DOM.profileView = document.getElementById("view-profile"); 
-  DOM.profileAvatarEl = document.getElementById("profileAvatar");
-  DOM.profileNameEl = document.getElementById("profileName");
-  DOM.profileBioEl = document.getElementById("profileBio");
-  DOM.profileMoodEl = document.getElementById("profileMood");
-  DOM.editBioBtn = document.getElementById("editBioBtn");
-  
-  DOM.userAvatarEl = document.getElementById("userAvatar");
-  DOM.avatarUploadInput = document.getElementById("avatar-upload-input");
-  DOM.avatarUploadLabel = document.getElementById("avatar-upload-label");
+    DOM.chatView = document.getElementById("view-chat"); 
+    DOM.chatMessagesEl = document.getElementById("messages");
+    DOM.chatTopicBadge = document.getElementById("topic");
+    DOM.chatInputEl = document.getElementById("composerInput");
+    DOM.chatSendBtn = document.getElementById("sendBtn");
+    DOM.feedView = document.getElementById("view-feed"); 
+    DOM.postsEl = document.getElementById("posts");
+    DOM.feedInput = document.getElementById("feedInput");
+    DOM.feedSend = document.getElementById("feedSend");
+    DOM.feedRefreshBtn = document.getElementById("btn-refresh");
+    DOM.exploreView = document.getElementById("view-explore"); 
+    DOM.explorePostsEl = document.getElementById("explore-posts");
+    DOM.btnExplore = document.getElementById("btn-explore");
+    DOM.btnExploreRefresh = document.getElementById("btn-explore-refresh");
+    DOM.profileView = document.getElementById("view-profile"); 
+    DOM.profileAvatarEl = document.getElementById("profileAvatar");
+    DOM.profileNameEl = document.getElementById("profileName");
+    DOM.profileBioEl = document.getElementById("profileBio");
+    DOM.profileMoodEl = document.getElementById("profileMood");
+    DOM.editBioBtn = document.getElementById("editBioBtn");
+    
+    DOM.userAvatarEl = document.getElementById("userAvatar");
+    DOM.avatarUploadInput = document.getElementById("avatar-upload-input");
+    DOM.avatarUploadLabel = document.getElementById("avatar-upload-label");
 
-  DOM.userbarMeBtn = document.getElementById("userbar-me");
-  DOM.userbarMoodContainer = document.getElementById("userbar-mood-container");
-  DOM.userbarMood = document.getElementById("userbar-mood");
-  DOM.friendsContainer = document.getElementById("friends"); 
-  DOM.testimonialsEl = document.getElementById("testimonials");
-  DOM.testimonialInput = document.getElementById("testimonialInput");
-  DOM.testimonialSend = document.getElementById("testimonialSend");
-  DOM.testimonialFormContainer = document.getElementById("testimonial-form-container");
-  
-  DOM.dmBtn = document.getElementById("dmBtn");
-  DOM.communityCard = document.querySelector('.community-card');
-  
-  DOM.modalView = document.getElementById("input-modal");
-  DOM.modalForm = document.getElementById("modal-form");
-  DOM.modalTitle = document.getElementById("modal-title");
-  DOM.modalInput = document.getElementById("modal-input");
-  DOM.modalSaveBtn = document.getElementById("modal-save-btn");
-  DOM.modalCancelBtn = document.getElementById("modal-cancel-btn");
-  
-  DOM.exploreServersView = document.getElementById("view-explore-servers");
-  DOM.exploreServersBtn = document.getElementById("explore-servers-btn");
-  DOM.communityListContainer = document.getElementById("community-list-container");
-  DOM.joinedServersList = document.getElementById("joined-servers-list"); 
-  DOM.createCommunityView = document.getElementById("view-create-community");
-  DOM.btnShowCreateCommunity = document.getElementById("btn-show-create-community");
-  DOM.btnCancelCreate = document.getElementById("btn-cancel-create");
-  DOM.createCommunityForm = document.getElementById("create-community-form");
-  
-  DOM.communityChannelBar = document.querySelector('aside.channels'); 
-  DOM.communityTopicList = document.getElementById('community-topic-list');
-  DOM.communityTopicView = document.getElementById('view-community-topics'); 
-  DOM.communityMembersView = document.getElementById('view-community-members'); 
-  DOM.communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); 
-  DOM.communityChatChannelsList = document.getElementById('community-chat-channels');
-  DOM.currentCommunityNameEl = document.getElementById('current-community-name');
-  DOM.communityAvatarChannelEl = document.getElementById('community-avatar-channel');
-  DOM.communityMembersCountEl = document.getElementById('community-members-count');
-  
-  DOM.communityMemberList = document.getElementById("community-member-list");
-  DOM.communityMembersTitle = document.getElementById("community-members-title");
+    DOM.userbarMeBtn = document.getElementById("userbar-me");
+    DOM.userbarMoodContainer = document.getElementById("userbar-mood-container");
+    DOM.userbarMood = document.getElementById("userbar-mood");
+    DOM.friendsContainer = document.getElementById("friends"); 
+    DOM.testimonialsEl = document.getElementById("testimonials");
+    DOM.testimonialInput = document.getElementById("testimonialInput");
+    DOM.testimonialSend = document.getElementById("testimonialSend");
+    DOM.testimonialFormContainer = document.getElementById("testimonial-form-container");
+    
+    DOM.dmBtn = document.getElementById("dmBtn");
+    DOM.communityCard = document.querySelector('.community-card');
+    
+    DOM.modalView = document.getElementById("input-modal");
+    DOM.modalForm = document.getElementById("modal-form");
+    DOM.modalTitle = document.getElementById("modal-title");
+    DOM.modalInput = document.getElementById("modal-input");
+    DOM.modalSaveBtn = document.getElementById("modal-save-btn");
+    DOM.modalCancelBtn = document.getElementById("modal-cancel-btn");
+    
+    DOM.exploreServersView = document.getElementById("view-explore-servers");
+    DOM.exploreServersBtn = document.getElementById("explore-servers-btn");
+    DOM.communityListContainer = document.getElementById("community-list-container");
+    DOM.joinedServersList = document.getElementById("joined-servers-list"); 
+    DOM.createCommunityView = document.getElementById("view-create-community");
+    DOM.btnShowCreateCommunity = document.getElementById("btn-show-create-community");
+    DOM.btnCancelCreate = document.getElementById("btn-cancel-create");
+    DOM.createCommunityForm = document.getElementById("create-community-form");
+    
+    DOM.communityChannelBar = document.querySelector('aside.channels'); 
+    DOM.communityTopicList = document.getElementById('community-topic-list');
+    DOM.communityTopicView = document.getElementById('view-community-topics'); 
+    DOM.communityMembersView = document.getElementById('view-community-members'); 
+    DOM.communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); 
+    DOM.communityChatChannelsList = document.getElementById('community-chat-channels');
+    DOM.currentCommunityNameEl = document.getElementById('current-community-name');
+    DOM.communityAvatarChannelEl = document.getElementById('community-avatar-channel');
+    DOM.communityMembersCountEl = document.getElementById('community-members-count');
+    
+    DOM.communityMemberList = document.getElementById("community-member-list");
+    DOM.communityMembersTitle = document.getElementById("community-members-title");
 
-  DOM.communityNameChannel = document.getElementById("community-name-channel");
-  DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
-  DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
+    DOM.communityNameChannel = document.getElementById("community-name-channel");
+    DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
+    DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
 
-  DOM.btnNewTopic = document.getElementById("btn-new-topic");
-  DOM.createTopicView = document.getElementById("view-create-topic");
-  DOM.createTopicForm = document.getElementById("create-topic-form");
-  DOM.topicTitleInput = document.getElementById("topic-title");
-  DOM.topicContentInput = document.getElementById("topic-content");
-  DOM.btnCancelTopic = document.getElementById("btn-cancel-topic");
+    DOM.btnNewTopic = document.getElementById("btn-new-topic");
+    DOM.createTopicView = document.getElementById("view-create-topic");
+    DOM.createTopicForm = document.getElementById("create-topic-form");
+    DOM.topicTitleInput = document.getElementById("topic-title");
+    DOM.topicContentInput = document.getElementById("topic-content");
+    DOM.btnCancelTopic = document.getElementById("btn-cancel-topic");
 
-  DOM.ratingsDisplayContainer = document.getElementById("ratings-display-container");
-  DOM.ratingsVoteContainer = document.getElementById("ratings-vote-container");
-  DOM.ratingVoteButtons = document.querySelectorAll("#ratings-vote-container .mini-btn");
-  
-  DOM.appEl = document.querySelector(".app");
-  DOM.mainHeader = document.querySelector(".header"); 
-  DOM.channelsEl = document.querySelector(".channels");
-  
-  // Removido: DOM.viewTabs (já não existe)
-  
-  DOM.serverBtns = document.querySelectorAll(".servers .server"); 
-  DOM.homeBtn = document.getElementById("home-btn"); 
-  
-  // Removido: DOM.headerHomeBtn (já não é clicável)
-  
-  DOM.views = {
-      feed: DOM.feedView,
-      chat: DOM.chatView,
-      profile: DOM.profileView,
-      explore: DOM.exploreView,
-      "explore-servers": DOM.exploreServersView,
-      "create-community": DOM.createCommunityView,
-      "community-topics": DOM.communityTopicView, 
-      "community-members": DOM.communityMembersView,
-      "create-topic": DOM.createTopicView
-  };
+    DOM.ratingsDisplayContainer = document.getElementById("ratings-display-container");
+    DOM.ratingsVoteContainer = document.getElementById("ratings-vote-container");
+    DOM.ratingVoteButtons = document.querySelectorAll("#ratings-vote-container .mini-btn");
+    
+    DOM.appEl = document.querySelector(".app");
+    DOM.mainHeader = document.querySelector(".header"); 
+    DOM.channelsEl = document.querySelector(".channels");
+    
+    // Removido: DOM.viewTabs (já não existe)
+    
+    DOM.serverBtns = document.querySelectorAll(".servers .server"); 
+    DOM.homeBtn = document.getElementById("home-btn"); 
+    
+    // Removido: DOM.headerHomeBtn (já não é clicável)
+    
+    DOM.views = {
+        feed: DOM.feedView,
+        chat: DOM.chatView,
+        profile: DOM.profileView,
+        explore: DOM.exploreView,
+        "explore-servers": DOM.exploreServersView,
+        "create-community": DOM.createCommunityView,
+        "community-topics": DOM.communityTopicView, 
+        "community-members": DOM.communityMembersView,
+        "create-topic": DOM.createTopicView
+    };
 
-  DOM.btnMobileMenu = document.getElementById("btn-mobile-menu");
-  DOM.serversList = document.querySelector(".servers");
-  DOM.btnCommunityMenu = document.getElementById("btn-community-menu"); 
+    DOM.btnMobileMenu = document.getElementById("btn-mobile-menu");
+    DOM.serversList = document.querySelector(".servers");
+    DOM.btnCommunityMenu = document.getElementById("btn-community-menu"); 
 }
 
 function bindAppEvents() {
-  DOM.chatSendBtn.addEventListener("click", sendChatMessage);
-  DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
-  DOM.postsEl.addEventListener("click", handlePostClick);
-  DOM.explorePostsEl.addEventListener("click", handlePostClick); 
-  DOM.feedSend.addEventListener("click", apiCreatePost);
-  DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
-  DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
-  DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
-  
-  // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
-  
-  DOM.btnExplore.addEventListener("click", () => activateView("explore"));
-  DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
-  DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-  
-  // Removido: DOM.headerHomeBtn.addEventListener...
-  
-  DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
-  DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
-  
-  DOM.modalCancelBtn.addEventListener("click", () => {
-      DOM.modalView.hidden = true;
-  });
-  
-  DOM.avatarUploadInput.addEventListener("change", apiUploadAvatar);
-  DOM.profileAvatarEl.addEventListener("click", () => {
-    if (DOM.profileAvatarEl.classList.contains('is-owner')) {
-      DOM.avatarUploadInput.click();
-    }
-  });
-
-  DOM.friendsContainer.addEventListener("click", (e) => {
-    const friendLink = e.target.closest('.friend-card-name[data-username]');
-    if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
-  });
-  
-  if (DOM.communityMemberList) {
-      DOM.communityMemberList.addEventListener("click", (e) => {
-        const memberLink = e.target.closest('.friend-card-name[data-username]');
-        if (memberLink) { 
-          viewedUsername = memberLink.dataset.username; 
-          activateView("profile"); 
-        }
-      });
-  }
-
-  DOM.communityListContainer.addEventListener("click", (e) => {
-    const joinButton = e.target.closest('.join-btn[data-community-id]');
-    if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
-  });
-  DOM.joinedServersList.addEventListener("click", (e) => {
-    const communityBtn = e.target.closest('.community-btn[data-community-id]');
-    if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
-  });
-  DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
-  DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
-  DOM.createCommunityForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("community-name").value.trim();
-      const emoji = document.getElementById("community-emoji").value.trim();
-      if (!name) return;
-      apiCreateCommunity(name, emoji, DOM.createCommunityForm.querySelector('button[type="submit"]'));
-  });
-  
-  DOM.btnNewTopic.addEventListener("click", () => {
-      activateView("create-topic"); 
-  });
-  DOM.btnCancelTopic.addEventListener("click", () => {
-      activateCommunityView("topics", { community: currentCommunityId });
-  });
-  DOM.createTopicForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      apiCreateCommunityPost(DOM.createTopicForm);
-  });
-  
-  DOM.communityTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-          const view = tab.dataset.communityView;
-          if (view) {
-              activateCommunityView(view, { community: currentCommunityId });
-          }
-      });
-  });
-  
-  DOM.ratingVoteButtons.forEach(button => {
-      button.addEventListener("click", () => {
-          const ratingType = button.dataset.rating;
-          
-          if (button.classList.contains('active')) {
-              apiRemoveRating(ratingType);
-          } else {
-              apiAddRating(ratingType);
-          }
-      });
-  });
-
-  const toggleServersMenu = () => {
-      DOM.serversList.classList.toggle("is-open");
-  };
-  
-  DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
-  DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
-
-  DOM.serversList.addEventListener("click", (e) => {
-      if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
-          if (e.target.closest(".server") || e.target.closest(".add-btn")) {
-              DOM.serversList.classList.remove("is-open");
-          }
+    DOM.chatSendBtn.addEventListener("click", sendChatMessage);
+    DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+    DOM.postsEl.addEventListener("click", handlePostClick);
+    DOM.explorePostsEl.addEventListener("click", handlePostClick); 
+    DOM.feedSend.addEventListener("click", apiCreatePost);
+    DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
+    DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
+    DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+    
+    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
+    
+    DOM.btnExplore.addEventListener("click", () => activateView("explore"));
+    DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
+    DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
+    
+    // Removido: DOM.headerHomeBtn.addEventListener...
+    
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
+    DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
+    
+    DOM.modalCancelBtn.addEventListener("click", () => {
+        DOM.modalView.hidden = true;
+    });
+    
+    DOM.avatarUploadInput.addEventListener("change", apiUploadAvatar);
+    DOM.profileAvatarEl.addEventListener("click", () => {
+      if (DOM.profileAvatarEl.classList.contains('is-owner')) {
+        DOM.avatarUploadInput.click();
       }
-  });
+    });
 
-  DOM.btnEditCommunity.addEventListener("click", () => {
-      const currentName = DOM.communityNameChannel.textContent;
-      const currentEmoji = DOM.communityAvatarChannel.textContent; 
-
-      openInputModal({
-          title: "Editar Nome da Comunidade",
-          initialValue: currentName,
-          onSave: async (newName) => {
-              try {
-                  const res = await fetch(`/api/community/${currentCommunityId}/update`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                          name: newName,
-                          emoji: currentEmoji, 
-                          user: currentUser 
-                      })
-                  });
-
-                  if (!res.ok) {
-                      const err = await res.json();
-                      throw new Error(err.error);
-                  }
-                  
-                  const data = await res.json();
-                  renderCommunityDetails(data.community); 
-
-              } catch (err) {
-                  console.error("Falha ao atualizar comunidade:", err);
-                  alert(`Erro ao salvar: ${err.message}`);
-                  apiGetCommunityDetails(currentCommunityId);
-              }
+    DOM.friendsContainer.addEventListener("click", (e) => {
+      const friendLink = e.target.closest('.friend-card-name[data-username]');
+      if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
+    });
+    
+    if (DOM.communityMemberList) {
+        DOM.communityMemberList.addEventListener("click", (e) => {
+          const memberLink = e.target.closest('.friend-card-name[data-username]');
+          if (memberLink) { 
+            viewedUsername = memberLink.dataset.username; 
+            activateView("profile"); 
           }
-      });
-  });
-}
+        });
+    }
 
-checkLogin();
+    DOM.communityListContainer.addEventListener("click", (e) => {
+      const joinButton = e.target.closest('.join-btn[data-community-id]');
+      if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
+    });
+    DOM.joinedServersList.addEventListener("click", (e) => {
+      const communityBtn = e.target.closest('.community-btn[data-community-id]');
+      if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
+    });
+    DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
+    DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
+    DOM.createCommunityForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = document.getElementById("community-name").value.trim();
+        const emoji = document.getElementById("community-emoji").value.trim();
+        if (!name) return;
+        apiCreateCommunity(name, emoji, DOM.createCommunityForm.querySelector('button[type="submit"]'));
+    });
+    
+    DOM.btnNewTopic.addEventListener("click", () => {
+        activateView("create-topic"); 
+    });
+    DOM.btnCancelTopic.addEventListener("click", () => {
+        activateCommunityView("topics", { community: currentCommunityId });
+    });
+    DOM.createTopicForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        apiCreateCommunityPost(DOM.createTopicForm);
+    });
+    
+    DOM.communityTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const view = tab.dataset.communityView;
+            if (view) {
+                activateCommunityView(view, { community: currentCommunityId });
+            }
+        });
+    });
+    
+    DOM.ratingVoteButtons.forEach(button => {
+        button.addEventListener("click", () => {
+            const ratingType = button.dataset.rating;
+            
+            if (button.classList.contains('active')) {
+                apiRemoveRating(ratingType);
+            } else {
+                apiAddRating(ratingType);
+            }
+        });
+    });
+
+    const toggleServersMenu = () => {
+        DOM.serversList.classList.toggle("is-open");
+    };
+    
+    DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
+    DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
+
+    DOM.serversList.addEventListener("click", (e) => {
+        if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
+            if (e.target.closest(".server") || e.target.closest(".add-btn")) {
+                DOM.serversList.classList.remove("is-open");
+            }
+        }
+    });
+
+    DOM.btnEditCommunity.addEventListener("click", () => {
+        const currentName = DOM.communityNameChannel.textContent;
+        const currentEmoji = DOM.communityAvatarChannel.textContent; 
+
+        openInputModal({
+            title: "Editar Nome da Comunidade",
+            initialValue: currentName,
+            onSave: async (newName) => {
+                try {
+                    const res = await fetch(`/api/community/${currentCommunityId}/update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: newName,
+                            emoji: currentEmoji, 
+                            user: currentUser 
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error);
+                    }
+                    
+                    const data = await res.json();
+                    renderCommunityDetails(data.community); 
+
+                } catch (err) {
+                    console.error("Falha ao atualizar comunidade:", err);
+                    alert(`Erro ao salvar: ${err.message}`);
+                    apiGetCommunityDetails(currentCommunityId);
+                }
+            }
+        });
+    });
+}
