@@ -195,7 +195,7 @@ async function apiEditPost(postId) {
 
             } catch (err) {
                 console.error("Falha ao editar post:", err);
-                alert(`Erro ao salvar: ${err.message}`);
+                    alert(`Erro ao salvar: ${err.message}`);
             }
         }
     });
@@ -842,15 +842,28 @@ socket.on('newMessage', (data) => {
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
+
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
+  if (userLink) { 
+    viewedUsername = userLink.dataset.username; 
+    activateView("profile"); 
+    return; 
+  }
   
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
+    if (likeButton.classList.contains('liked')) { 
+      apiUnlikePost(postId); 
+      likeButton.classList.remove('liked'); 
+      likeButton.innerHTML = `❤ ${currentLikes - 1}`; 
+    } else { 
+      apiLikePost(postId); 
+      likeButton.classList.add('liked'); 
+      likeButton.innerHTML = `❤ ${currentLikes + 1}`; 
+    }
     return;
   }
   
@@ -890,6 +903,8 @@ function activateView(name, options = {}) {
     }
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
+    
+    // LINHA PROBLEMÁTICA REMOVIDA: DOM.viewTabs.forEach...
     
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
@@ -1126,9 +1141,6 @@ function mapAppDOM() {
     DOM.appEl = document.querySelector(".app");
     DOM.mainHeader = document.querySelector(".header"); 
     DOM.channelsEl = document.querySelector(".channels");
-    
-    // DOM.viewTabs e DOM.headerHomeBtn já não existem no novo HTML
-    
     DOM.serverBtns = document.querySelectorAll(".servers .server"); 
     DOM.homeBtn = document.getElementById("home-btn"); 
     
@@ -1158,16 +1170,10 @@ function bindAppEvents() {
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
-    
-    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
-    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    
-    // Removido: DOM.headerHomeBtn.addEventListener...
-    
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {
@@ -1298,4 +1304,53 @@ function bindAppEvents() {
     });
 }
 
-// ... (resto do código 'startApp', 'handleLoginSubmit', etc. mantém-se igual) ...
+function startApp() {
+  console.log('Socket conectado:', socket.id);
+  mapAppDOM();
+  bindAppEvents();
+  
+  document.getElementById("userName").textContent = currentUser;
+  
+  apiGetJoinedCommunities(); 
+  apiGetProfile(currentUser);
+  
+  activateView("feed"); 
+  DOM.appEl.hidden = false;
+  LoginDOM.view.hidden = true;
+}
+
+function handleLoginSubmit(e) {
+    e.preventDefault();
+    const username = LoginDOM.input.value.trim();
+    if (!username) return;
+    
+    currentUser = username;
+    viewedUsername = currentUser;
+    localStorage.setItem("agora:user", currentUser);
+    
+    socket.connect();
+    startApp();
+}
+
+function checkLogin() {
+    LoginDOM.view = document.getElementById('login-view');
+    LoginDOM.form = document.getElementById('login-form');
+    LoginDOM.input = document.getElementById('login-username-input');
+    DOM.appEl = document.querySelector(".app"); 
+
+    const storedUser = localStorage.getItem("agora:user");
+    
+    if (storedUser && storedUser.trim()) {
+        currentUser = storedUser.trim();
+        viewedUsername = currentUser;
+        
+        socket.connect();
+        startApp();
+    } else {
+        LoginDOM.view.hidden = false;
+        DOM.appEl.hidden = true;
+        LoginDOM.form.addEventListener('submit', handleLoginSubmit);
+    }
+}
+
+checkLogin();
