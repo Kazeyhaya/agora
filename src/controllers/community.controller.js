@@ -1,8 +1,6 @@
 // src/controllers/community.controller.js
 const Community = require('../models/community.class');
 
-// ... (getJoined, getExplore, join, create, getPosts, getMembers, getDetails, updateDetails continuam iguais) ...
-
 // [GET] /api/communities/joined
 const getJoined = async (req, res) => {
     try {
@@ -184,7 +182,7 @@ const createCommunityPost = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR ADICIONADO 👇
+// 👇 NOVO CONTROLADOR: SAIR DA COMUNIDADE 👇
 // [POST] /api/community/leave
 const leaveCommunity = async (req, res) => {
     try {
@@ -199,7 +197,7 @@ const leaveCommunity = async (req, res) => {
              return res.status(404).json({ error: 'Comunidade não encontrada.' });
         }
 
-        // Não permite que o dono saia (ele deve transferir a posse primeiro, mas por agora, apenas bloqueamos)
+        // Não permite que o dono saia
         if (community.owner_user === user_name) {
              return res.status(403).json({ error: 'O dono não pode sair da comunidade.' });
         }
@@ -212,7 +210,6 @@ const leaveCommunity = async (req, res) => {
         res.status(500).json({ error: 'Erro ao sair da comunidade' });
     }
 };
-// 👆 FIM DO NOVO CONTROLADOR 👆
 
 
 module.exports = {

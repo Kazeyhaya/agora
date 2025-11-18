@@ -17,7 +17,7 @@ communityRouter.get('/:id/members', communityController.getMembers);
 communityRouter.get('/:id/details', communityController.getDetails);
 communityRouter.post('/:id/update', communityController.updateDetails);
 
-// 👇 NOVA ROTA ADICIONADA 👇
+// 👇 ROTA DE SAIR DA COMUNIDADE 👇
 communityRouter.post('/leave', communityController.leaveCommunity);
 
 // Rota para criar posts (tópicos)

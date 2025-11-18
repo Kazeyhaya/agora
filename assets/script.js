@@ -517,6 +517,9 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
+        // Adiciona IDs para permitir Like/Comentar/Editar
+        node.dataset.user = post.user;
+        node.dataset.postid = post.id;
         
         const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
         
@@ -682,6 +685,35 @@ function renderCommunityDetails(community) {
     }
 }
 
+
+async function apiLeaveCommunity() {
+    if (!confirm("Tem certeza que deseja sair desta comunidade?")) {
+        return;
+    }
+    try {
+        const res = await fetch('/api/community/leave', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_name: currentUser,
+                community_id: currentCommunityId,
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error);
+        }
+        
+        // Se sair com sucesso, volta para o feed e recarrega a lista de comunidades
+        activateView("feed"); 
+        apiGetJoinedCommunities();
+
+    } catch (err) {
+        console.error("Falha ao sair da comunidade:", err);
+        alert(`Erro ao sair: ${err.message}`);
+    }
+}
 
 async function apiJoinCommunity(communityId, button) {
   button.disabled = true;
@@ -906,8 +938,6 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    // LINHA PROBLEMÁTICA REMOVIDA: DOM.viewTabs.forEach...
-    
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
@@ -1128,6 +1158,8 @@ function mapAppDOM() {
     DOM.communityNameChannel = document.getElementById("community-name-channel");
     DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
     DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
+    // 👇 ADICIONADO: Botão de Sair da Comunidade
+    DOM.btnLeaveCommunity = document.getElementById("btn-leave-community");
 
     DOM.btnNewTopic = document.getElementById("btn-new-topic");
     DOM.createTopicView = document.getElementById("view-create-topic");
@@ -1310,6 +1342,11 @@ function bindAppEvents() {
             }
         });
     });
+
+    // 👇 NOVO EVENT LISTENER: SAIR DA COMUNIDADE 👇
+    if (DOM.btnLeaveCommunity) {
+        DOM.btnLeaveCommunity.addEventListener("click", apiLeaveCommunity);
+    }
 }
 
 function startApp() {
