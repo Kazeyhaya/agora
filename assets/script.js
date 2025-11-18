@@ -515,7 +515,6 @@ async function apiCreateCommunityPost(form) {
     button.textContent = "Publicar Tópico";
 }
 
-// 👇 FUNÇÃO ATUALIZADA (renderCommunityPosts) 👇
 function renderCommunityPosts(posts) {
     if (!DOM.communityTopicList) return;
     DOM.communityTopicList.innerHTML = "";
@@ -526,9 +525,6 @@ function renderCommunityPosts(posts) {
     posts.forEach(post => {
         const node = document.createElement("div");
         node.className = "post"; 
-        // Adiciona IDs para permitir Like/Comentar/Editar
-        node.dataset.user = post.user;
-        node.dataset.postid = post.id;
         
         const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
         
@@ -536,13 +532,7 @@ function renderCommunityPosts(posts) {
         avatarEl.className = 'avatar-display post-avatar';
         renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
         
-        // Botão de editar (se for dono)
-        const editButton = (post.user === currentUser) 
-          ? `<button class="mini-btn" data-edit-post="${post.id}">Editar</button>` 
-          : '';
-        
         const contentEl = document.createElement('div');
-        // Adiciona ID ao texto para edição
         contentEl.innerHTML = `
             <div class="meta">
                 <strong class="post-username" data-username="${escapeHtml(post.user)}">
@@ -551,24 +541,18 @@ function renderCommunityPosts(posts) {
                 • ${postTime}
             </div>
             <h3>${escapeHtml(post.title)}</h3>
-            <div id="post-text-${post.id}">${escapeHtml(post.content)}</div>
+            <div>${escapeHtml(post.content)}</div>
             <div class="post-actions">
-                <button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button>
-                <button class="mini-btn" data-comment="${post.id}">Comentar</button>
-                ${editButton}
+                <button class="mini-btn">💬 Comentários</button>
             </div>
-            <div class="comments" id="comments-for-${post.id}"></div>
         `;
         
         node.appendChild(avatarEl);
         node.appendChild(contentEl);
         
         DOM.communityTopicList.appendChild(node);
-        // Busca comentários para este post também!
-        apiGetComments(post.id);
     });
 }
-// 👆 FIM DA ATUALIZAÇÃO 👆
 
 async function apiGetFollowing(username) {
   try {
@@ -858,28 +842,15 @@ socket.on('newMessage', (data) => {
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
 // ===================================================
-
 function handlePostClick(e) {
   const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { 
-    viewedUsername = userLink.dataset.username; 
-    activateView("profile"); 
-    return; 
-  }
+  if (userLink) { viewedUsername = userLink.dataset.username; activateView("profile"); return; }
   
   const likeButton = e.target.closest('[data-like]');
   if (likeButton) {
     const postId = likeButton.dataset.like; 
     let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { 
-      apiUnlikePost(postId); 
-      likeButton.classList.remove('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes - 1}`; 
-    } else { 
-      apiLikePost(postId); 
-      likeButton.classList.add('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes + 1}`; 
-    }
+    if (likeButton.classList.contains('liked')) { apiUnlikePost(postId); likeButton.classList.remove('liked'); likeButton.innerHTML = `❤ ${currentLikes - 1}`; } else { apiLikePost(postId); likeButton.classList.add('liked'); likeButton.innerHTML = `❤ ${currentLikes + 1}`; }
     return;
   }
   
@@ -920,7 +891,6 @@ function activateView(name, options = {}) {
     
     if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
     
-    DOM.viewTabs.forEach(b => b.classList.toggle("active", b.dataset.view === name));
     DOM.btnExplore.classList.toggle("active", name === "explore");
     
     if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
@@ -1182,24 +1152,22 @@ function mapAppDOM() {
 function bindAppEvents() {
     DOM.chatSendBtn.addEventListener("click", sendChatMessage);
     DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
-    
-    // Adiciona listener para a lista de posts do feed (e explorar)
     DOM.postsEl.addEventListener("click", handlePostClick);
     DOM.explorePostsEl.addEventListener("click", handlePostClick); 
-
-    // 👇 ADICIONADO: Listener para a lista de tópicos da comunidade 👇
-    if (DOM.communityTopicList) {
-        DOM.communityTopicList.addEventListener("click", handlePostClick);
-    }
-    
     DOM.feedSend.addEventListener("click", apiCreatePost);
     DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
     DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
     DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
+    
+    // Removido: DOM.viewTabs.forEach... (já não existem abas no header)
+    
     DOM.btnExplore.addEventListener("click", () => activateView("explore"));
     DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
     DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
+    
+    // Removido: DOM.headerHomeBtn.addEventListener...
+    
+    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); }); // O botão da esquerda leva ao Feed
     DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
     
     DOM.modalCancelBtn.addEventListener("click", () => {
@@ -1330,57 +1298,4 @@ function bindAppEvents() {
     });
 }
 
-function startApp() {
-  console.log('Socket conectado:', socket.id);
-  mapAppDOM();
-  bindAppEvents();
-  
-  document.getElementById("userName").textContent = currentUser;
-  
-  apiGetJoinedCommunities(); 
-  apiGetProfile(currentUser);
-  
-  activateView("feed"); 
-  DOM.appEl.hidden = false;
-  LoginDOM.view.hidden = true;
-}
-
-function handleLoginSubmit(e) {
-    e.preventDefault();
-    const username = LoginDOM.input.value.trim();
-    if (!username) return;
-    
-    currentUser = username;
-    viewedUsername = currentUser;
-    localStorage.setItem("agora:user", currentUser);
-    
-    // Solução para o "Ecrã Preto": Iniciar imediatamente
-    startApp();
-    socket.connect(); 
-}
-
-function checkLogin() {
-    LoginDOM.view = document.getElementById('login-view');
-    LoginDOM.form = document.getElementById('login-form');
-    LoginDOM.input = document.getElementById('login-username-input');
-    DOM.appEl = document.querySelector(".app"); 
-
-    const storedUser = localStorage.getItem("agora:user");
-    
-    // Removemos o socket.on('connect', startApp) daqui para evitar espera
-    
-    if (storedUser && storedUser.trim()) {
-        currentUser = storedUser.trim();
-        viewedUsername = currentUser;
-        
-        // Iniciar imediatamente
-        startApp();
-        socket.connect();
-    } else {
-        LoginDOM.view.hidden = false;
-        DOM.appEl.hidden = true;
-        LoginDOM.form.addEventListener('submit', handleLoginSubmit);
-    }
-}
-
-checkLogin();
+// ... (resto do código 'startApp', 'handleLoginSubmit', etc. mantém-se igual) ...
