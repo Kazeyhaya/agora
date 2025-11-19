@@ -127,6 +127,7 @@ const actions = {
     },
     
     async loadExplore() {
+        ui.switchView('explore');
         const data = await api.get('/api/posts/explore');
         if (data) ui.renderPosts($('#explore-posts'), data.posts || []);
     },
@@ -235,7 +236,7 @@ const actions = {
         
         const res = await api.post(endpoint, { from_user: state.user, to_user: state.viewedUser, rating_type: type });
         if (res) {
-            actions.loadProfile(state.viewedUser); // Atualização otimista
+            actions.loadProfile(state.viewedUser);
             toast(isActive ? "Voto removido" : "Voto enviado!", "success");
         }
     },
@@ -494,6 +495,17 @@ const ui = {
             el.querySelector('strong').onclick = () => actions.loadProfile(v.user);
             container.appendChild(el);
         });
+    },
+
+    renderTestimonials(list) {
+        const cont = $('#testimonials');
+        cont.innerHTML = list.length ? "" : "<div class='meta'>Nenhum depoimento ainda.</div>";
+        list.forEach(item => {
+            const node = document.createElement("div");
+            node.className = "meta"; 
+            node.innerHTML = `<strong>${escape(item.from_user)}</strong>: ${escape(item.text)}`;
+            cont.appendChild(node);
+        });
     }
 };
 
@@ -511,7 +523,7 @@ const bindEvents = () => {
     };
 
     // Navigation
-    $('#home-btn').onclick = actions.loadFeed;
+    $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };
     $('#btn-explore').onclick = actions.loadExplore;
     $('#btn-explore-refresh').onclick = actions.loadExplore;
     $('#btn-refresh').onclick = actions.loadFeed;
@@ -556,6 +568,16 @@ const bindEvents = () => {
     $$('#ratings-vote-container .mini-btn').forEach(btn => {
         btn.onclick = () => actions.vote(btn.dataset.rating);
     });
+
+    // Testimonials
+    $('#testimonialSend').onclick = async () => {
+        const text = $('#testimonialInput').value.trim();
+        if(!text) return;
+        await api.post('/api/testimonials', { from_user: state.user, to_user: state.viewedUser, text });
+        $('#testimonialInput').value = "";
+        actions.loadProfile(state.viewedUser); // Reload to see
+        toast("Depoimento enviado", "success");
+    };
 
     // Community Creation
     $('#btn-show-create-community').onclick = () => ui.switchView('create-community');
@@ -656,7 +678,6 @@ socket.on('loadHistory', (msgs) => {
 });
 socket.on('newMessage', (m) => {
     if(state.currentChannel) { // Check if we are in chat view
-        // Simplistic append
         const div = document.createElement('div');
         div.className = 'msg';
         div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
@@ -710,6 +731,8 @@ const init = async () => {
         if(d) renderAvatar($('#userAvatar'), d.profile);
     });
 
+    // FIX: Switch to Home view correctly
+    ui.switchView('feed');
     actions.loadFeed();
 };
 
