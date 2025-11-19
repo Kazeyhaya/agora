@@ -7,15 +7,15 @@ function initializeSocket(io) {
   io.on('connection', (socket) => {
     console.log(`Um utilizador conectou-se: ${socket.id}`);
     
-    // Isto agora serve para DMs (ex: 'alexandre_tsuki')
+    // Entrar numa sala (DM ou Comunidade)
     socket.on('joinChannel', async (data) => {
       try {
         const { channel, user } = data;
         socket.join(channel);
         console.log(`${user} entrou no canal: ${channel}`);
         
+        // Carrega mensagens antigas
         const history = await Message.getHistory(channel);
-        
         socket.emit('loadHistory', history);
         
       } catch (err) {
@@ -23,6 +23,7 @@ function initializeSocket(io) {
       }
     });
     
+    // Receber e espalhar mensagem
     socket.on('sendMessage', async (data) => {
       try {
         const { channel, user, message } = data;
@@ -40,6 +41,12 @@ function initializeSocket(io) {
       } catch (err) {
          console.error("Erro em 'sendMessage':", err);
       }
+    });
+
+    // 👇 INTERATIVIDADE: Evento de Digitação 👇
+    socket.on('typing', (data) => {
+        // 'socket.to' envia para todos na sala, MENOS para quem enviou (quem está digitando)
+        socket.to(data.channel).emit('displayTyping', { user: data.user });
     });
 
     socket.on('disconnect', () => {
