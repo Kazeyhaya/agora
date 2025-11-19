@@ -550,19 +550,26 @@ a{color:inherit;text-decoration:none}
   font-weight: 600;
   color: #fff;
 }
-/* Nova Grid de Botões */
+
+/* 👇 NOVA GRID CORRIGIDA 👇 */
 .vote-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* 3 colunas de tamanhos iguais */
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr); /* 3 colunas iguais */
+  gap: 12px; /* Espaçamento maior entre as linhas */
+  margin-top: 8px;
 }
+
 #ratings-vote-container .mini-btn {
   background: var(--discord-dark);
+  height: 42px; /* Altura FIXA para todos os botões */
+  width: 100%;
+  padding: 0; /* Remove padding padrão */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centraliza tudo */
+  gap: 6px; /* Espaço entre Emoji e Texto */
   font-size: 0.85rem;
-  padding: 6px 4px;
-  width: 100%; /* Ocupa toda a célula da grid */
-  justify-content: center; /* Centraliza o texto/ícone */
-  text-align: center;
+  border: 1px solid rgba(255,255,255,.08);
 }
 
 #ratings-vote-container .mini-btn:hover {
