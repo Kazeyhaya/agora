@@ -16,7 +16,9 @@
   --shadow: 0 8px 24px rgba(0,0,0,.25);
   --radius: 14px;
 }
+
 *{box-sizing:border-box;margin:0;padding:0}
+
 body{
   font-family: "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
   background: radial-gradient(1400px 600px at -10% -10%, rgba(224,87,161,.16), transparent 40%),
@@ -35,6 +37,7 @@ a{color:inherit;text-decoration:none}
   gap:12px;
   padding:12px;
 }
+
 /* Logo/Header */
 .header{
   grid-area: header;
@@ -240,7 +243,19 @@ a{color:inherit;text-decoration:none}
 .userbar{grid-area: userbar;background: var(--discord-panel);border:1px solid rgba(255,255,255,.06);border-radius: var(--radius);display:flex;align-items:center;justify-content:space-between;padding:0 12px;box-shadow: var(--shadow)}
 .me{display:flex;align-items:center;gap:10px}
 .me .avatar-display {width:36px;height:36px;border-radius:10px}
-.presence{width:10px;height:10px;border-radius:50%;background:var(--success);border:2px solid var(--discord-panel)}
+
+/* 👇 STATUS CLICÁVEL (Cores) 👇 */
+.presence {
+  width: 12px; height: 12px; 
+  border-radius: 50%; 
+  background: var(--success); /* Padrão: Online (Verde) */
+  border: 2px solid var(--discord-panel);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.presence.busy { background: var(--danger); }   /* Vermelho */
+.presence.away { background: #faa61a; }         /* Amarelo */
+
 .user-actions{display:flex;gap:8px}
 
 /* Utilities */

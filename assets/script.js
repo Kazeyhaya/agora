@@ -11,7 +11,8 @@ const state = {
     user: localStorage.getItem("agora:user"),
     currentChannel: null,
     viewedUser: null,
-    communityId: null
+    communityId: null,
+    statusIndex: 0 // 0: Online, 1: Busy, 2: Away
 };
 
 // --- UI Helpers ---
@@ -45,25 +46,51 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-const modal = ({ title, val = '', placeholder = '', onSave }) => {
+// MODAL ATUALIZADO (Suporta input de Senha)
+const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
     
     $('#modal-title').textContent = title;
     input.value = val;
     input.placeholder = placeholder;
-    view.hidden = false;
-    input.focus();
+    
+    // Lógica para mostrar input de senha
+    let passInput = $('#modal-pass-input');
+    if (!passInput) {
+        // Se não existir no HTML, cria dinamicamente (Fallback)
+        passInput = document.createElement('input');
+        passInput.id = 'modal-pass-input';
+        passInput.type = 'password';
+        passInput.className = 'input';
+        passInput.style.width = '100%';
+        passInput.style.marginBottom = '10px';
+        input.parentNode.insertBefore(passInput, input);
+    }
 
-    // Remove listeners antigos clonando o elemento
+    if (isPassword) {
+       input.style.display = 'none';
+       passInput.value = val;
+       passInput.placeholder = placeholder;
+       passInput.style.display = 'block';
+       passInput.focus();
+    } else {
+       input.style.display = 'block';
+       passInput.style.display = 'none';
+       input.focus();
+    }
+
+    view.hidden = false;
+
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
 
     newForm.onsubmit = (e) => {
         e.preventDefault();
-        const cleanVal = input.value.trim();
-        if (cleanVal) onSave(cleanVal);
+        // Pega o valor do input correto
+        const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
+        if (valToSave) onSave(valToSave);
         view.hidden = true;
     };
     
@@ -164,7 +191,6 @@ const actions = {
 
         if (data) {
             $('#profileBio').textContent = data.profile.bio;
-            // Atualiza o mood na página do perfil
             $('#profileMood').textContent = `Mood: ${data.profile.mood || "✨"}`;
             renderAvatar($('#profileAvatar'), data.profile);
             
@@ -172,7 +198,6 @@ const actions = {
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
             
-            // Vibe do dia
             api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
                 if (v && v.vibe) {
                     $('#profileVibeText').textContent = v.vibe.message;
@@ -186,7 +211,6 @@ const actions = {
             $('#editBioBtn').disabled = false;
             
             if (isOwner) {
-                // CORREÇÃO: Garante que a barra lateral (userbar) também atualize
                 $('#userbar-mood').textContent = data.profile.mood || "✨";
                 renderAvatar($('#userAvatar'), data.profile);
                 
@@ -283,7 +307,6 @@ const actions = {
         });
     },
     
-    // Função de Editar Mood (Atualiza tudo de uma vez)
     async updateMood() {
         modal({ 
             title: "Novo Mood", 
@@ -291,14 +314,8 @@ const actions = {
             onSave: async (m) => {
                 const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
                 if(res) {
-                    // CORREÇÃO: Atualiza visualmente todos os locais
                     $('#userbar-mood').textContent = res.mood;
-                    
-                    // Se estiver no perfil, atualiza lá também
-                    if($('#profileMood')) {
-                         $('#profileMood').textContent = `Mood: ${res.mood}`;
-                    }
-                    
+                    if($('#profileMood')) $('#profileMood').textContent = `Mood: ${res.mood}`;
                     toast("Mood atualizado!", "success");
                 }
             }
@@ -524,7 +541,6 @@ const bindEvents = () => {
         
         if(user && password) {
             const res = await api.post('/api/login', { user, password });
-            
             if (res && res.success) {
                 state.user = user;
                 localStorage.setItem("agora:user", user);
@@ -565,8 +581,6 @@ const bindEvents = () => {
 
     // Posting
     $('#feedSend').onclick = actions.createPost;
-    
-    // Mood (Corrigido: usa a função actions.updateMood)
     $('#userbar-mood-container').onclick = actions.updateMood;
     
     // Profile
@@ -603,7 +617,7 @@ const bindEvents = () => {
         }
     };
     
-    // Chat / Typing
+    // Chat
     $('#sendBtn').onclick = () => {
         const txt = $('#composerInput').value.trim();
         if(txt) {
@@ -685,6 +699,40 @@ const bindEvents = () => {
             }
         };
     }
+
+    // 👇 NOVOS HANDLERS (USERBAR) 👇
+
+    // 1. Status (Ponto Verde/Vermelho/Amarelo)
+    $('#btn-status').onclick = () => {
+        state.statusIndex = (state.statusIndex + 1) % 3;
+        const classes = ['presence', 'presence busy', 'presence away'];
+        const titles = ['Online', 'Ocupado', 'Ausente'];
+        
+        $('#btn-status').className = classes[state.statusIndex];
+        $('#btn-status').title = titles[state.statusIndex];
+        
+        toast(`Status: ${titles[state.statusIndex]}`, 'info');
+    };
+
+    // 2. Settings (Alterar Senha)
+    $('#btn-settings').onclick = () => {
+        modal({ 
+            title: "Alterar Senha", 
+            placeholder: "Nova senha...", 
+            isPassword: true, // Ativa o modo de senha
+            onSave: async (newPass) => {
+                toast("Funcionalidade em breve!", "info"); 
+            }
+        });
+    };
+
+    // 3. Logout (Porta)
+    $('#btn-logout').onclick = () => {
+        if(confirm("Sair do Agora?")) {
+            localStorage.removeItem("agora:user");
+            window.location.reload();
+        }
+    };
 };
 
 // --- Global Functions for HTML access (onclick) ---

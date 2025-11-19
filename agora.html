@@ -22,7 +22,6 @@
       <p class="meta" style="margin-bottom: 15px;">Entre ou Crie sua conta</p>
       
       <input class="input" id="login-username-input" placeholder="Usuário" required style="width: 100%; text-align: center; margin-bottom: 8px;">
-      
       <input class="input" id="login-password-input" type="password" placeholder="Senha" required style="width: 100%; text-align: center; margin-bottom: 12px;">
       
       <button class="send" type="submit" style="width: 100%;">Acessar</button>
@@ -32,14 +31,17 @@
   <div class="modal-overlay" id="input-modal" hidden>
     <form class="modal-card" id="modal-form">
       <h3 id="modal-title" style="margin-bottom: 15px;">Título do Modal</h3>
+      
       <textarea class="input" id="modal-input" required style="width: 100%; min-height: 80px;"></textarea>
+      
+      <input class="input" id="modal-pass-input" type="password" style="width: 100%; display: none; margin-bottom: 10px;">
+
       <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px;">
         <button class="mini-btn" type="button" id="modal-cancel-btn" style="flex: 1;">Cancelar</button>
         <button class="send" type="submit" id="modal-save-btn" style="flex: 2;">Salvar</button>
       </div>
     </form>
   </div>
-
 
   <div class="app" hidden>
     <aside class="servers" aria-label="Comunidades">
@@ -109,10 +111,12 @@
         </div>
       </div>
       <div class="messages" id="messages" role="log"></div>
+      
       <div id="typing-indicator" class="typing-indicator" hidden>
         <span class="dots">...</span>
         <span id="typer-name">Alguém</span> está digitando
       </div>
+
       <div class="composer">
         <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem..." autocomplete="off" aria-label="Mensagem">
         <button class="send" id="sendBtn">Enviar</button>
@@ -265,9 +269,9 @@
         </div>
       </div>
       <div class="user-actions">
-        <div class="presence" title="online"></div>
-        <button class="icon-btn" title="Configurações">⚙️</button>
-        <button class="icon-btn" title="Sair">🚪</button>
+        <div class="presence" id="btn-status" title="Mudar Status"></div>
+        <button class="icon-btn" id="btn-settings" title="Alterar Senha">⚙️</button>
+        <button class="icon-btn" id="btn-logout" title="Sair">🚪</button>
       </div>
     </footer>
   </div>
