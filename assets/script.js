@@ -10,6 +10,7 @@ let currentCommunityName = null;
 let DOM = {};
 let LoginDOM = {};
 const socket = io({ autoConnect: false });
+let typingTimeout = null;
 
 // ===================================================
 // 1.5 FUNÇÕES AUXILIARES
@@ -262,53 +263,110 @@ async function apiGetProfile(username) {
     renderAvatar(DOM.profileAvatarEl, profileData);
     
     renderRatings(ratingsData); 
-    
-    // 👇 NOVA CHAMADA: RENDERIZAR MEDALHAS 👇
-// 👇 FUNÇÃO DE GAMIFICAÇÃO (Versão Mobile-Friendly) 👇
-function renderBadges(totals) {
-  // 1. Encontra ou cria o container de badges
-  let badgeContainer = document.getElementById('profile-badges');
-  
-  if (!badgeContainer) {
-      const nameElement = document.getElementById('profileName');
-      if (nameElement) {
-          badgeContainer = document.createElement('span');
-          badgeContainer.id = 'profile-badges';
-          badgeContainer.style.marginLeft = '8px';
-          nameElement.parentElement.appendChild(badgeContainer);
-      } else {
-          return;
+    renderBadges(ratingsData.totals);
+    renderVisitors(visitorsData);
+
+    if (username === currentUser) {
+      if (DOM.userbarMood) {
+        DOM.userbarMood.textContent = profileData.mood || "✨";
       }
+      renderAvatar(DOM.userAvatarEl, profileData);
+    }
+
+  } catch (err) { 
+    console.error("Falha ao buscar perfil:", err);
+    if (DOM.profileBioEl) DOM.profileBioEl.textContent = "Erro ao carregar bio.";
+    if (DOM.profileMoodEl) DOM.profileMoodEl.textContent = "Mood: (erro)";
+    if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
   }
-  
-  badgeContainer.innerHTML = ''; 
+} 
 
-  // 2. Regras das Medalhas
-  const badges = [];
+function renderRatings(ratings) {
+    if (!DOM.ratingsDisplayContainer) return;
+    
+    const totals = ratings.totals; 
+    const userVotes = ratings.userVotes || []; 
 
-  if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
-  if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
-  if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
-  
-  if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
-  if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
-  if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
+    DOM.ratingsDisplayContainer.innerHTML = "";
+    
+    const items = [
+        { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
+        { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
+        { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido },
+        { key: 'falso', icon: '🤥', label: 'Falso', count: totals.falso, type: 'negative' },
+        { key: 'chato', icon: '😴', label: 'Chato', count: totals.chato, type: 'negative' },
+        { key: 'toxico', icon: '☠️', label: 'Tóxico', count: totals.toxico, type: 'negative' }
+    ];
+    
+    if (items.every(item => item.count === 0)) {
+        DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
+    } else {
+        items.forEach(item => {
+            if (item.count > 0) {
+                const node = document.createElement('div');
+                node.className = 'rating-item';
+                if (item.type === 'negative') node.classList.add('negative-stat');
+                node.innerHTML = `
+                    <span class="rating-icon">${item.icon}</span>
+                    <span class="rating-label">${item.label}</span>
+                    <span class="rating-count">${item.count}</span>
+                `;
+                DOM.ratingsDisplayContainer.appendChild(node);
+            }
+        });
+    }
 
-  // 3. Renderiza
-  badges.forEach(badge => {
-      const span = document.createElement('span');
-      span.className = 'user-badge';
-      span.textContent = badge.icon;
-      span.title = badge.title; // Tooltip para PC (Mouse)
-      
-      // 👇 CORREÇÃO PARA MOBILE: Toque para ver o significado 👇
-      span.onclick = () => showToast(badge.title, 'info'); 
-      
-      badgeContainer.appendChild(span);
-  });
+    if (DOM.ratingVoteButtons) {
+        DOM.ratingVoteButtons.forEach(button => {
+            const ratingType = button.dataset.rating;
+            button.classList.remove('active', 'active-negative');
+            
+            if (userVotes.includes(ratingType)) {
+                if (['falso', 'chato', 'toxico'].includes(ratingType)) {
+                    button.classList.add('active-negative');
+                } else {
+                    button.classList.add('active');
+                }
+            }
+        });
+    }
 }
 
-// 👇 NOVA FUNÇÃO PARA DESENHAR OS VISITANTES 👇
+function renderBadges(totals) {
+    let badgeContainer = document.getElementById('profile-badges');
+    
+    if (!badgeContainer) {
+        const nameElement = document.getElementById('profileName');
+        if (nameElement) {
+            badgeContainer = document.createElement('span');
+            badgeContainer.id = 'profile-badges';
+            badgeContainer.style.marginLeft = '8px';
+            nameElement.parentElement.appendChild(badgeContainer);
+        } else {
+            return;
+        }
+    }
+    
+    badgeContainer.innerHTML = ''; 
+
+    const badges = [];
+    if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
+    if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
+    if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
+    if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
+    if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
+    if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
+
+    badges.forEach(badge => {
+        const span = document.createElement('span');
+        span.className = 'user-badge';
+        span.textContent = badge.icon;
+        span.title = badge.title;
+        span.onclick = () => showToast(badge.title, 'info'); 
+        badgeContainer.appendChild(span);
+    });
+}
+
 function renderVisitors(visitors) {
     const container = document.getElementById('recent-visitors');
     if (!container) return;
@@ -323,7 +381,6 @@ function renderVisitors(visitors) {
     visitors.forEach(visitor => {
         const node = document.createElement("div");
         node.className = "friend-card"; 
-        // Reutilizamos o estilo de friend-card que já é bonitinho (avatar + nome)
         
         const avatarEl = document.createElement('div');
         avatarEl.className = 'avatar-display';
@@ -338,11 +395,10 @@ function renderVisitors(visitors) {
         nameEl.dataset.username = visitor.user;
         nameEl.textContent = escapeHtml(visitor.user);
         
-        // Adicionamos a hora da visita (hover ou texto pequeno)
         const timeEl = document.createElement('span');
         timeEl.style.fontSize = '0.7rem';
         timeEl.style.color = 'var(--text-secondary)';
-        timeEl.style.marginLeft = 'auto'; // Empurra para a direita
+        timeEl.style.marginLeft = 'auto'; 
         
         const visitDate = new Date(visitor.timestamp);
         const today = new Date();
@@ -358,62 +414,6 @@ function renderVisitors(visitors) {
         
         container.appendChild(node);
     });
-}
-
-function renderRatings(ratings) {
-    if (!DOM.ratingsDisplayContainer) return;
-    
-    const totals = ratings.totals; 
-    const userVotes = ratings.userVotes || []; 
-
-    DOM.ratingsDisplayContainer.innerHTML = "";
-    
-    const items = [
-        // Positivos
-        { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
-        { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
-        { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido },
-        // Negativos (O Lado Sombrio)
-        { key: 'falso', icon: '🤥', label: 'Falso', count: totals.falso, type: 'negative' },
-        { key: 'chato', icon: '😴', label: 'Chato', count: totals.chato, type: 'negative' },
-        { key: 'toxico', icon: '☠️', label: 'Tóxico', count: totals.toxico, type: 'negative' }
-    ];
-    
-    if (items.every(item => item.count === 0)) {
-        DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
-    } else {
-        items.forEach(item => {
-            if (item.count > 0) {
-                const node = document.createElement('div');
-                node.className = 'rating-item';
-                if (item.type === 'negative') node.classList.add('negative-stat'); // Para estilizar vermelho
-                
-                node.innerHTML = `
-                    <span class="rating-icon">${item.icon}</span>
-                    <span class="rating-label">${item.label}</span>
-                    <span class="rating-count">${item.count}</span>
-                `;
-                DOM.ratingsDisplayContainer.appendChild(node);
-            }
-        });
-    }
-
-    // Atualiza os botões
-    if (DOM.ratingVoteButtons) {
-        DOM.ratingVoteButtons.forEach(button => {
-            const ratingType = button.dataset.rating;
-            // Remove as classes antigas para evitar conflito
-            button.classList.remove('active', 'active-negative');
-            
-            if (userVotes.includes(ratingType)) {
-                if (['falso', 'chato', 'toxico'].includes(ratingType)) {
-                    button.classList.add('active-negative'); // Fica Vermelho
-                } else {
-                    button.classList.add('active'); // Fica Azul/Normal
-                }
-            }
-        });
-    }
 }
 
 async function apiAddRating(ratingType) {
@@ -1025,18 +1025,23 @@ socket.on('disconnect', () => {
     console.log('❌ Socket desconectado.');
 });
 
+socket.on('displayTyping', (data) => {
+    const indicator = document.getElementById('typing-indicator');
+    const typerName = document.getElementById('typer-name');
+    
+    if (indicator && typerName) {
+        typerName.textContent = data.user;
+        indicator.hidden = false;
+        if (typingTimeout) clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            indicator.hidden = true;
+        }, 3000);
+    }
+});
+
 socket.on('rating_update', (data) => {
-    console.log('🔔 Notificação de voto recebida para:', data.target_user);
-    // Se estou vendo o perfil que recebeu voto, atualizo
     if (viewedUsername === data.target_user) {
         apiGetProfile(viewedUsername);
-        // Efeito visual no contador (piscar)
-        const container = document.getElementById('ratings-display-container');
-        if(container) {
-            container.style.transition = "background 0.3s";
-            container.style.background = "rgba(255,255,255,0.1)";
-            setTimeout(() => container.style.background = "transparent", 300);
-        }
     }
 });
 
@@ -1391,6 +1396,14 @@ function mapAppDOM() {
 function bindAppEvents() {
     DOM.chatSendBtn.addEventListener("click", sendChatMessage);
     DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
+    
+    // 👇 EVENTO DE DIGITAÇÃO (TYPING) 👇
+    DOM.chatInputEl.addEventListener("input", () => {
+        if (DOM.chatInputEl.value.length > 0) {
+            socket.emit('typing', { channel: activeChannel, user: currentUser });
+        }
+    });
+
     DOM.postsEl.addEventListener("click", handlePostClick);
     DOM.explorePostsEl.addEventListener("click", handlePostClick); 
     
@@ -1598,48 +1611,6 @@ function checkLogin() {
         DOM.appEl.hidden = true;
         LoginDOM.form.addEventListener('submit', handleLoginSubmit);
     }
-}
-// 👇 NOVA FUNÇÃO DE GAMIFICAÇÃO 👇
-function renderBadges(totals) {
-  // 1. Encontra ou cria o container de badges (ao lado do nome)
-  let badgeContainer = document.getElementById('profile-badges');
-  
-  // Se não existir container, cria dinamicamente ao lado do nome
-  if (!badgeContainer) {
-      const nameElement = document.getElementById('profileName');
-      if (nameElement) {
-          badgeContainer = document.createElement('span');
-          badgeContainer.id = 'profile-badges';
-          badgeContainer.style.marginLeft = '8px';
-          nameElement.parentElement.appendChild(badgeContainer);
-      } else {
-          return;
-      }
-  }
-  
-  badgeContainer.innerHTML = ''; // Limpa badges antigas
-
-  // 2. Regras das Medalhas (Pode ajustar os números depois)
-  // Aqui defini > 0 para testar fácil, mas num app real seria > 5 ou > 10
-  const badges = [];
-
-  if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
-  if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
-  if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
-  
-  // Medalhas "Sombrias"
-  if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
-  if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
-  if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
-
-  // 3. Renderiza
-  badges.forEach(badge => {
-      const span = document.createElement('span');
-      span.className = 'user-badge';
-      span.textContent = badge.icon;
-      span.title = badge.title; // Tooltip nativo do navegador
-      badgeContainer.appendChild(span);
-  });
 }
 
 checkLogin();
