@@ -529,26 +529,47 @@ a{color:inherit;text-decoration:none}
 
 /* --- Estilos para Avaliações (GRID 3x2) --- */
 .ratings-display {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Divide em 2 colunas iguais */
+  gap: 8px 12px; /* Espaço entre linhas (8px) e colunas (12px) */
+  margin-bottom: 15px; /* Empurra os depoimentos um pouco para baixo */
 }
+
 .rating-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 6px;
+  font-size: 0.85rem; /* Fonte levemente menor para encaixar */
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03); /* Fundo sutil para organizar visualmente */
+  border-radius: 6px;
+  white-space: nowrap; /* Impede que o texto quebre linha */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 .rating-icon {
   font-size: 1rem;
-  opacity: 0.8;
+  opacity: 0.9;
 }
+
 .rating-label {
   color: var(--text-secondary);
+  flex: 1; /* Empurra o número para a direita se precisar */
 }
+
 .rating-count {
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
+  margin-left: auto; /* Garante que o número fique no canto direito do item */
+}
+
+/* Texto vermelho para os status negativos */
+.rating-item.negative-stat .rating-count {
+    color: var(--danger);
+}
+.rating-item.negative-stat .rating-label {
+    color: #ff9999; /* Um rosa claro para diferenciar o texto também */
 }
 
 /* 👇 NOVA GRID CORRIGIDA 👇 */
