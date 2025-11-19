@@ -55,7 +55,6 @@ const modal = ({ title, val = '', placeholder = '', onSave }) => {
     view.hidden = false;
     input.focus();
 
-    // Remove listeners antigos para evitar duplicidade (Clean Code)
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
@@ -67,7 +66,6 @@ const modal = ({ title, val = '', placeholder = '', onSave }) => {
         view.hidden = true;
     };
     
-    // Rebind cancel button
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
@@ -119,7 +117,7 @@ const api = {
     }
 };
 
-// --- Actions ---
+// --- Actions (Funções Principais) ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -148,17 +146,16 @@ const actions = {
         }
     },
 
+    // 👇 Antiga apiGetProfile (agora loadProfile) 👇
     async loadProfile(username) {
         if (!username) return;
         state.viewedUser = username;
         ui.switchView('profile');
 
-        // Reset UI
         $('#profileName').textContent = username;
         renderAvatar($('#profileAvatar'), { user: username });
         $('#profileVibe').hidden = true;
         
-        // Parallel fetching (Performance)
         const [data, following, testimonials] = await Promise.all([
             api.get(`/api/profile/${encodeURIComponent(username)}?viewer=${encodeURIComponent(state.user)}`),
             api.get(`/api/following/${encodeURIComponent(username)}`),
@@ -174,7 +171,6 @@ const actions = {
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
             
-            // Vibe do dia
             api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
                 if (v && v.vibe) {
                     $('#profileVibeText').textContent = v.vibe.message;
@@ -183,14 +179,15 @@ const actions = {
                 }
             });
 
-            // Owner controls
             const isOwner = username === state.user;
             $('#editBioBtn').textContent = isOwner ? "Editar bio" : "Seguir";
             $('#editBioBtn').disabled = false;
             
             if (isOwner) {
+                // Atualiza a barra lateral também
                 $('#userbar-mood').textContent = data.profile.mood || "✨";
                 renderAvatar($('#userAvatar'), data.profile);
+                
                 $('#profileAvatar').classList.add('is-owner');
                 $('#editBioBtn').onclick = actions.editBio;
                 $('#ratings-vote-container').hidden = true;
@@ -203,7 +200,6 @@ const actions = {
                 $('#testimonial-form-container').hidden = false;
                 $('#dmBtn').onclick = () => actions.startDM(username);
                 
-                // Check follow
                 api.get(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(state.user)}`)
                     .then(f => {
                         if (f && f.isFollowing) {
@@ -284,6 +280,25 @@ const actions = {
             }
         });
     },
+    
+    // 👇 Antiga apiUpdateMood 👇
+    async updateMood() {
+        modal({ 
+            title: "Novo Mood", 
+            val: $('#userbar-mood').textContent, 
+            onSave: async (m) => {
+                const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
+                if(res) {
+                    // Atualiza em ambos os lugares visualmente
+                    $('#userbar-mood').textContent = res.mood;
+                    if(!$('#profileMood').hidden) {
+                         $('#profileMood').textContent = `Mood: ${res.mood}`;
+                    }
+                    toast("Mood atualizado!", "success");
+                }
+            }
+        });
+    },
 
     startDM(target) {
         if (target === state.user) return;
@@ -300,17 +315,11 @@ const actions = {
 // --- UI Renderers ---
 const ui = {
     switchView(viewName) {
-        // Hide all sections
         $$('.app > section, .app > main').forEach(el => el.hidden = true);
-        
-        // Manage Layout classes
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
-        
-        // Reset sidebar active states
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
 
-        // Logic
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
             app.classList.add('view-home');
             $('.header').hidden = false;
@@ -327,13 +336,11 @@ const ui = {
 
             if (viewName === 'community') {
                 $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active');
-                // Show topics by default
                 $('#view-community-topics').hidden = false;
                 return;
             }
         }
 
-        // Show target view
         const map = {
             'feed': 'view-feed',
             'explore': 'view-explore',
@@ -346,11 +353,9 @@ const ui = {
 
     renderPosts(container, posts) {
         container.innerHTML = posts.length ? "" : "<div class='meta p-4'>Nada por aqui ainda.</div>";
-        
         posts.forEach(p => {
             const node = document.createElement("div");
             node.className = "post";
-            
             const date = new Date(p.timestamp).toLocaleString('pt-BR');
             const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
 
@@ -367,13 +372,10 @@ const ui = {
                     <div class="comments" id="comments-${p.id}"></div>
                 </div>
             `;
-            
             renderAvatar(node.querySelector('.avatar-display'), p);
-            // Click handlers
             node.querySelector('.post-username').onclick = () => actions.loadProfile(p.user);
             container.appendChild(node);
 
-            // Load comments async
             api.get(`/api/posts/${p.id}/comments`).then(d => {
                 if(d && d.comments.length) {
                     $(`#comments-${p.id}`).innerHTML = d.comments.map(c => 
@@ -389,7 +391,7 @@ const ui = {
         $('#view-community-topics').hidden = false;
         $('#view-community-members').hidden = true;
         $$('.view-tabs .pill').forEach(p => p.classList.remove('active'));
-        $$('.view-tabs .pill')[0].classList.add('active'); // Tab topics
+        $$('.view-tabs .pill')[0].classList.add('active'); 
     },
 
     renderList(container, list, keyName = 'user') {
@@ -411,7 +413,6 @@ const ui = {
         const myVotes = data.userVotes || [];
         
         container.innerHTML = "";
-        
         const types = [
             { k: 'confiavel', i: '😊', l: 'Confiável' },
             { k: 'legal', i: '🧊', l: 'Legal' },
@@ -432,10 +433,9 @@ const ui = {
             }
         });
 
-        // Update Buttons State
         $$('#ratings-vote-container .mini-btn').forEach(btn => {
             const type = btn.dataset.rating;
-            btn.className = 'mini-btn'; // reset
+            btn.className = 'mini-btn'; 
             if (myVotes.includes(type)) {
                 btn.classList.add(['falso','chato','toxico'].includes(type) ? 'active-negative' : 'active');
             }
@@ -480,7 +480,6 @@ const ui = {
         list.forEach(v => {
             const el = document.createElement("div");
             el.className = "friend-card";
-            
             const time = new Date(v.timestamp);
             const timeStr = time.toDateString() === new Date().toDateString() 
                 ? time.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) 
@@ -525,9 +524,6 @@ const bindEvents = () => {
                 localStorage.setItem("agora:user", user);
                 toast(res.message, "success");
                 init();
-            } else {
-                // Se falhar (senha errada), não inicia
-                // O 'api.post' já mostra o toast de erro
             }
         }
     };
@@ -551,7 +547,7 @@ const bindEvents = () => {
                         <button class="join-btn">Entrar</button>`;
                     div.querySelector('button').onclick = async () => {
                         await api.post('/api/community/join', { user_name: state.user, community_id: c.id });
-                        init(); // Reload sidebar
+                        init(); 
                         actions.loadCommunity(c.id);
                         toast(`Bem-vindo a ${c.name}!`, 'success');
                     };
@@ -563,12 +559,9 @@ const bindEvents = () => {
 
     // Posting
     $('#feedSend').onclick = actions.createPost;
-    $('#userbar-mood-container').onclick = () => {
-        modal({ title: "Novo Mood", val: $('#userbar-mood').textContent, onSave: async (m) => {
-            const r = await api.post('/api/profile/mood', { user: state.user, mood: m });
-            if(r) $('#userbar-mood').textContent = r.mood;
-        }});
-    };
+    
+    // Mood (Chama a função actions.updateMood agora)
+    $('#userbar-mood-container').onclick = actions.updateMood;
     
     // Profile
     $('#userbar-me').onclick = () => actions.loadProfile(state.user);
@@ -585,7 +578,7 @@ const bindEvents = () => {
         if(!text) return;
         await api.post('/api/testimonials', { from_user: state.user, to_user: state.viewedUser, text });
         $('#testimonialInput').value = "";
-        actions.loadProfile(state.viewedUser); // Reload to see
+        actions.loadProfile(state.viewedUser);
         toast("Depoimento enviado", "success");
     };
 
@@ -650,18 +643,50 @@ const bindEvents = () => {
     };
 
     // Mobile Menu
-    const toggleMenu = () => $('.servers').classList.toggle('is-open');
+    const toggleMenu = () => {
+        const servers = $('.servers');
+        if(servers) servers.classList.toggle('is-open');
+    };
     if($('#btn-mobile-menu')) $('#btn-mobile-menu').onclick = toggleMenu;
     if($('#btn-community-menu')) $('#btn-community-menu').onclick = toggleMenu;
-    $('.servers').onclick = (e) => { if(window.innerWidth <= 640 && (e.target.closest('.server') || e.target.closest('.add-btn'))) toggleMenu(); };
+    const serversEl = $('.servers');
+    if(serversEl) serversEl.onclick = (e) => { if(window.innerWidth <= 640 && (e.target.closest('.server') || e.target.closest('.add-btn'))) toggleMenu(); };
+
+    // Edit Community
+    if($('#btn-edit-community')) {
+        $('#btn-edit-community').onclick = () => {
+            const currentName = $('#community-name-channel').textContent;
+            modal({ title: "Editar Comunidade", val: currentName, onSave: async (newName) => {
+                const res = await api.post(`/api/community/${state.communityId}/update`, {
+                    name: newName, emoji: $('#community-avatar-channel').textContent, user: state.user
+                });
+                if(res) {
+                    actions.loadCommunity(state.communityId);
+                    toast("Comunidade atualizada!", "success");
+                }
+            }});
+        };
+    }
+    
+    if($('#btn-leave-community')) {
+        $('#btn-leave-community').onclick = async () => {
+            if(!confirm("Sair da comunidade?")) return;
+            const res = await api.post('/api/community/leave', { user_name: state.user, community_id: state.communityId });
+            if(res) {
+                ui.switchView('feed');
+                init();
+                toast("Você saiu.", "info");
+            }
+        };
+    }
 };
 
 // --- Global Functions for HTML access (onclick) ---
-window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed()); // Simple reload
+window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed());
 window.commentPost = (id) => {
     modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => {
         await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt });
-        actions.loadFeed(); // Refresh
+        actions.loadFeed();
     }});
 };
 window.editPost = (id) => {
@@ -741,7 +766,6 @@ const init = async () => {
         if(d) renderAvatar($('#userAvatar'), d.profile);
     });
 
-    // FIX: Switch to Home view correctly
     ui.switchView('feed');
     actions.loadFeed();
 };
