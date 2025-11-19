@@ -554,7 +554,7 @@ const bindEvents = () => {
             }
         }
     };
-    2. Settings (Alterar Senha) - CORRIGIDO E FUNCIONAL
+    
     $('#btn-settings').onclick = () => {
         modal({ 
             title: "Alterar Senha", 
