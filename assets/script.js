@@ -46,7 +46,7 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// MODAL (Suporta input de Senha)
+// MODAL ATUALIZADO (Corrige erro de validação)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -55,8 +55,10 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     input.value = val;
     input.placeholder = placeholder;
     
+    // Lógica para input de senha
     let passInput = $('#modal-pass-input');
     if (!passInput) {
+        // Fallback se não existir no HTML
         passInput = document.createElement('input');
         passInput.id = 'modal-pass-input';
         passInput.type = 'password';
@@ -68,13 +70,19 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
 
     if (isPassword) {
        input.style.display = 'none';
+       input.required = false; // REMOVE obrigatoriedade do oculto
+       
        passInput.value = val;
        passInput.placeholder = placeholder;
        passInput.style.display = 'block';
+       passInput.required = true; // ADICIONA obrigatoriedade no visível
        passInput.focus();
     } else {
        input.style.display = 'block';
+       input.required = true;
+       
        passInput.style.display = 'none';
+       passInput.required = false;
        input.focus();
     }
 
