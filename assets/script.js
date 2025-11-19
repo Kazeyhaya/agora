@@ -12,7 +12,7 @@ const state = {
     currentChannel: null,
     viewedUser: null,
     communityId: null,
-    statusIndex: 0
+    statusIndex: 0 // 0: Online, 1: Busy, 2: Away
 };
 
 // --- UI Helpers ---
@@ -46,7 +46,7 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// 👇 MODAL CORRIGIDO (Gerencia o 'required') 👇
+// MODAL (Suporta input de Senha)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -55,7 +55,6 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     input.value = val;
     input.placeholder = placeholder;
     
-    // Lógica para mostrar input de senha
     let passInput = $('#modal-pass-input');
     if (!passInput) {
         passInput = document.createElement('input');
@@ -69,19 +68,13 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
 
     if (isPassword) {
        input.style.display = 'none';
-       input.required = false; // <--- CORREÇÃO: Remove obrigatoriedade do texto oculto
-       
        passInput.value = val;
        passInput.placeholder = placeholder;
        passInput.style.display = 'block';
-       passInput.required = true; // <--- CORREÇÃO: Torna a senha obrigatória
        passInput.focus();
     } else {
        input.style.display = 'block';
-       input.required = true; // <--- CORREÇÃO: Restaura obrigatoriedade do texto
-       
        passInput.style.display = 'none';
-       passInput.required = false; // <--- CORREÇÃO: Remove obrigatoriedade da senha oculta
        input.focus();
     }
 
@@ -93,7 +86,6 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
 
     newForm.onsubmit = (e) => {
         e.preventDefault();
-        // Pega o valor do input correto
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
         if (valToSave) onSave(valToSave);
         view.hidden = true;
@@ -554,25 +546,6 @@ const bindEvents = () => {
             }
         }
     };
-    
-    $('#btn-settings').onclick = () => {
-        modal({ 
-            title: "Alterar Senha", 
-            placeholder: "Nova senha...", 
-            isPassword: true, 
-            onSave: async (newPass) => {
-                // Chamada real à API
-                const res = await api.post('/api/profile/password', { 
-                    user: state.user, 
-                    password: newPass 
-                });
-                
-                if(res && res.success) {
-                    toast("Senha alterada com sucesso!", "success");
-                }
-            }
-        });
-    };
 
     // Navigation
     $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };
@@ -736,15 +709,21 @@ const bindEvents = () => {
         toast(`Status: ${titles[state.statusIndex]}`, 'info');
     };
 
-    // 👇 CONFIG (SENHA) 👇
+    // 👇 CONFIG (SENHA) CORRIGIDO 👇
     $('#btn-settings').onclick = () => {
         modal({ 
             title: "Alterar Senha", 
             placeholder: "Nova senha...", 
-            isPassword: true, // Usa o input de senha
+            isPassword: true, 
             onSave: async (newPass) => {
-                // Como não criamos rota de trocar senha, avisamos
-                toast("Funcionalidade em breve!", "info"); 
+                const res = await api.post('/api/profile/password', { 
+                    user: state.user, 
+                    password: newPass 
+                });
+                
+                if(res && res.success) {
+                    toast("Senha alterada com sucesso!", "success");
+                }
             }
         });
     };
