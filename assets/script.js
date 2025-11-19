@@ -12,7 +12,7 @@ const state = {
     currentChannel: null,
     viewedUser: null,
     communityId: null,
-    statusIndex: 0 // 0: Online, 1: Busy, 2: Away
+    statusIndex: 0
 };
 
 // --- UI Helpers ---
@@ -46,7 +46,7 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// MODAL ATUALIZADO (Suporta input de Senha)
+// 👇 MODAL CORRIGIDO (Gerencia o 'required') 👇
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -58,7 +58,6 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     // Lógica para mostrar input de senha
     let passInput = $('#modal-pass-input');
     if (!passInput) {
-        // Se não existir no HTML, cria dinamicamente (Fallback)
         passInput = document.createElement('input');
         passInput.id = 'modal-pass-input';
         passInput.type = 'password';
@@ -70,13 +69,19 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
 
     if (isPassword) {
        input.style.display = 'none';
+       input.required = false; // <--- CORREÇÃO: Remove obrigatoriedade do texto oculto
+       
        passInput.value = val;
        passInput.placeholder = placeholder;
        passInput.style.display = 'block';
+       passInput.required = true; // <--- CORREÇÃO: Torna a senha obrigatória
        passInput.focus();
     } else {
        input.style.display = 'block';
+       input.required = true; // <--- CORREÇÃO: Restaura obrigatoriedade do texto
+       
        passInput.style.display = 'none';
+       passInput.required = false; // <--- CORREÇÃO: Remove obrigatoriedade da senha oculta
        input.focus();
     }
 
@@ -700,9 +705,7 @@ const bindEvents = () => {
         };
     }
 
-    // 👇 NOVOS HANDLERS (USERBAR) 👇
-
-    // 1. Status (Ponto Verde/Vermelho/Amarelo)
+    // 👇 STATUS 👇
     $('#btn-status').onclick = () => {
         state.statusIndex = (state.statusIndex + 1) % 3;
         const classes = ['presence', 'presence busy', 'presence away'];
@@ -714,19 +717,20 @@ const bindEvents = () => {
         toast(`Status: ${titles[state.statusIndex]}`, 'info');
     };
 
-    // 2. Settings (Alterar Senha)
+    // 👇 CONFIG (SENHA) 👇
     $('#btn-settings').onclick = () => {
         modal({ 
             title: "Alterar Senha", 
             placeholder: "Nova senha...", 
-            isPassword: true, // Ativa o modo de senha
+            isPassword: true, // Usa o input de senha
             onSave: async (newPass) => {
+                // Como não criamos rota de trocar senha, avisamos
                 toast("Funcionalidade em breve!", "info"); 
             }
         });
     };
 
-    // 3. Logout (Porta)
+    // 👇 LOGOUT 👇
     $('#btn-logout').onclick = () => {
         if(confirm("Sair do Agora?")) {
             localStorage.removeItem("agora:user");
@@ -766,7 +770,7 @@ socket.on('loadHistory', (msgs) => {
     $('#messages').scrollTop = $('#messages').scrollHeight;
 });
 socket.on('newMessage', (m) => {
-    if(state.currentChannel) { // Check if we are in chat view
+    if(state.currentChannel) { 
         const div = document.createElement('div');
         div.className = 'msg';
         div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
@@ -800,7 +804,6 @@ const init = async () => {
     $('#userName').textContent = state.user;
     socket.connect();
     
-    // Sidebar
     const data = await api.get(`/api/communities/joined?user_name=${encodeURIComponent(state.user)}`);
     const list = $('#joined-servers-list');
     list.innerHTML = "";
@@ -815,7 +818,6 @@ const init = async () => {
         });
     }
     
-    // My Avatar (CORREÇÃO DE MOOD AQUI TAMBÉM)
     api.get(`/api/profile/${state.user}`).then(d => {
         if(d) {
             renderAvatar($('#userAvatar'), d.profile);
