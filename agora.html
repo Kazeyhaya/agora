@@ -19,11 +19,13 @@
           <img src="/assets/Agora-logo.png" alt="Agora Logo">
       </div>
       <h2>Bem-vindo ao Agora</h2>
-      <p class="meta" style="margin-bottom: 15px;">Digite um nome de usuário para entrar.</p>
+      <p class="meta" style="margin-bottom: 15px;">Entre ou Crie sua conta</p>
       
-      <input class="input" id="login-username-input" placeholder="Seu nome de usuário..." required style="width: 100%; text-align: center;">
+      <input class="input" id="login-username-input" placeholder="Usuário" required style="width: 100%; text-align: center; margin-bottom: 8px;">
       
-      <button class="send" type="submit" style="width: 100%; margin-top: 10px;">Entrar</button>
+      <input class="input" id="login-password-input" type="password" placeholder="Senha" required style="width: 100%; text-align: center; margin-bottom: 12px;">
+      
+      <button class="send" type="submit" style="width: 100%;">Acessar</button>
     </form>
   </div>
 
@@ -107,12 +109,11 @@
         </div>
       </div>
       <div class="messages" id="messages" role="log"></div>
+      <div id="typing-indicator" class="typing-indicator" hidden>
+        <span class="dots">...</span>
+        <span id="typer-name">Alguém</span> está digitando
+      </div>
       <div class="composer">
-        <div class="messages" id="messages" role="log"></div>
-        <div id="typing-indicator" class="typing-indicator" hidden>
-          <span class="dots">...</span>
-          <span id="typer-name">Alguém</span> está digitando
-        </div>
         <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem..." autocomplete="off" aria-label="Mensagem">
         <button class="send" id="sendBtn">Enviar</button>
       </div>
@@ -175,7 +176,7 @@
           <div class="friends" id="recent-visitors">
               <div class="meta">Ninguém visitou ainda.</div>
           </div>
-          </div>
+        </div>
       </div>
     </section>
 

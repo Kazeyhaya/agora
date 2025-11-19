@@ -512,13 +512,23 @@ const ui = {
 // --- Event Binding ---
 const bindEvents = () => {
     // Auth
-    $('#login-form').onsubmit = (e) => {
+    $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
         const user = $('#login-username-input').value.trim();
-        if(user) {
-            state.user = user;
-            localStorage.setItem("agora:user", user);
-            init();
+        const password = $('#login-password-input').value.trim();
+        
+        if(user && password) {
+            const res = await api.post('/api/login', { user, password });
+            
+            if (res && res.success) {
+                state.user = user;
+                localStorage.setItem("agora:user", user);
+                toast(res.message, "success");
+                init();
+            } else {
+                // Se falhar (senha errada), não inicia
+                // O 'api.post' já mostra o toast de erro
+            }
         }
     };
 

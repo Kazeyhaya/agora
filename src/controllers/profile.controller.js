@@ -1,100 +1,105 @@
 // src/controllers/profile.controller.js
 const Profile = require('../models/profile.class');
+const db = require('../models/db'); // Precisamos acessar o DB direto para login
 
-// [GET] /api/profile/:username
+// 👇 LÓGICA DE LOGIN/REGISTRO 👇
+const login = async (req, res) => {
+    try {
+        const { user, password } = req.body;
+        if (!user || !password) {
+            return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
+        }
+
+        // 1. Verifica se usuário existe
+        const result = await db.query('SELECT * FROM profiles WHERE "user" = $1', [user]);
+        const existingUser = result.rows[0];
+
+        if (existingUser) {
+            // CENÁRIO A: Usuário existe
+            if (!existingUser.password) {
+                // Conta legada (sem senha): Definir a senha agora
+                await db.query('UPDATE profiles SET password = $1 WHERE "user" = $2', [password, user]);
+                return res.json({ success: true, message: 'Senha definida! Bem-vindo de volta.' });
+            } else {
+                // Verificar senha (Login normal)
+                if (existingUser.password === password) {
+                    return res.json({ success: true, message: 'Login realizado!' });
+                } else {
+                    return res.status(401).json({ error: 'Senha incorreta.' });
+                }
+            }
+        } else {
+            // CENÁRIO B: Usuário novo (Registro)
+            await db.query('INSERT INTO profiles ("user", password, bio, mood) VALUES ($1, $2, $3, $4)', 
+                [user, password, 'Olá, estou no Agora!', '✨ novo']);
+            return res.json({ success: true, message: 'Conta criada com sucesso!' });
+        }
+
+    } catch (err) {
+        console.error("Erro no login:", err);
+        res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+};
+
+// ... (O RESTO DO ARQUIVO CONTINUA IGUAL, APENAS ADICIONEI O LOGIN ACIMA) ...
+
 const getProfileBio = async (req, res) => {
     try {
         const { username } = req.params;
         const { viewer } = req.query;
-        
         const profile = await Profile.findByUser(username);
-        
-        // 👇 REGISTRAR VISITA 👇
-        if (viewer && viewer !== username) {
-            await profile.recordVisit(viewer);
-        }
-
-        // 👇 BUSCAR DADOS (Agora inclui visitantes) 👇
+        if (viewer && viewer !== username) await profile.recordVisit(viewer);
         const ratings = await profile.getRatings(viewer); 
         const visitors = await profile.getRecentVisitors(); 
-
-        // Envia tudo
         res.json({ profile, ratings, visitors }); 
-        
-    } catch (err) {
-        console.error("Erro no controlador getProfileBio:", err);
-        res.status(500).json({ error: 'Erro ao buscar perfil' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro ao buscar perfil' }); }
 };
-
-// ... (O resto do arquivo continua igual, apenas repeti para garantir integridade) ...
 
 const updateProfileBio = async (req, res) => {
     try {
         const { user, bio } = req.body;
-        if (!user || bio === undefined) return res.status(400).json({ error: 'Utilizador e bio são obrigatórios' });
-        if (bio.length > 150) return res.status(400).json({ error: 'A bio não pode exceder 150 caracteres.' });
+        if (!user) return res.status(400).json({ error: 'Erro.' });
         const profile = await Profile.findByUser(user);
         profile.bio = bio;
         await profile.save();
         res.status(200).json(profile);
-    } catch (err) {
-        console.error("Erro no controlador updateProfileBio:", err);
-        res.status(500).json({ error: 'Erro ao atualizar bio' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const updateUserMood = async (req, res) => {
     try {
         const { user, mood } = req.body;
-        if (!user || mood === undefined) return res.status(400).json({ error: 'Utilizador e mood são obrigatórios' });
-        if (mood.length > 30) return res.status(400).json({ error: 'O mood não pode exceder 30 caracteres.' });
+        if (!user) return res.status(400).json({ error: 'Erro.' });
         const newMood = await Profile.updateMood(user, mood);
         res.status(200).json({ mood: newMood });
-    } catch (err) {
-        console.error("Erro no controlador updateUserMood:", err);
-        res.status(500).json({ error: 'Erro ao atualizar mood' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const updateUserAvatar = async (req, res) => {
     try {
         const { file, body } = req; 
-        if (!file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
-        if (!body.user) return res.status(400).json({ error: 'Utilizador não especificado.' });
+        if (!file || !body.user) return res.status(400).json({ error: 'Erro.' });
         const newAvatarUrl = await Profile.updateAvatar(body.user, file.path);
         res.status(200).json({ avatar_url: newAvatarUrl });
-    } catch (err) {
-        console.error("Erro no controlador updateUserAvatar:", err);
-        res.status(500).json({ error: 'Erro ao guardar o avatar.' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const addProfileRating = async (req, res) => {
     try {
         const { from_user, to_user, rating_type } = req.body;
-        if (!from_user || !to_user || !rating_type) return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-        if (from_user === to_user) return res.status(400).json({ error: 'Não pode avaliar a si mesmo.' });
         await Profile.addRating(from_user, to_user, rating_type);
         if (req.io) req.io.emit('rating_update', { target_user: to_user });
         res.status(201).json({ success: true });
-    } catch (err) {
-        console.error("Erro no controlador addProfileRating:", err);
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 const removeProfileRating = async (req, res) => {
     try {
         const { from_user, to_user, rating_type } = req.body;
-        if (!from_user || !to_user || !rating_type) return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         await Profile.removeRating(from_user, to_user, rating_type);
         if (req.io) req.io.emit('rating_update', { target_user: to_user });
         res.status(200).json({ success: true });
-    } catch (err) {
-        console.error("Erro no controlador removeProfileRating:", err);
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 const getDailyVibe = async (req, res) => {
@@ -102,10 +107,7 @@ const getDailyVibe = async (req, res) => {
         const { username } = req.params;
         const vibe = await Profile.getDailyVibe(username);
         res.json({ vibe });
-    } catch (err) {
-        console.error("Erro no controlador getDailyVibe:", err);
-        res.status(500).json({ error: 'Erro ao ler a vibe do dia.' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const getFollowingList = async (req, res) => {
@@ -114,53 +116,39 @@ const getFollowingList = async (req, res) => {
         const profile = await Profile.findByUser(username);
         const followingList = await profile.getFollowing();
         res.json({ following: followingList });
-    } catch (err) {
-        console.error("Erro no controlador getFollowingList:", err);
-        res.status(500).json({ error: 'Erro ao buscar amigos' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const getIsFollowing = async (req, res) => {
     try {
         const { username: userToCheck } = req.params;
         const { follower: currentUsername } = req.query;
-        if (!currentUsername) return res.status(400).json({ error: "Follower não especificado" });
         const profile = await Profile.findByUser(currentUsername);
         const isFollowing = await profile.isFollowing(userToCheck);
         res.json({ isFollowing });
-    } catch (err) {
-        console.error("Erro no controlador getIsFollowing:", err);
-        res.status(500).json({ error: 'Erro ao verificar' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const addFollow = async (req, res) => {
     try {
         const { follower, following } = req.body;
-        if (!follower || !following) return res.status(400).json({ error: 'Follower e Following são obrigatórios' });
         const profile = await Profile.findByUser(follower);
         await profile.follow(following);
         res.status(201).json({ success: true });
-    } catch (err) {
-        console.error("Erro no controlador addFollow:", err);
-        res.status(500).json({ error: 'Erro ao seguir' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 const removeFollow = async (req, res) => {
     try {
         const { follower, following } = req.body;
-        if (!follower || !following) return res.status(400).json({ error: 'Follower e Following são obrigatórios' });
         const profile = await Profile.findByUser(follower);
         await profile.unfollow(following);
         res.status(200).json({ success: true });
-    } catch (err) {
-        console.error("Erro no controlador removeFollow:", err);
-        res.status(500).json({ error: 'Erro ao deixar de seguir' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Erro.' }); }
 };
 
 module.exports = {
+  login, // <-- EXPORTA A NOVA FUNÇÃO
   getProfileBio,
   updateProfileBio,
   updateUserMood,

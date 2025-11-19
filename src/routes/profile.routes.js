@@ -4,22 +4,21 @@ const router = express.Router();
 const profileController = require('../controllers/profile.controller');
 const upload = require('../config/storage'); 
 
+// 👇 ROTA DE LOGIN (NOVA) 👇
+router.post('/login', profileController.login);
+
 // Rotas de Perfil
 router.get('/profile/:username', profileController.getProfileBio);
 router.post('/profile', profileController.updateProfileBio);
 router.post('/profile/mood', profileController.updateUserMood);
-
-// ROTA DE UPLOAD DE AVATAR
 router.post('/profile/avatar', upload.single('avatar'), profileController.updateUserAvatar);
 
-// Rotas de Avaliação (Rating)
+// Rotas de Avaliação
 router.post('/profile/rate', profileController.addProfileRating);
 router.post('/profile/unrate', profileController.removeProfileRating);
-
-// 👇 NOVA ROTA: Vibe do Dia 👇
 router.get('/profile/:username/vibe', profileController.getDailyVibe);
 
-// Rotas de "Seguir" (Amigos)
+// Rotas de Amigos
 router.get('/following/:username', profileController.getFollowingList);
 router.get('/isfollowing/:username', profileController.getIsFollowing);
 router.post('/follow', profileController.addFollow);
