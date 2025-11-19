@@ -782,3 +782,20 @@ a{color:inherit;text-decoration:none}
   /* ... estilos anteriores ... */
   justify-content: flex-start; /* Garante que começa da esquerda */
 }
+/* --- Estilo das Medalhas (Badges) --- */
+#profile-badges {
+  display: inline-flex;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.user-badge {
+  font-size: 1.1rem;
+  cursor: help;
+  transition: transform 0.2s;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.user-badge:hover {
+  transform: scale(1.3) rotate(10deg); /* Efeito de "pulo" ao passar o mouse */
+}

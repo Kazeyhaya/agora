@@ -251,7 +251,7 @@ async function apiGetProfile(username) {
     const data = await res.json(); 
     const profileData = data.profile;
     const ratingsData = data.ratings; 
-    const visitorsData = data.visitors || []; // Pega os visitantes
+    const visitorsData = data.visitors || []; 
     
     if (DOM.profileBioEl) {
       DOM.profileBioEl.textContent = profileData.bio;
@@ -263,7 +263,9 @@ async function apiGetProfile(username) {
     
     renderRatings(ratingsData); 
     
-    // 👇 RENDERIZAR VISITANTES 👇
+    // 👇 NOVA CHAMADA: RENDERIZAR MEDALHAS 👇
+    renderBadges(ratingsData.totals);
+    
     renderVisitors(visitorsData);
 
     if (username === currentUser) {
@@ -279,7 +281,7 @@ async function apiGetProfile(username) {
     if (DOM.profileMoodEl) DOM.profileMoodEl.textContent = "Mood: (erro)";
     if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
   }
-} 
+}
 
 // 👇 NOVA FUNÇÃO PARA DESENHAR OS VISITANTES 👇
 function renderVisitors(visitors) {
@@ -1571,6 +1573,48 @@ function checkLogin() {
         DOM.appEl.hidden = true;
         LoginDOM.form.addEventListener('submit', handleLoginSubmit);
     }
+}
+// 👇 NOVA FUNÇÃO DE GAMIFICAÇÃO 👇
+function renderBadges(totals) {
+  // 1. Encontra ou cria o container de badges (ao lado do nome)
+  let badgeContainer = document.getElementById('profile-badges');
+  
+  // Se não existir container, cria dinamicamente ao lado do nome
+  if (!badgeContainer) {
+      const nameElement = document.getElementById('profileName');
+      if (nameElement) {
+          badgeContainer = document.createElement('span');
+          badgeContainer.id = 'profile-badges';
+          badgeContainer.style.marginLeft = '8px';
+          nameElement.parentElement.appendChild(badgeContainer);
+      } else {
+          return;
+      }
+  }
+  
+  badgeContainer.innerHTML = ''; // Limpa badges antigas
+
+  // 2. Regras das Medalhas (Pode ajustar os números depois)
+  // Aqui defini > 0 para testar fácil, mas num app real seria > 5 ou > 10
+  const badges = [];
+
+  if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
+  if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
+  if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
+  
+  // Medalhas "Sombrias"
+  if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
+  if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
+  if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
+
+  // 3. Renderiza
+  badges.forEach(badge => {
+      const span = document.createElement('span');
+      span.className = 'user-badge';
+      span.textContent = badge.icon;
+      span.title = badge.title; // Tooltip nativo do navegador
+      badgeContainer.appendChild(span);
+  });
 }
 
 checkLogin();
