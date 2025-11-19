@@ -279,36 +279,50 @@ async function apiGetProfile(username) {
 } 
 
 function renderRatings(ratings) {
-    if (!DOM.ratingsDisplayContainer) return;
-    
-    const totals = ratings.totals; 
-    // const userVotes = ratings.userVotes || []; // (Pode ser usado para estilizar botões no futuro)
+  if (!DOM.ratingsDisplayContainer) return;
+  
+  const totals = ratings.totals; 
+  const userVotes = ratings.userVotes || []; // Lista do que VOCÊ já votou (ex: ['legal', 'confiavel'])
 
-    DOM.ratingsDisplayContainer.innerHTML = "";
-    
-    const items = [
-        { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
-        { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
-        { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido }
-    ];
-    
-    if (items.every(item => item.count === 0)) {
-        DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
-        return; 
-    }
-    
-    items.forEach(item => {
-        if (item.count > 0) {
-            const node = document.createElement('div');
-            node.className = 'rating-item';
-            node.innerHTML = `
-                <span class="rating-icon">${item.icon}</span>
-                <span class="rating-label">${item.label}</span>
-                <span class="rating-count">${item.count}</span>
-            `;
-            DOM.ratingsDisplayContainer.appendChild(node);
-        }
-    });
+  // 1. Atualiza os números na tela
+  DOM.ratingsDisplayContainer.innerHTML = "";
+  
+  const items = [
+      { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
+      { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
+      { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido }
+  ];
+  
+  // Se não tiver votos, mostra mensagem padrão
+  if (items.every(item => item.count === 0)) {
+      DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
+  } else {
+      items.forEach(item => {
+          if (item.count > 0) {
+              const node = document.createElement('div');
+              node.className = 'rating-item';
+              node.innerHTML = `
+                  <span class="rating-icon">${item.icon}</span>
+                  <span class="rating-label">${item.label}</span>
+                  <span class="rating-count">${item.count}</span>
+              `;
+              DOM.ratingsDisplayContainer.appendChild(node);
+          }
+      });
+  }
+
+  // 2. ATUALIZAÇÃO VISUAL DOS BOTÕES (O Segredo!)
+  // Percorre os botões de votar e marca como 'active' os que você já clicou
+  if (DOM.ratingVoteButtons) {
+      DOM.ratingVoteButtons.forEach(button => {
+          const ratingType = button.dataset.rating;
+          if (userVotes.includes(ratingType)) {
+              button.classList.add('active'); // Fica colorido
+          } else {
+              button.classList.remove('active'); // Fica cinza
+          }
+      });
+  }
 }
 
 async function apiAddRating(ratingType) {
