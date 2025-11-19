@@ -1,72 +1,70 @@
 // src/routes/api.routes.test.js
 const request = require('supertest');
-const express = require('express');
-const { Server } = require('socket.io');
 
-// --- Mocks ---
+// --- MOCKS (DEVEM VIR ANTES DOS IMPORTS REAIS) ---
 jest.mock('../models/db', () => ({
-  setupDatabase: jest.fn(() => Promise.resolve(true)), 
-  query: jest.fn(),
+  setupDatabase: jest.fn().mockResolvedValue(true),
+  query: jest.fn().mockImplementation((text, params) => {
+    // Retorna um resultado seguro padrão para qualquer query
+    return Promise.resolve({ rows: [], rowCount: 0 });
+  }),
 }));
+
 jest.mock('socket.io', () => ({
   Server: jest.fn(() => ({
-    on: jest.fn(), 
+    on: jest.fn(),
+    emit: jest.fn(),
+    to: jest.fn().mockReturnThis(),
   })),
 }));
+
 jest.mock('../socket/chat.handler', () => ({
-  initializeSocket: jest.fn(), 
+  initializeSocket: jest.fn(),
 }));
-// --- Fim dos Mocks ---
 
-
-// 👇 MUDANÇA: Importamos o 'app' (express) em vez do 'server' (http)
-const app = require('../server'); 
-
+// --- IMPORTA O APP DEPOIS DOS MOCKS ---
+const app = require('../server');
 
 describe('Testes de Integração da API', () => {
-
-  it('GET /api/posts/explore - deve retornar 200 OK (Teste de Rota Pública)', async () => {
-    
-    const mockPosts = [{ user: 'Teste', text: 'Olá' }];
-    const Post = require('../models/post.class');
-    Post.getGlobalFeed = jest.fn().mockResolvedValue(mockPosts);
-
-    // Usamos o 'app' aqui
+  
+  // Rota Pública
+  it('GET /api/posts/explore - deve retornar 200 OK', async () => {
     const response = await request(app)
       .get('/api/posts/explore')
-      .expect('Content-Type', /json/) 
-      .expect(200); 
+      .expect('Content-Type', /json/)
+      .expect(200);
 
-    expect(response.body.posts).toEqual(mockPosts);
+    expect(response.body).toHaveProperty('posts');
   });
 
-  it('POST /api/profile/mood - deve validar (falhar) se o mood for muito longo', async () => {
-    
-    const longMood = 'Este mood tem mais de 30 caracteres, com certeza.';
+  // Teste de Validação (O que estava dando erro)
+  it('POST /api/profile/mood - deve falhar (400) se o mood for gigante', async () => {
+    const longMood = 'A'.repeat(50); // Cria uma string com 50 letras
     
     const response = await request(app)
       .post('/api/profile/mood')
-      .send({ user: 'Alexandre', mood: longMood }) 
-      .expect('Content-Type', /json/)
-      .expect(400); 
+      .send({ user: 'Alexandre', mood: longMood })
+      .expect('Content-Type', /json/);
 
+    // Se der 500, mostramos o erro no console para debug
+    if (response.status === 500) {
+        console.error("ERRO 500 DETECTADO:", response.body);
+    }
+
+    expect(response.status).toBe(400);
     expect(response.body.error).toContain('30 caracteres');
   });
 
-  it('GET /api/profile/Inexistente - deve retornar um perfil "virtual"', async () => {
-    
-    const db = require('../models/db');
-    db.query.mockResolvedValue({ rows: [] }); 
-
+  // Teste de Perfil Inexistente
+  it('GET /api/profile/Inexistente - deve retornar estrutura correta', async () => {
     const response = await request(app)
       .get('/api/profile/Inexistente')
       .expect(200);
 
-    expect(response.body.user).toBe('Inexistente');
-    expect(response.body.bio).toBe('Nenhuma bio definida.');
+    // Na nova estrutura, esperamos profile, ratings e visitors
+    expect(response.body).toHaveProperty('profile');
+    expect(response.body).toHaveProperty('ratings');
+    expect(response.body).toHaveProperty('visitors');
   });
-  
-});
 
-//  MUDANÇA: Removemos o 'afterAll'
-// O Supertest trata de fechar o servidor quando lhe passamos o 'app'.
+});

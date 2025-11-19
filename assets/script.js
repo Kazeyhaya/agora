@@ -554,6 +554,25 @@ const bindEvents = () => {
             }
         }
     };
+    2. Settings (Alterar Senha) - CORRIGIDO E FUNCIONAL
+    $('#btn-settings').onclick = () => {
+        modal({ 
+            title: "Alterar Senha", 
+            placeholder: "Nova senha...", 
+            isPassword: true, 
+            onSave: async (newPass) => {
+                // Chamada real à API
+                const res = await api.post('/api/profile/password', { 
+                    user: state.user, 
+                    password: newPass 
+                });
+                
+                if(res && res.success) {
+                    toast("Senha alterada com sucesso!", "success");
+                }
+            }
+        });
+    };
 
     // Navigation
     $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };

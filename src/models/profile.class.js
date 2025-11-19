@@ -10,8 +10,6 @@ class Profile {
         this.avatar_url = avatar_url || null;
     }
 
-    // --- MÉTODOS DE INSTÂNCIA ---
-
     async save() {
         const result = await db.query(
             'INSERT INTO profiles ("user", bio, mood, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT ("user") DO UPDATE SET bio = $2, mood = $3, avatar_url = $4 RETURNING *',
@@ -86,11 +84,8 @@ class Profile {
         return { totals, userVotes };
     }
 
-    // 👇 NOVOS MÉTODOS: VISITANTES 👇
     async recordVisit(visitorUsername) {
-        if (visitorUsername === this.user) return; // Não conta visita própria
-        
-        // Insere ou atualiza a data se já existir
+        if (visitorUsername === this.user) return; 
         await db.query(
             `INSERT INTO profile_visits (visitor_user, visited_user, timestamp) 
              VALUES ($1, $2, NOW())
@@ -116,7 +111,6 @@ class Profile {
             timestamp: row.timestamp
         }));
     }
-    // 👆 FIM VISITANTES 👆
 
     static async getDailyVibe(username) {
         const today = new Date().toISOString().split('T')[0];
@@ -141,8 +135,6 @@ class Profile {
         await db.query(`INSERT INTO profile_vibes (user_name, vibe_date, message, color) VALUES ($1, $2, $3, $4)`, [username, today, randomVibe.msg, randomVibe.color]);
         return { user_name: username, vibe_date: today, message: randomVibe.msg, color: randomVibe.color };
     }
-
-    // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
     
     static async findByUser(username) {
         const result = await db.query('SELECT * FROM profiles WHERE "user" = $1', [username]);
@@ -160,6 +152,16 @@ class Profile {
         return result.rows[0].mood;
     }
     
+    // 👇 NOVO MÉTODO: TROCAR SENHA 👇
+    static async updatePassword(username, newPassword) {
+        await db.query(
+            'UPDATE profiles SET password = $1 WHERE "user" = $2',
+            [newPassword, username]
+        );
+        return true;
+    }
+    // 👆 FIM NOVO MÉTODO 👆
+
     static async updateAvatar(username, avatarUrl) {
          const result = await db.query(
             'INSERT INTO profiles ("user", avatar_url) VALUES ($1, $2) ON CONFLICT ("user") DO UPDATE SET avatar_url = $2 RETURNING avatar_url',

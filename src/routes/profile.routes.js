@@ -4,8 +4,11 @@ const router = express.Router();
 const profileController = require('../controllers/profile.controller');
 const upload = require('../config/storage'); 
 
-// 👇 ROTA DE LOGIN (NOVA) 👇
+// Rota de Login
 router.post('/login', profileController.login);
+
+// 👇 ROTA DE SENHA (NOVA) 👇
+router.post('/profile/password', profileController.updateUserPassword);
 
 // Rotas de Perfil
 router.get('/profile/:username', profileController.getProfileBio);
