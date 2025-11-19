@@ -1,3 +1,4 @@
+// ATUALIZACAO FORCADA
 // assets/script.js
 // ===================================================
 // 1. ESTADO GLOBAL E OBJETOS DOM
