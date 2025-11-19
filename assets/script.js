@@ -1,1616 +1,718 @@
 // assets/script.js
-// ===================================================
-// 1. ESTADO GLOBAL E OBJETOS DOM
-// ===================================================
-let currentUser = null;
-let activeChannel = null;
-let viewedUsername = null;
-let currentCommunityId = null; 
-let currentCommunityName = null; 
-let DOM = {};
-let LoginDOM = {};
+
+// --- Utils & Config ---
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => document.querySelectorAll(selector);
 const socket = io({ autoConnect: false });
 let typingTimeout = null;
 
-// ===================================================
-// 1.5 FUNÇÕES AUXILIARES
-// ===================================================
+// State
+const state = {
+    user: localStorage.getItem("agora:user"),
+    currentChannel: null,
+    viewedUser: null,
+    communityId: null
+};
 
-function escapeHtml(s) {
-  if (!s) return "";
-  return s.replace(/[&<>"']/g, m => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-  }[m]));
-}
-
-function renderAvatar(element, { user, avatar_url }) {
-  if (!element) return;
-  element.innerHTML = "";
-  if (avatar_url) {
-    element.style.backgroundImage = `url(${avatar_url})`;
-  } else {
-    element.style.backgroundImage = 'none';
-    const initials = (user || "?").slice(0, 2).toUpperCase();
-    element.textContent = escapeHtml(initials);
-  }
-}
-
-function openInputModal({ title, initialValue = '', placeholder = '', onSave }) {
-    DOM.modalTitle.textContent = title;
-    DOM.modalInput.value = initialValue;
-    DOM.modalInput.placeholder = placeholder;
-    DOM.modalView.hidden = false;
-    DOM.modalInput.focus();
-    
-    DOM.modalForm.onsubmit = (e) => {
-        e.preventDefault();
-        const newValue = DOM.modalInput.value.trim();
-        if (newValue) {
-            onSave(newValue);
-        }
-        DOM.modalView.hidden = true;
-    };
-}
-
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
+// --- UI Helpers ---
+const toast = (msg, type = 'info') => {
+    const container = $('#toast-container');
     if (!container) return;
 
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    const icon = { success: '✅', error: '❌', magic: '✨', info: 'ℹ️' }[type] || 'ℹ️';
     
-    let icon = 'ℹ️';
-    if (type === 'success') icon = '✅';
-    if (type === 'error') icon = '❌';
-    if (type === 'magic') icon = '✨';
-
-    toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(message)}</span>`;
-
-    container.appendChild(toast);
-
+    el.innerHTML = `<span>${icon}</span> <span>${escape(msg)}</span>`;
+    container.appendChild(el);
+    
     setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.5s forwards';
-        toast.addEventListener('animationend', () => {
-            toast.remove();
-        });
+        el.style.animation = 'fadeOut 0.5s forwards';
+        el.addEventListener('animationend', () => el.remove());
     }, 4000);
-}
+};
 
-// ===================================================
-// 2. LÓGICA DE API E RENDERIZAÇÃO
-// ===================================================
+const escape = (s) => !s ? "" : s.replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" })[m]);
 
-async function apiGetPosts() {
-  try {
-    const response = await fetch(`/api/posts?user=${encodeURIComponent(currentUser)}`);
-    if (!response.ok) return;
-    const data = await response.json();
-    renderPosts(data.posts || []); 
-  } catch (err) { console.error("Falha ao buscar posts:", err); }
-}
-async function apiGetExplorePosts() {
-  try {
-    const response = await fetch('/api/posts/explore'); 
-    if (!response.ok) return;
-    const data = await response.json();
-    renderExplorePosts(data.posts || []); 
-  } catch (err) { console.error("Falha ao buscar posts do explorar:", err); }
-}
-async function apiCreatePost() {
-  const text = DOM.feedInput.value.trim();
-  if (!text) return;
-  DOM.feedSend.disabled = true;
-  try {
-    await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: currentUser, text: text }) });
-    DOM.feedInput.value = ""; 
-    apiGetPosts(); 
-    showToast("Post publicado!", "success");
-  } catch (err) { 
-      console.error("Falha ao criar post:", err); 
-      showToast("Erro ao publicar post.", "error");
-  }
-  DOM.feedSend.disabled = false;
-}
-async function apiLikePost(postId) {
-  try { await fetch(`/api/posts/${postId}/like`, { method: 'POST' }); } catch (err) { console.error("Falha ao dar like:", err); }
-} 
-async function apiUnlikePost(postId) {
-  try { await fetch(`/api/posts/${postId}/unlike`, { method: 'POST' }); } catch (err) { console.error("Falha ao descurtir:", err); }
-}
-function renderPosts(posts) {
-  if (!DOM.postsEl) return;
-  if (posts.length === 0) { DOM.postsEl.innerHTML = "<div class='meta' style='padding: 12px;'>O seu feed está vazio.</div>"; return; }
-  renderPostList(DOM.postsEl, posts);
-}
-function renderExplorePosts(posts) {
-  if (!DOM.explorePostsEl) return;
-  if (posts.length === 0) { DOM.explorePostsEl.innerHTML = "<div class='meta' style='padding: 12px;'>Ainda não há posts na rede.</div>"; return; }
-  renderPostList(DOM.explorePostsEl, posts);
-}
-
-function renderPostList(containerElement, posts) {
-  containerElement.innerHTML = ""; 
-  posts.forEach(post => {
-    const node = document.createElement("div");
-    node.className = "post";
-    node.dataset.user = post.user;
-    node.dataset.postid = post.id;
-    
-    const avatarEl = document.createElement('div');
-    avatarEl.className = 'avatar-display post-avatar';
-    renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
-
-    const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
-    
-    const editButton = (post.user === currentUser) 
-      ? `<button class="mini-btn" data-edit-post="${post.id}">Editar</button>` 
-      : '';
-    
-    const postContent = document.createElement('div');
-    postContent.innerHTML = `
-      <div class="meta"><strong class="post-username" data-username="${escapeHtml(post.user)}">${escapeHtml(post.user)}</strong> • ${postTime}</div>
-      <div id="post-text-${post.id}">${escapeHtml(post.text)}</div>
-      <div class="post-actions">
-        <button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button>
-        <button class="mini-btn" data-comment="${post.id}">Comentar</button>
-        ${editButton}
-      </div>
-      <div class="comments" id="comments-for-${post.id}"></div>
-    `;
-    
-    node.appendChild(avatarEl);
-    node.appendChild(postContent);
-    
-    containerElement.appendChild(node);
-    apiGetComments(post.id);
-  });
-}
-
-async function apiGetComments(postId) {
-  try {
-    const res = await fetch(`/api/posts/${postId}/comments`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderComments(postId, data.comments || []);
-  } catch (err) { console.error(`Falha ao buscar comentários para o post ${postId}:`, err); }
-}
-
-async function apiCreateComment(postId) {
-  openInputModal({
-    title: "Escreva um comentário",
-    placeholder: "Seja simpático...",
-    initialValue: "",
-    onSave: async (text) => {
-      try {
-        await fetch(`/api/posts/${postId}/comments`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ user: currentUser, text: text }) 
-        });
-        apiGetComments(postId);
-      } catch (err) { 
-        console.error("Falha ao criar comentário:", err); 
-        showToast("Falha ao salvar comentário.", "error");
-      }
-    }
-  });
-}
-
-async function apiEditPost(postId) {
-    const textElement = document.getElementById(`post-text-${postId}`);
-    if (!textElement) return;
-    
-    const currentText = textElement.textContent;
-
-    openInputModal({
-        title: "Editar Publicação",
-        initialValue: currentText,
-        onSave: async (newText) => {
-            try {
-                const res = await fetch(`/api/posts/${postId}/update`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user: currentUser, 
-                        text: newText
-                    })
-                });
-
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error);
-                }
-                
-                textElement.textContent = newText;
-                showToast("Post atualizado com sucesso!", "success");
-
-            } catch (err) {
-                console.error("Falha ao editar post:", err);
-                showToast(`Erro ao salvar: ${err.message}`, "error");
-            }
-        }
-    });
-}
-
-function renderComments(postId, comments) {
-  const container = document.getElementById(`comments-for-${postId}`);
-  if (!container) return; 
-  if (comments.length === 0) { container.innerHTML = ""; return; }
-  container.innerHTML = comments.map(item => `<div class="meta"><strong>${escapeHtml(item.user)}</strong>: ${escapeHtml(item.text)}</div>`).join(""); 
-}
-
-// --- Funções de Perfil, Mood, Avatar ---
-
-async function apiGetProfile(username) { 
-  try {
-    const res = await fetch(`/api/profile/${encodeURIComponent(username)}?viewer=${encodeURIComponent(currentUser)}`);
-    
-    if (!res.ok) {
-        throw new Error(`Falha na API: ${res.status}`);
-    }
-    
-    const data = await res.json(); 
-    const profileData = data.profile;
-    const ratingsData = data.ratings; 
-    const visitorsData = data.visitors || []; 
-    
-    if (DOM.profileBioEl) {
-      DOM.profileBioEl.textContent = profileData.bio;
-    }
-    if (DOM.profileMoodEl) {
-      DOM.profileMoodEl.textContent = `Mood: ${profileData.mood || "✨"}`;
-    }
-    renderAvatar(DOM.profileAvatarEl, profileData);
-    
-    renderRatings(ratingsData); 
-    renderBadges(ratingsData.totals);
-    renderVisitors(visitorsData);
-
-    if (username === currentUser) {
-      if (DOM.userbarMood) {
-        DOM.userbarMood.textContent = profileData.mood || "✨";
-      }
-      renderAvatar(DOM.userAvatarEl, profileData);
-    }
-
-  } catch (err) { 
-    console.error("Falha ao buscar perfil:", err);
-    if (DOM.profileBioEl) DOM.profileBioEl.textContent = "Erro ao carregar bio.";
-    if (DOM.profileMoodEl) DOM.profileMoodEl.textContent = "Mood: (erro)";
-    if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
-  }
-} 
-
-function renderRatings(ratings) {
-    if (!DOM.ratingsDisplayContainer) return;
-    
-    const totals = ratings.totals; 
-    const userVotes = ratings.userVotes || []; 
-
-    DOM.ratingsDisplayContainer.innerHTML = "";
-    
-    const items = [
-        { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
-        { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
-        { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido },
-        { key: 'falso', icon: '🤥', label: 'Falso', count: totals.falso, type: 'negative' },
-        { key: 'chato', icon: '😴', label: 'Chato', count: totals.chato, type: 'negative' },
-        { key: 'toxico', icon: '☠️', label: 'Tóxico', count: totals.toxico, type: 'negative' }
-    ];
-    
-    if (items.every(item => item.count === 0)) {
-        DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
+const renderAvatar = (el, { user, avatar_url }) => {
+    if (!el) return;
+    el.innerHTML = "";
+    if (avatar_url) {
+        el.style.backgroundImage = `url(${avatar_url})`;
     } else {
-        items.forEach(item => {
-            if (item.count > 0) {
-                const node = document.createElement('div');
-                node.className = 'rating-item';
-                if (item.type === 'negative') node.classList.add('negative-stat');
-                node.innerHTML = `
-                    <span class="rating-icon">${item.icon}</span>
-                    <span class="rating-label">${item.label}</span>
-                    <span class="rating-count">${item.count}</span>
-                `;
-                DOM.ratingsDisplayContainer.appendChild(node);
-            }
-        });
+        el.style.backgroundImage = 'none';
+        el.textContent = escape((user || "?").slice(0, 2).toUpperCase());
     }
+};
 
-    if (DOM.ratingVoteButtons) {
-        DOM.ratingVoteButtons.forEach(button => {
-            const ratingType = button.dataset.rating;
-            button.classList.remove('active', 'active-negative');
-            
-            if (userVotes.includes(ratingType)) {
-                if (['falso', 'chato', 'toxico'].includes(ratingType)) {
-                    button.classList.add('active-negative');
-                } else {
-                    button.classList.add('active');
-                }
-            }
-        });
-    }
-}
-
-function renderBadges(totals) {
-    let badgeContainer = document.getElementById('profile-badges');
+const modal = ({ title, val = '', placeholder = '', onSave }) => {
+    const view = $('#input-modal');
+    const input = $('#modal-input');
     
-    if (!badgeContainer) {
-        const nameElement = document.getElementById('profileName');
-        if (nameElement) {
-            badgeContainer = document.createElement('span');
-            badgeContainer.id = 'profile-badges';
-            badgeContainer.style.marginLeft = '8px';
-            nameElement.parentElement.appendChild(badgeContainer);
-        } else {
-            return;
-        }
-    }
-    
-    badgeContainer.innerHTML = ''; 
-
-    const badges = [];
-    if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
-    if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
-    if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
-    if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
-    if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
-    if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
-
-    badges.forEach(badge => {
-        const span = document.createElement('span');
-        span.className = 'user-badge';
-        span.textContent = badge.icon;
-        span.title = badge.title;
-        span.onclick = () => showToast(badge.title, 'info'); 
-        badgeContainer.appendChild(span);
-    });
-}
-
-function renderVisitors(visitors) {
-    const container = document.getElementById('recent-visitors');
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    if (visitors.length === 0) {
-        container.innerHTML = "<div class='meta'>Ninguém visitou ainda.</div>";
-        return;
-    }
-
-    visitors.forEach(visitor => {
-        const node = document.createElement("div");
-        node.className = "friend-card"; 
-        
-        const avatarEl = document.createElement('div');
-        avatarEl.className = 'avatar-display';
-        avatarEl.style.width = '32px';
-        avatarEl.style.height = '32px';
-        avatarEl.style.borderRadius = '8px';
-        avatarEl.style.fontSize = '0.9rem';
-        renderAvatar(avatarEl, visitor); 
-        
-        const nameEl = document.createElement('strong');
-        nameEl.className = 'friend-card-name'; 
-        nameEl.dataset.username = visitor.user;
-        nameEl.textContent = escapeHtml(visitor.user);
-        
-        const timeEl = document.createElement('span');
-        timeEl.style.fontSize = '0.7rem';
-        timeEl.style.color = 'var(--text-secondary)';
-        timeEl.style.marginLeft = 'auto'; 
-        
-        const visitDate = new Date(visitor.timestamp);
-        const today = new Date();
-        const isToday = visitDate.toDateString() === today.toDateString();
-        
-        timeEl.textContent = isToday 
-            ? visitDate.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
-            : visitDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
-
-        node.appendChild(avatarEl);
-        node.appendChild(nameEl);
-        node.appendChild(timeEl);
-        
-        container.appendChild(node);
-    });
-}
-
-async function apiAddRating(ratingType) {
-    try {
-        const res = await fetch('/api/profile/rate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from_user: currentUser,
-                to_user: viewedUsername,
-                rating_type: ratingType
-            })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error);
-        }
-        
-        apiGetProfile(viewedUsername); 
-        showToast("Avaliação enviada!", "success");
-        
-    } catch (err) {
-        console.error("Falha ao enviar avaliação:", err);
-        showToast(`Erro ao avaliar: ${err.message}`, "error");
-    }
-}
-
-async function apiRemoveRating(ratingType) {
-    try {
-        const res = await fetch('/api/profile/unrate', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from_user: currentUser,
-                to_user: viewedUsername,
-                rating_type: ratingType
-            })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error);
-        }
-        
-        apiGetProfile(viewedUsername); 
-        showToast("Avaliação removida.", "info");
-        
-    } catch (err) {
-        console.error("Falha ao remover avaliação:", err);
-        showToast(`Erro ao remover avaliação: ${err.message}`, "error");
-    }
-}
-
-
-async function apiUpdateMood() {
-  const currentMood = DOM.userbarMood.textContent;
-  
-  openInputModal({
-    title: "Qual é o seu novo mood?",
-    initialValue: currentMood,
-    onSave: async (newMood) => {
-      DOM.userbarMood.textContent = "Salvando...";
-      try {
-        const res = await fetch('/api/profile/mood', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ user: currentUser, mood: newMood }) 
-        });
-        if (!res.ok) throw new Error('Falha ao salvar');
-        const data = await res.json();
-        DOM.userbarMood.textContent = data.mood;
-        showToast("Mood atualizado!", "success");
-      } catch (err) {
-        console.error("Falha ao salvar mood:", err);
-        DOM.userbarMood.textContent = currentMood;
-        showToast("Não foi possível salvar seu mood.", "error");
-      }
-    }
-  });
-}
-
-async function apiUpdateBio() {
-  const currentBio = DOM.profileBioEl.textContent;
-  
-  openInputModal({
-    title: "Editar a sua bio",
-    initialValue: currentBio,
-    onSave: async (newBio) => {
-      try {
-        const res = await fetch('/api/profile', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify({ user: currentUser, bio: newBio }) 
-        });
-        if (!res.ok) throw new Error('Falha ao salvar');
-        const data = await res.json();
-        if (DOM.profileBioEl) DOM.profileBioEl.textContent = data.bio;
-        showToast("Bio salva com sucesso!", "success");
-      } catch (err) { 
-        console.error("Falha ao salvar bio:", err); 
-        showToast("Falha ao salvar bio.", "error");
-      }
-    }
-  });
-}
-
-async function apiUploadAvatar(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  if (DOM.profileAvatarEl) DOM.profileAvatarEl.textContent = "⏳";
-  if (DOM.userAvatarEl) DOM.userAvatarEl.textContent = "⏳";
-
-  const formData = new FormData();
-  formData.append('avatar', file);
-  formData.append('user', currentUser);
-
-  try {
-    const res = await fetch('/api/profile/avatar', {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Erro do servidor');
-    }
-
-    const data = await res.json(); 
-
-    const profileData = { user: currentUser, avatar_url: data.avatar_url };
-    renderAvatar(DOM.profileAvatarEl, profileData);
-    renderAvatar(DOM.userAvatarEl, profileData);
-    
-    showToast("Foto de perfil atualizada!", "success");
-    apiGetPosts();
-
-  } catch (err) {
-    console.error("Falha ao fazer upload do avatar:", err);
-    showToast(`Erro ao fazer upload: ${err.message}`, "error");
-    apiGetProfile(currentUser);
-  }
-}
-
-// --- Funções de API (Testimonials, Community, etc) ---
-
-async function apiGetTestimonials(username) { 
-  try {
-    const res = await fetch(`/api/testimonials/${encodeURIComponent(username)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderTestimonials(data.testimonials || []);
-  } catch (err) { console.error("Falha ao buscar depoimentos:", err); }
-}
-
-function renderTestimonials(testimonials) {
-  if (!DOM.testimonialsEl) return;
-  if (testimonials.length === 0) { DOM.testimonialsEl.innerHTML = "<div class='meta'>Nenhum depoimento ainda.</div>"; return; }
-  DOM.testimonialsEl.innerHTML = ""; 
-  testimonials.forEach(item => {
-    const node = document.createElement("div");
-    node.className = "meta"; 
-    node.innerHTML = `<strong>${escapeHtml(item.from_user)}</strong>: ${escapeHtml(item.text)}`;
-    DOM.testimonialsEl.appendChild(node);
-  });
-}
-
-async function apiCreateTestimonial() {
-  const text = DOM.testimonialInput.value.trim();
-  if (!text) return; 
-  DOM.testimonialSend.disabled = true;
-  try {
-    await fetch('/api/testimonials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_user: currentUser, to_user: viewedUsername, text: text }) });
-    DOM.testimonialInput.value = ""; 
-    apiGetTestimonials(viewedUsername); 
-    showToast("Depoimento enviado!", "success");
-  } catch (err) { console.error("Falha ao salvar depoimento:", err); }
-  DOM.testimonialSend.disabled = false;
-}
-
-async function apiGetCommunityPosts(communityId) {
-    try {
-        const res = await fetch(`/api/community/${communityId}/posts`);
-        const data = await res.json();
-        renderCommunityPosts(data.posts || []);
-    } catch (err) {
-        console.error("Erro ao buscar posts do fórum:", err);
-        if (DOM.communityTopicList) DOM.communityTopicList.innerHTML = "<div class='meta'>Falha ao carregar posts do fórum.</div>";
-    }
-}
-
-async function apiCreateCommunityPost(form) {
-    const title = DOM.topicTitleInput.value.trim();
-    const content = DOM.topicContentInput.value.trim();
-    
-    if (!title || !content) {
-        showToast("Título e conteúdo são obrigatórios.", "error");
-        return;
-    }
-    
-    const button = form.querySelector('button[type="submit"]');
-    button.disabled = true;
-    button.textContent = "Publicando...";
-    
-    try {
-        const res = await fetch('/api/community/posts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                community_id: currentCommunityId,
-                user: currentUser,
-                title: title,
-                content: content
-            })
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error);
-        }
-        
-        DOM.topicTitleInput.value = "";
-        DOM.topicContentInput.value = "";
-        activateCommunityView("topics", { community: currentCommunityId });
-        showToast("Tópico criado!", "success");
-
-    } catch (err) {
-        console.error("Erro ao criar tópico:", err);
-        showToast(`Falha ao criar tópico: ${err.message}`, "error");
-    }
-    
-    button.disabled = false;
-    button.textContent = "Publicar Tópico";
-}
-
-function renderCommunityPosts(posts) {
-    if (!DOM.communityTopicList) return;
-    DOM.communityTopicList.innerHTML = "";
-    if (posts.length === 0) {
-        DOM.communityTopicList.innerHTML = "<div class='meta' style='padding: 12px;'>Nenhum tópico ainda. Seja o primeiro a iniciar uma discussão!</div>";
-        return;
-    }
-    posts.forEach(post => {
-        const node = document.createElement("div");
-        node.className = "post"; 
-        node.dataset.user = post.user;
-        node.dataset.postid = post.id;
-        
-        const postTime = new Date(post.timestamp).toLocaleString('pt-BR');
-        
-        const avatarEl = document.createElement('div');
-        avatarEl.className = 'avatar-display post-avatar';
-        renderAvatar(avatarEl, { user: post.user, avatar_url: post.avatar_url });
-        
-        const editButton = (post.user === currentUser) 
-          ? `<button class="mini-btn" data-edit-post="${post.id}">Editar</button>` 
-          : '';
-        
-        const contentEl = document.createElement('div');
-        contentEl.innerHTML = `
-            <div class="meta">
-                <strong class="post-username" data-username="${escapeHtml(post.user)}">
-                    ${escapeHtml(post.user)}
-                </strong> 
-                • ${postTime}
-            </div>
-            <h3>${escapeHtml(post.title)}</h3>
-            <div id="post-text-${post.id}">${escapeHtml(post.content)}</div>
-            <div class="post-actions">
-                <button class="mini-btn" data-like="${post.id}">❤ ${post.likes || 0}</button>
-                <button class="mini-btn" data-comment="${post.id}">Comentar</button>
-                ${editButton}
-            </div>
-            <div class="comments" id="comments-for-${post.id}"></div>
-        `;
-        
-        node.appendChild(avatarEl);
-        node.appendChild(contentEl);
-        
-        DOM.communityTopicList.appendChild(node);
-        apiGetComments(post.id);
-    });
-}
-
-async function apiGetFollowing(username) {
-  try {
-    const res = await fetch(`/api/following/${encodeURIComponent(username)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderFollowing(data.following || []);
-  } catch (err) { console.error("Erro ao buscar lista de 'seguindo':", err); if (DOM.friendsContainer) DOM.friendsContainer.innerHTML = "<div class='meta'>Falha ao carregar amigos.</div>"; }
-}
-
-function renderFollowing(followingList) {
-  if (!DOM.friendsContainer) return;
-  DOM.friendsContainer.innerHTML = ""; 
-  if (followingList.length === 0) { DOM.friendsContainer.innerHTML = "<div class='meta'>Ainda não segue ninguém.</div>"; return; }
-  
-  followingList.forEach(friend => {
-    const node = document.createElement("div");
-    node.className = "friend-card";
-    
-    const avatarEl = document.createElement('div');
-    avatarEl.className = 'avatar-display';
-    avatarEl.style.width = '32px';
-    avatarEl.style.height = '32px';
-    avatarEl.style.borderRadius = '8px';
-    avatarEl.style.fontSize = '0.9rem';
-    renderAvatar(avatarEl, friend);
-    
-    const nameEl = document.createElement('strong');
-    nameEl.className = 'friend-card-name';
-    nameEl.dataset.username = friend.user;
-    nameEl.textContent = escapeHtml(friend.user);
-
-    node.appendChild(avatarEl);
-    node.appendChild(nameEl);
-    
-    DOM.friendsContainer.appendChild(node);
-  });
-}
-
-async function apiGetCommunityMembers(communityId) {
-  try {
-    const res = await fetch(`/api/community/${communityId}/members`);
-    if (!res.ok) {
-        throw new Error(`Falha na API: ${res.status}`);
-    }
-    const data = await res.json();
-    renderCommunityMembers(data.members || []);
-  } catch (err) { 
-    console.error("Erro ao buscar lista de membros:", err); 
-    if (DOM.communityMemberList) DOM.communityMemberList.innerHTML = "<div class='meta'>Falha ao carregar membros.</div>"; 
-  }
-}
-
-function renderCommunityMembers(members) {
-  if (!DOM.communityMemberList) return;
-  DOM.communityMemberList.innerHTML = ""; 
-  
-  const count = members.length;
-  
-  if (DOM.communityMembersTitle) {
-      DOM.communityMembersTitle.textContent = `Membros da Comunidade (${count})`;
-  }
-  
-  if (DOM.communityMembersCountEl) {
-      DOM.communityMembersCountEl.textContent = `${count} membro${count !== 1 ? 's' : ''}`;
-  }
-  
-  if (count === 0) { 
-    DOM.communityMemberList.innerHTML = "<div class='meta'>Nenhum membro encontrado.</div>"; 
-    return; 
-  }
-  
-  members.forEach(member => {
-    const node = document.createElement("div");
-    node.className = "friend-card"; 
-    
-    const avatarEl = document.createElement('div');
-    avatarEl.className = 'avatar-display';
-    avatarEl.style.width = '32px';
-    avatarEl.style.height = '32px';
-    avatarEl.style.borderRadius = '8px';
-    avatarEl.style.fontSize = '0.9rem';
-    renderAvatar(avatarEl, member); 
-    
-    const nameEl = document.createElement('strong');
-    nameEl.className = 'friend-card-name'; 
-    nameEl.dataset.username = member.user;
-    nameEl.textContent = escapeHtml(member.user);
-
-    node.appendChild(avatarEl);
-    node.appendChild(nameEl);
-    
-    DOM.communityMemberList.appendChild(node);
-  });
-}
-
-async function apiGetCommunityDetails(communityId) {
-  try {
-    const res = await fetch(`/api/community/${communityId}/details`);
-    if (!res.ok) {
-        throw new Error(`Falha na API: ${res.status}`);
-    }
-    const data = await res.json();
-    renderCommunityDetails(data.community);
-  } catch (err) { 
-    console.error("Erro ao buscar detalhes da comunidade:", err); 
-  }
-}
-
-function renderCommunityDetails(community) {
-    if (DOM.communityNameChannel) {
-        DOM.communityNameChannel.textContent = escapeHtml(community.name);
-    }
-    if (DOM.communityAvatarChannel) {
-        renderAvatar(DOM.communityAvatarChannel, { user: community.emoji, avatar_url: null });
-        DOM.communityAvatarChannel.textContent = escapeHtml(community.emoji);
-    }
-    
-    if (DOM.btnEditCommunity) {
-        if (community.owner_user === currentUser) {
-            DOM.btnEditCommunity.hidden = false;
-        } else {
-            DOM.btnEditCommunity.hidden = true;
-        }
-    }
-}
-
-
-async function apiLeaveCommunity() {
-    if (!confirm("Tem certeza que deseja sair desta comunidade?")) {
-        return;
-    }
-    try {
-        const res = await fetch('/api/community/leave', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_name: currentUser,
-                community_id: currentCommunityId,
-            })
-        });
-
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error);
-        }
-        
-        // Se sair com sucesso, volta para o feed e recarrega a lista de comunidades
-        activateView("feed"); 
-        apiGetJoinedCommunities();
-        showToast("Você saiu da comunidade.", "info");
-
-    } catch (err) {
-        console.error("Falha ao sair da comunidade:", err);
-        showToast(`Erro ao sair: ${err.message}`, "error");
-    }
-}
-
-async function apiJoinCommunity(communityId, button) {
-  button.disabled = true;
-  button.textContent = "Entrando...";
-  try {
-    const res = await fetch('/api/community/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_name: currentUser, community_id: communityId }) });
-    if (!res.ok) { throw new Error('Falha ao entrar na comunidade'); }
-    const data = await res.json();
-    renderJoinedCommunities([data.community]); 
-    activateCommunityView("topics", { community: data.community.id });
-    showToast(`Bem-vindo a ${data.community.name}!`, "success");
-  } catch (err) { console.error("Erro ao entrar na comunidade:", err); showToast("Falha ao entrar na comunidade.", "error"); button.disabled = false; button.textContent = "Entrar"; }
-}
-
-async function apiCreateCommunity(name, emoji, button) {
-    button.disabled = true;
-    button.textContent = "Criando...";
-    try {
-        const res = await fetch('/api/communities/create', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, emoji, creator: currentUser }), method: 'POST', });
-        if (!res.ok) { throw new Error('Falha ao criar comunidade'); }
-        const data = await res.json();
-        const newComm = data.community;
-        renderJoinedCommunities([newComm]); 
-        activateCommunityView("topics", { community: newComm.id }); 
-        showToast("Comunidade criada com sucesso!", "success");
-    } catch (err) { console.error("Erro ao criar comunidade:", err); showToast("Falha ao criar comunidade.", "error"); button.disabled = false; button.textContent = "Criar e Entrar"; }
-}
-
-async function apiGetJoinedCommunities() {
-  try {
-    const res = await fetch(`/api/communities/joined?user_name=${encodeURIComponent(currentUser)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderJoinedCommunities(data.communities || []);
-  } catch (err) { console.error("Erro ao buscar comunidades do utilizador:", err); }
-}
-
-function renderJoinedCommunities(communities) {
-  if (!DOM.joinedServersList) return;
-  communities.forEach(community => {
-    if (document.querySelector(`.community-btn[data-community-id="${community.id}"]`)) { return; }
-    const node = document.createElement("div");
-    node.className = "server community-btn";
-    node.dataset.communityId = community.id;
-    node.title = community.name;
-    node.innerHTML = `<span class="emoji">${escapeHtml(community.emoji)}</span>`;
-    DOM.joinedServersList.appendChild(node);
-  });
-}
-
-async function apiGetExploreCommunities() {
-  try {
-    const res = await fetch(`/api/communities/explore?user_name=${encodeURIComponent(currentUser)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    renderExploreCommunities(data.communities || []);
-  } catch (err) {
-    console.error("Erro ao buscar comunidades:", err);
-    if (DOM.communityListContainer) DOM.communityListContainer.innerHTML = "<div class='meta'>Falha ao carregar comunidades.</div>";
-  }
-}
-
-function renderExploreCommunities(communities) {
-  if (!DOM.communityListContainer) return;
-  DOM.communityListContainer.innerHTML = ""; 
-  if (communities.length === 0) {
-    DOM.communityListContainer.innerHTML = "<div class='meta'>Nenhuma comunidade pública para entrar.</div>";
-    return;
-  }
-  communities.forEach(community => {
-    const node = document.createElement("div");
-    node.className = "community-card-explore";
-    node.innerHTML = `
-      <div class="emoji">${escapeHtml(community.emoji)}</div>
-      <div class="community-card-explore-info">
-        <h3>${escapeHtml(community.name)}</h3>
-        <div class="meta">${escapeHtml(community.description)}</div>
-      </div>
-      <button class="join-btn" data-community-id="${community.id}">Entrar</button>
-    `;
-    DOM.communityListContainer.appendChild(node);
-  });
-}
-
-// ===================================================
-// 3. LÓGICA DO CHAT (Apenas para DMs)
-// ===================================================
-
-function renderDirectMessage(roomName, targetUser) {
-    activeChannel = roomName;
-    
-    Object.values(DOM.views).forEach(view => view.hidden = true);
-    DOM.appEl.classList.remove("view-home");
-    DOM.appEl.classList.add("view-community");
-    
-    DOM.mainHeader.hidden = true; 
-    DOM.channelsEl.hidden = false;
-    DOM.chatView.hidden = false;
-    
-    document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
-    DOM.homeBtn.classList.add("active");
-
-    DOM.chatMessagesEl.innerHTML = "";
-    DOM.chatTopicBadge.textContent = `@ ${targetUser}`;
-    DOM.chatInputEl.placeholder = `Envie uma mensagem para @${targetUser}`;
-    
-    if (DOM.communityChatChannelsList) DOM.communityChatChannelsList.hidden = true;
-    DOM.communityTabs.forEach(b => b.style.display = 'none');
-    if (DOM.communityCard) DOM.communityCard.hidden = true;
-
-    socket.emit('joinChannel', { channel: activeChannel, user: currentUser });
-}
-
-function startDM(targetUser) {
-    if (targetUser === currentUser) return;
-    const roomName = [currentUser, targetUser].sort().join('_');
-    renderDirectMessage(roomName, targetUser);
-}
-
-
-function addMessageBubble(data) {
-  const { user, timestamp, message, avatar_url } = data;
-  
-  const item = document.createElement("div");
-  item.className = "msg";
-  const time = timestamp ? new Date(timestamp).toLocaleString('pt-BR').split(' ')[1] : 'agora';
-  const isScrolledToBottom = DOM.chatMessagesEl.scrollHeight - DOM.chatMessagesEl.clientHeight <= DOM.chatMessagesEl.scrollTop + 100;
-  
-  const avatarEl = document.createElement('div');
-  avatarEl.className = 'avatar-display post-avatar';
-  renderAvatar(avatarEl, { user: user, avatar_url: avatar_url }); 
-
-  item.innerHTML = `
-    ${avatarEl.outerHTML}
-    <div class="bubble">
-      <div class="meta"><strong>${escapeHtml(user)}</strong> • ${time}</div>
-      <div>${escapeHtml(message)}</div>
-    </div>
-  `;
-  DOM.chatMessagesEl.appendChild(item);
-  if (isScrolledToBottom) { DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; }
-}
-
-function sendChatMessage() {
-  const text = DOM.chatInputEl.value.trim();
-  if (!text) return;
-  const messageData = { channel: activeChannel, user: currentUser, message: text };
-  socket.emit('sendMessage', messageData);
-  DOM.chatInputEl.value = "";
-  DOM.chatInputEl.focus();
-}
-socket.on('loadHistory', (messages) => {
-  if (!DOM.chatMessagesEl) return;
-  DOM.chatMessagesEl.innerHTML = ""; 
-  messages.forEach(addMessageBubble);
-  DOM.chatMessagesEl.scrollTop = DOM.chatMessagesEl.scrollHeight; 
-});
-socket.on('newMessage', (data) => {
-  if (data.channel === activeChannel) { addMessageBubble(data); }
-});
-
-// 👇 OUVINTES DE CONEXÃO PARA DEBUGAR 👇
-socket.on('connect', () => {
-    console.log('✅ Socket CONECTADO com ID:', socket.id);
-});
-
-socket.on('disconnect', () => {
-    console.log('❌ Socket desconectado.');
-});
-
-socket.on('displayTyping', (data) => {
-    const indicator = document.getElementById('typing-indicator');
-    const typerName = document.getElementById('typer-name');
-    
-    if (indicator && typerName) {
-        typerName.textContent = data.user;
-        indicator.hidden = false;
-        if (typingTimeout) clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            indicator.hidden = true;
-        }, 3000);
-    }
-});
-
-socket.on('rating_update', (data) => {
-    if (viewedUsername === data.target_user) {
-        apiGetProfile(viewedUsername);
-    }
-});
-
-// ===================================================
-// 4. EVENTOS (Conexões dos Botões)
-// ===================================================
-
-function handlePostClick(e) {
-  const userLink = e.target.closest('.post-username[data-username]');
-  if (userLink) { 
-    viewedUsername = userLink.dataset.username; 
-    activateView("profile"); 
-    return; 
-  }
-  
-  const likeButton = e.target.closest('[data-like]');
-  if (likeButton) {
-    const postId = likeButton.dataset.like; 
-    let currentLikes = parseInt(likeButton.textContent.trim().split(' ')[1]);
-    if (likeButton.classList.contains('liked')) { 
-      apiUnlikePost(postId); 
-      likeButton.classList.remove('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes - 1}`; 
-    } else { 
-      apiLikePost(postId); 
-      likeButton.classList.add('liked'); 
-      likeButton.innerHTML = `❤ ${currentLikes + 1}`; 
-    }
-    return;
-  }
-  
-  const commentButton = e.target.closest('[data-comment]');
-  if (commentButton) {
-    const postId = commentButton.dataset.comment;
-    apiCreateComment(postId);
-    return;
-  }
-  
-  const editButton = e.target.closest('[data-edit-post]');
-  if (editButton) {
-      const postId = editButton.dataset.editPost;
-      apiEditPost(postId);
-      return;
-  }
-}
-
-// ===================================================
-// 5. LÓGICA DE TROCA DE VISÃO (Views)
-// ===================================================
-function activateView(name, options = {}) {
-  Object.values(DOM.views).forEach(view => view.hidden = true);
-  DOM.appEl.classList.remove("view-home", "view-community");
-  document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
-  
-  if (name === "feed" || name === "explore" || name === "profile" || name === "explore-servers" || name === "create-community" || name === "create-topic") {
-    DOM.appEl.classList.add("view-home");
-    DOM.mainHeader.hidden = false;
-    DOM.channelsEl.hidden = true;
-    
-    if (name === 'create-topic') {
-        DOM.mainHeader.hidden = true;
-        DOM.views[name].hidden = false;
-    } else {
-        DOM.views[name].hidden = false;
-    }
-    
-    if (name === 'explore-servers' || name === 'create-community') { DOM.exploreServersBtn.classList.add("active"); } else { DOM.homeBtn.classList.add("active"); }
-    
-    DOM.btnExplore.classList.toggle("active", name === "explore");
-    
-    if (name === 'profile' || name === 'explore-servers' || name === 'create-community' || name === 'create-topic') { 
-      DOM.btnExplore.classList.remove("active");
-    }
-
-    if (name === "feed") apiGetPosts(); 
-    if (name === "explore") apiGetExplorePosts(); 
-    if (name === "profile") showDynamicProfile(viewedUsername); 
-    if (name === "explore-servers") apiGetExploreCommunities(); 
-    
-  } 
-}
-
-function activateCommunityView(name, options = {}) {
-    Object.values(DOM.views).forEach(view => view.hidden = true);
-    DOM.appEl.classList.remove("view-home");
-    DOM.appEl.classList.add("view-community");
-    
-    DOM.mainHeader.hidden = true; 
-    DOM.channelsEl.hidden = false; 
-
-    DOM.communityTabs.forEach(b => b.style.display = 'flex');
-    if (DOM.communityCard) DOM.communityCard.hidden = false;
-    if (DOM.communityChatChannelsList) DOM.communityChatChannelsList.hidden = true;
-
-    currentCommunityId = options.community;
-    
-    document.querySelectorAll(".servers .server, .servers .add-btn").forEach(b => b.classList.remove("active"));
-    const activeCommunityBtn = document.querySelector(`.community-btn[data-community-id="${options.community}"]`);
-    if (activeCommunityBtn) activeCommunityBtn.classList.add("active");
-
-    DOM.communityTabs.forEach(b => b.classList.toggle("active", b.dataset.communityView === name));
-
-    DOM.communityTopicView.hidden = true;
-    DOM.communityMembersView.hidden = true;
-    DOM.chatView.hidden = true;
-    
-    apiGetCommunityDetails(currentCommunityId); 
-    apiGetCommunityMembers(currentCommunityId);
-    
-    if (name === "topics") {
-        DOM.communityTopicView.hidden = false; 
-        apiGetCommunityPosts(currentCommunityId); 
-    } else if (name === "members") {
-        DOM.communityMembersView.hidden = false; 
-    }
-}
-
-// ===================================================
-// 6. LÓGICA DE PERFIL DINÂMICO E SEGUIR
-// ===================================================
-
-async function showDynamicProfile(username) {
-  if (!username) return;
-
-  DOM.profileNameEl.textContent = username;
-  DOM.profileBioEl.textContent = "Carregando bio...";
-  DOM.profileMoodEl.textContent = "Mood: ...";
-  DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Carregando avaliações...</div>";
-  DOM.testimonialsEl.innerHTML = "<div class='meta'>Carregando depoimentos...</div>";
-  DOM.friendsContainer.innerHTML = "<div class='meta'>Carregando amigos...</div>";
-  renderAvatar(DOM.profileAvatarEl, { user: username, avatar_url: null });
-  
-  // Reset da Vibe do Dia
-  const vibeBox = document.getElementById('profileVibe');
-  vibeBox.hidden = true;
-
-  DOM.ratingVoteButtons.forEach(button => {
-      button.classList.remove('active', 'active-negative');
-  });
-  
-  DOM.profileAvatarEl.classList.remove('is-owner');
-  DOM.avatarUploadLabel.style.display = 'none';
-  DOM.editBioBtn.disabled = true;
-  DOM.ratingsVoteContainer.hidden = true;
-  DOM.testimonialFormContainer.hidden = true;
-  DOM.dmBtn.style.display = 'none';
-  
-  apiGetProfile(username);
-  apiGetTestimonials(username);
-  apiGetFollowing(username); 
-  
-  // 👇 BUSCAR VIBE DO DIA 👇
-  try {
-      const res = await fetch(`/api/profile/${encodeURIComponent(username)}/vibe`);
-      if (res.ok) {
-          const data = await res.json();
-          const vibe = data.vibe;
-          if (vibe) {
-              const vibeText = document.getElementById('profileVibeText');
-              vibeText.textContent = vibe.message;
-              vibeBox.style.borderLeftColor = vibe.color;
-              vibeBox.hidden = false;
-          }
-      }
-  } catch (e) {
-      console.error("Erro ao carregar vibe:", e);
-  }
-
-  if (username === currentUser) {
-    DOM.editBioBtn.textContent = "Editar bio";
-    DOM.editBioBtn.onclick = apiUpdateBio;
-    DOM.editBioBtn.disabled = false;
-    DOM.editBioBtn.style.display = 'flex';
-    DOM.profileAvatarEl.classList.add('is-owner');
-    
-  } else {
-    DOM.testimonialFormContainer.hidden = false;
-    DOM.dmBtn.style.display = 'flex';
-    DOM.ratingsVoteContainer.hidden = false;
-    DOM.dmBtn.onclick = () => startDM(username);
-    
-    try {
-      const res = await fetch(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(currentUser)}`);
-      const data = await res.json();
-      if (data.isFollowing) {
-        DOM.editBioBtn.textContent = "Deixar de Seguir";
-        DOM.editBioBtn.onclick = () => apiUnfollow(username);
-      } else {
-        DOM.editBioBtn.textContent = "Seguir"; 
-        DOM.editBioBtn.onclick = () => apiFollow(username);
-      }
-      DOM.editBioBtn.disabled = false;
-      DOM.editBioBtn.style.display = 'flex';
-    } catch (err) {
-      console.error("Erro ao verificar 'follow':", err);
-      DOM.editBioBtn.textContent = "Erro";
-      DOM.editBioBtn.style.display = 'flex';
-    }
-  }
-}
-
-async function apiFollow(username) {
-  DOM.editBioBtn.disabled = true;
-  try {
-    await fetch('/api/follow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ follower: currentUser, following: username })
-    });
-    DOM.editBioBtn.textContent = "Deixar de Seguir";
-    DOM.editBioBtn.onclick = () => apiUnfollow(username);
-    DOM.editBioBtn.disabled = false;
-    apiGetFollowing(viewedUsername); 
-    showToast(`Você agora segue ${username}`, "success");
-  } catch (err) {
-    console.error("Erro ao seguir:", err);
-    DOM.editBioBtn.disabled = false;
-    showToast("Erro ao seguir.", "error");
-  }
-}
-async function apiUnfollow(username) {
-  DOM.editBioBtn.disabled = true;
-  try {
-    await fetch('/api/unfollow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ follower: currentUser, following: username })
-    });
-    DOM.editBioBtn.textContent = "Seguir";
-    DOM.editBioBtn.onclick = () => apiFollow(username);
-    DOM.editBioBtn.disabled = false;
-    apiGetFollowing(viewedUsername); 
-    showToast(`Você deixou de seguir ${username}`, "info");
-  } catch (err) {
-    console.error("Erro ao deixar de seguir:", err);
-    DOM.editBioBtn.disabled = false;
-    showToast("Erro ao deixar de seguir.", "error");
-  }
-}
-
-
-// ===================================================
-// 7. INICIALIZAÇÃO
-// ===================================================
-
-function mapAppDOM() {
-    DOM.chatView = document.getElementById("view-chat"); 
-    DOM.chatMessagesEl = document.getElementById("messages");
-    DOM.chatTopicBadge = document.getElementById("topic");
-    DOM.chatInputEl = document.getElementById("composerInput");
-    DOM.chatSendBtn = document.getElementById("sendBtn");
-    DOM.feedView = document.getElementById("view-feed"); 
-    DOM.postsEl = document.getElementById("posts");
-    DOM.feedInput = document.getElementById("feedInput");
-    DOM.feedSend = document.getElementById("feedSend");
-    DOM.feedRefreshBtn = document.getElementById("btn-refresh");
-    DOM.exploreView = document.getElementById("view-explore"); 
-    DOM.explorePostsEl = document.getElementById("explore-posts");
-    DOM.btnExplore = document.getElementById("btn-explore");
-    DOM.btnExploreRefresh = document.getElementById("btn-explore-refresh");
-    DOM.profileView = document.getElementById("view-profile"); 
-    DOM.profileAvatarEl = document.getElementById("profileAvatar");
-    DOM.profileNameEl = document.getElementById("profileName");
-    DOM.profileBioEl = document.getElementById("profileBio");
-    DOM.profileMoodEl = document.getElementById("profileMood");
-    DOM.editBioBtn = document.getElementById("editBioBtn");
-    
-    DOM.userAvatarEl = document.getElementById("userAvatar");
-    DOM.avatarUploadInput = document.getElementById("avatar-upload-input");
-    DOM.avatarUploadLabel = document.getElementById("avatar-upload-label");
-
-    DOM.userbarMeBtn = document.getElementById("userbar-me");
-    DOM.userbarMoodContainer = document.getElementById("userbar-mood-container");
-    DOM.userbarMood = document.getElementById("userbar-mood");
-    DOM.friendsContainer = document.getElementById("friends"); 
-    DOM.testimonialsEl = document.getElementById("testimonials");
-    DOM.testimonialInput = document.getElementById("testimonialInput");
-    DOM.testimonialSend = document.getElementById("testimonialSend");
-    DOM.testimonialFormContainer = document.getElementById("testimonial-form-container");
-    
-    DOM.dmBtn = document.getElementById("dmBtn");
-    DOM.communityCard = document.querySelector('.community-card');
-    
-    DOM.modalView = document.getElementById("input-modal");
-    DOM.modalForm = document.getElementById("modal-form");
-    DOM.modalTitle = document.getElementById("modal-title");
-    DOM.modalInput = document.getElementById("modal-input");
-    DOM.modalSaveBtn = document.getElementById("modal-save-btn");
-    DOM.modalCancelBtn = document.getElementById("modal-cancel-btn");
-    
-    DOM.exploreServersView = document.getElementById("view-explore-servers");
-    DOM.exploreServersBtn = document.getElementById("explore-servers-btn");
-    DOM.communityListContainer = document.getElementById("community-list-container");
-    DOM.joinedServersList = document.getElementById("joined-servers-list"); 
-    DOM.createCommunityView = document.getElementById("view-create-community");
-    DOM.btnShowCreateCommunity = document.getElementById("btn-show-create-community");
-    DOM.btnCancelCreate = document.getElementById("btn-cancel-create");
-    DOM.createCommunityForm = document.getElementById("create-community-form");
-    
-    DOM.communityChannelBar = document.querySelector('aside.channels'); 
-    DOM.communityTopicList = document.getElementById('community-topic-list');
-    DOM.communityTopicView = document.getElementById('view-community-topics'); 
-    DOM.communityMembersView = document.getElementById('view-community-members'); 
-    DOM.communityTabs = document.querySelectorAll('.channels .view-tabs .pill'); 
-    DOM.communityChatChannelsList = document.getElementById('community-chat-channels');
-    DOM.currentCommunityNameEl = document.getElementById('current-community-name');
-    DOM.communityAvatarChannelEl = document.getElementById('community-avatar-channel');
-    DOM.communityMembersCountEl = document.getElementById('community-members-count');
-    
-    DOM.communityMemberList = document.getElementById("community-member-list");
-    DOM.communityMembersTitle = document.getElementById("community-members-title");
-
-    DOM.communityNameChannel = document.getElementById("community-name-channel");
-    DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
-    DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
-    DOM.btnLeaveCommunity = document.getElementById("btn-leave-community");
-
-    DOM.btnNewTopic = document.getElementById("btn-new-topic");
-    DOM.createTopicView = document.getElementById("view-create-topic");
-    DOM.createTopicForm = document.getElementById("create-topic-form");
-    DOM.topicTitleInput = document.getElementById("topic-title");
-    DOM.topicContentInput = document.getElementById("topic-content");
-    DOM.btnCancelTopic = document.getElementById("btn-cancel-topic");
-
-    DOM.ratingsDisplayContainer = document.getElementById("ratings-display-container");
-    DOM.ratingsVoteContainer = document.getElementById("ratings-vote-container");
-    DOM.ratingVoteButtons = document.querySelectorAll("#ratings-vote-container .mini-btn");
-    
-    DOM.appEl = document.querySelector(".app");
-    DOM.mainHeader = document.querySelector(".header"); 
-    DOM.channelsEl = document.querySelector(".channels");
-    DOM.serverBtns = document.querySelectorAll(".servers .server"); 
-    DOM.homeBtn = document.getElementById("home-btn"); 
-    
-    DOM.views = {
-        feed: DOM.feedView,
-        chat: DOM.chatView,
-        profile: DOM.profileView,
-        explore: DOM.exploreView,
-        "explore-servers": DOM.exploreServersView,
-        "create-community": DOM.createCommunityView,
-        "community-topics": DOM.communityTopicView, 
-        "community-members": DOM.communityMembersView,
-        "create-topic": DOM.createTopicView
+    $('#modal-title').textContent = title;
+    input.value = val;
+    input.placeholder = placeholder;
+    view.hidden = false;
+    input.focus();
+
+    // Remove listeners antigos para evitar duplicidade (Clean Code)
+    const form = $('#modal-form');
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+
+    newForm.onsubmit = (e) => {
+        e.preventDefault();
+        const cleanVal = input.value.trim();
+        if (cleanVal) onSave(cleanVal);
+        view.hidden = true;
     };
-
-    DOM.btnMobileMenu = document.getElementById("btn-mobile-menu");
-    DOM.serversList = document.querySelector(".servers");
-    DOM.btnCommunityMenu = document.getElementById("btn-community-menu"); 
-}
-
-function bindAppEvents() {
-    DOM.chatSendBtn.addEventListener("click", sendChatMessage);
-    DOM.chatInputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChatMessage(); });
     
-    // 👇 EVENTO DE DIGITAÇÃO (TYPING) 👇
-    DOM.chatInputEl.addEventListener("input", () => {
-        if (DOM.chatInputEl.value.length > 0) {
-            socket.emit('typing', { channel: activeChannel, user: currentUser });
+    // Rebind cancel button
+    $('#modal-cancel-btn').onclick = () => view.hidden = true;
+};
+
+// --- API Layer ---
+const api = {
+    async get(endpoint) {
+        try {
+            const res = await fetch(endpoint);
+            if (!res.ok) throw new Error(`API Error: ${res.status}`);
+            return await res.json();
+        } catch (err) {
+            console.error(err);
+            return null;
         }
-    });
+    },
 
-    DOM.postsEl.addEventListener("click", handlePostClick);
-    DOM.explorePostsEl.addEventListener("click", handlePostClick); 
-    
-    if (DOM.communityTopicList) {
-        DOM.communityTopicList.addEventListener("click", handlePostClick);
-    }
-    
-    DOM.feedSend.addEventListener("click", apiCreatePost);
-    DOM.feedRefreshBtn.addEventListener("click", apiGetPosts);
-    DOM.btnExploreRefresh.addEventListener("click", apiGetExplorePosts); 
-    DOM.testimonialSend.addEventListener("click", apiCreateTestimonial);
-    DOM.btnExplore.addEventListener("click", () => activateView("explore"));
-    DOM.userbarMeBtn.addEventListener("click", () => { viewedUsername = currentUser; activateView("profile"); });
-    DOM.userbarMoodContainer.addEventListener("click", apiUpdateMood);
-    DOM.homeBtn.addEventListener("click", () => { activateView("feed"); });
-    DOM.exploreServersBtn.addEventListener("click", () => { activateView("explore-servers"); });
-    
-    DOM.modalCancelBtn.addEventListener("click", () => {
-        DOM.modalView.hidden = true;
-    });
-    
-    DOM.avatarUploadInput.addEventListener("change", apiUploadAvatar);
-    DOM.profileAvatarEl.addEventListener("click", () => {
-      if (DOM.profileAvatarEl.classList.contains('is-owner')) {
-        DOM.avatarUploadInput.click();
-      }
-    });
-
-    DOM.friendsContainer.addEventListener("click", (e) => {
-      const friendLink = e.target.closest('.friend-card-name[data-username]');
-      if (friendLink) { viewedUsername = friendLink.dataset.username; activateView("profile"); }
-    });
-    
-    if (DOM.communityMemberList) {
-        DOM.communityMemberList.addEventListener("click", (e) => {
-          const memberLink = e.target.closest('.friend-card-name[data-username]');
-          if (memberLink) { 
-            viewedUsername = memberLink.dataset.username; 
-            activateView("profile"); 
-          }
-        });
-    }
-
-    DOM.communityListContainer.addEventListener("click", (e) => {
-      const joinButton = e.target.closest('.join-btn[data-community-id]');
-      if (joinButton) { const communityId = joinButton.dataset.communityId; apiJoinCommunity(communityId, joinButton); }
-    });
-    DOM.joinedServersList.addEventListener("click", (e) => {
-      const communityBtn = e.target.closest('.community-btn[data-community-id]');
-      if (communityBtn) { const communityId = communityBtn.dataset.communityId; activateCommunityView("topics", { community: communityId }); }
-    });
-    DOM.btnShowCreateCommunity.addEventListener("click", () => { activateView("create-community"); });
-    DOM.btnCancelCreate.addEventListener("click", () => { activateView("explore-servers"); });
-    DOM.createCommunityForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const name = document.getElementById("community-name").value.trim();
-        const emoji = document.getElementById("community-emoji").value.trim();
-        if (!name) return;
-        apiCreateCommunity(name, emoji, DOM.createCommunityForm.querySelector('button[type="submit"]'));
-    });
-    
-    DOM.btnNewTopic.addEventListener("click", () => {
-        activateView("create-topic"); 
-    });
-    DOM.btnCancelTopic.addEventListener("click", () => {
-        activateCommunityView("topics", { community: currentCommunityId });
-    });
-    DOM.createTopicForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        apiCreateCommunityPost(DOM.createTopicForm);
-    });
-    
-    DOM.communityTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const view = tab.dataset.communityView;
-            if (view) {
-                activateCommunityView(view, { community: currentCommunityId });
+    async post(endpoint, body) {
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Erro na requisição');
             }
-        });
-    });
+            return await res.json();
+        } catch (err) {
+            console.error(err);
+            toast(err.message, 'error');
+            return null;
+        }
+    },
     
-    DOM.ratingVoteButtons.forEach(button => {
-        button.addEventListener("click", () => {
-            const ratingType = button.dataset.rating;
-            
-            // Verifica se é ativo (seja normal ou negativo)
-            const isActive = button.classList.contains('active') || button.classList.contains('active-negative');
+    async upload(file) {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        formData.append('user', state.user);
+        
+        try {
+            const res = await fetch('/api/profile/avatar', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Erro no upload');
+            return await res.json();
+        } catch (err) {
+            toast(err.message, 'error');
+            return null;
+        }
+    }
+};
 
-            if (isActive) {
-                apiRemoveRating(ratingType);
+// --- Actions ---
+const actions = {
+    async loadFeed() {
+        const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
+        if (data) ui.renderPosts($('#posts'), data.posts || []);
+    },
+    
+    async loadExplore() {
+        const data = await api.get('/api/posts/explore');
+        if (data) ui.renderPosts($('#explore-posts'), data.posts || []);
+    },
+
+    async createPost() {
+        const input = $('#feedInput');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        $('#feedSend').disabled = true;
+        const res = await api.post('/api/posts', { user: state.user, text });
+        $('#feedSend').disabled = false;
+        
+        if (res) {
+            input.value = "";
+            actions.loadFeed();
+            toast("Post publicado!", "success");
+        }
+    },
+
+    async loadProfile(username) {
+        if (!username) return;
+        state.viewedUser = username;
+        ui.switchView('profile');
+
+        // Reset UI
+        $('#profileName').textContent = username;
+        renderAvatar($('#profileAvatar'), { user: username });
+        $('#profileVibe').hidden = true;
+        
+        // Parallel fetching (Performance)
+        const [data, following, testimonials] = await Promise.all([
+            api.get(`/api/profile/${encodeURIComponent(username)}?viewer=${encodeURIComponent(state.user)}`),
+            api.get(`/api/following/${encodeURIComponent(username)}`),
+            api.get(`/api/testimonials/${encodeURIComponent(username)}`)
+        ]);
+
+        if (data) {
+            $('#profileBio').textContent = data.profile.bio;
+            $('#profileMood').textContent = `Mood: ${data.profile.mood || "✨"}`;
+            renderAvatar($('#profileAvatar'), data.profile);
+            
+            ui.renderRatings(data.ratings);
+            ui.renderBadges(data.ratings.totals);
+            ui.renderVisitors(data.visitors || []);
+            
+            // Vibe do dia
+            api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
+                if (v && v.vibe) {
+                    $('#profileVibeText').textContent = v.vibe.message;
+                    $('#profileVibe').style.borderLeftColor = v.vibe.color;
+                    $('#profileVibe').hidden = false;
+                }
+            });
+
+            // Owner controls
+            const isOwner = username === state.user;
+            $('#editBioBtn').textContent = isOwner ? "Editar bio" : "Seguir";
+            $('#editBioBtn').disabled = false;
+            
+            if (isOwner) {
+                $('#userbar-mood').textContent = data.profile.mood || "✨";
+                renderAvatar($('#userAvatar'), data.profile);
+                $('#profileAvatar').classList.add('is-owner');
+                $('#editBioBtn').onclick = actions.editBio;
+                $('#ratings-vote-container').hidden = true;
+                $('#dmBtn').style.display = 'none';
+                $('#testimonial-form-container').hidden = true;
             } else {
-                apiAddRating(ratingType);
+                $('#profileAvatar').classList.remove('is-owner');
+                $('#ratings-vote-container').hidden = false;
+                $('#dmBtn').style.display = 'flex';
+                $('#testimonial-form-container').hidden = false;
+                $('#dmBtn').onclick = () => actions.startDM(username);
+                
+                // Check follow
+                api.get(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(state.user)}`)
+                    .then(f => {
+                        if (f && f.isFollowing) {
+                            $('#editBioBtn').textContent = "Deixar de Seguir";
+                            $('#editBioBtn').onclick = () => actions.toggleFollow(username, false);
+                        } else {
+                            $('#editBioBtn').onclick = () => actions.toggleFollow(username, true);
+                        }
+                    });
+            }
+        }
+        
+        if (following) ui.renderList($('#friends'), following.following, 'user');
+        if (testimonials) ui.renderTestimonials(testimonials.testimonials);
+    },
+
+    async toggleFollow(target, isFollowing) {
+        const endpoint = isFollowing ? '/api/follow' : '/api/unfollow';
+        const res = await api.post(endpoint, { follower: state.user, following: target });
+        if (res) {
+            toast(isFollowing ? `Seguindo ${target}` : `Deixou de seguir ${target}`, "success");
+            actions.loadProfile(target);
+        }
+    },
+
+    async vote(type) {
+        const btn = $(`button[data-rating="${type}"]`);
+        const isActive = btn.classList.contains('active') || btn.classList.contains('active-negative');
+        const endpoint = isActive ? '/api/profile/unrate' : '/api/profile/rate';
+        
+        const res = await api.post(endpoint, { from_user: state.user, to_user: state.viewedUser, rating_type: type });
+        if (res) {
+            actions.loadProfile(state.viewedUser); // Atualização otimista
+            toast(isActive ? "Voto removido" : "Voto enviado!", "success");
+        }
+    },
+
+    async loadCommunity(id) {
+        state.communityId = id;
+        ui.switchView('community');
+        
+        const details = await api.get(`/api/community/${id}/details`);
+        if (details) {
+            $('#community-name-channel').textContent = details.community.name;
+            $('#community-avatar-channel').textContent = details.community.emoji;
+            
+            const isOwner = details.community.owner_user === state.user;
+            $('#btn-edit-community').hidden = !isOwner;
+            
+            actions.loadTopics(id);
+            actions.loadMembers(id);
+        }
+    },
+
+    async loadTopics(id) {
+        const data = await api.get(`/api/community/${id}/posts`);
+        if (data) ui.renderTopics(data.posts);
+    },
+    
+    async loadMembers(id) {
+        const data = await api.get(`/api/community/${id}/members`);
+        if (data) {
+            ui.renderList($('#community-member-list'), data.members, 'user');
+            $('#community-members-count').textContent = `${data.members.length} membros`;
+        }
+    },
+
+    async editBio() {
+        modal({
+            title: "Editar Bio",
+            val: $('#profileBio').textContent,
+            onSave: async (bio) => {
+                const res = await api.post('/api/profile', { user: state.user, bio });
+                if (res) {
+                    $('#profileBio').textContent = res.bio;
+                    toast("Bio salva!", "success");
+                }
             }
         });
+    },
+
+    startDM(target) {
+        if (target === state.user) return;
+        state.currentChannel = [state.user, target].sort().join('_');
+        
+        ui.switchView('chat');
+        $('#messages').innerHTML = "";
+        $('#topic').textContent = `@ ${target}`;
+        
+        socket.emit('joinChannel', { channel: state.currentChannel, user: state.user });
+    }
+};
+
+// --- UI Renderers ---
+const ui = {
+    switchView(viewName) {
+        // Hide all sections
+        $$('.app > section, .app > main').forEach(el => el.hidden = true);
+        
+        // Manage Layout classes
+        const app = $('.app');
+        app.classList.remove('view-home', 'view-community');
+        
+        // Reset sidebar active states
+        $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
+
+        // Logic
+        if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
+            app.classList.add('view-home');
+            $('.header').hidden = false;
+            $('.channels').hidden = true;
+            
+            if (viewName === 'feed') $('#home-btn').classList.add('active');
+            if (viewName === 'explore') $('#btn-explore').classList.add('active');
+            if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
+            
+        } else if (viewName === 'community' || viewName === 'chat') {
+            app.classList.add('view-community');
+            $('.header').hidden = true;
+            $('.channels').hidden = false;
+
+            if (viewName === 'community') {
+                $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active');
+                // Show topics by default
+                $('#view-community-topics').hidden = false;
+                return;
+            }
+        }
+
+        // Show target view
+        const map = {
+            'feed': 'view-feed',
+            'explore': 'view-explore',
+            'profile': 'view-profile',
+            'explore-servers': 'view-explore-servers',
+            'chat': 'view-chat'
+        };
+        if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
+    },
+
+    renderPosts(container, posts) {
+        container.innerHTML = posts.length ? "" : "<div class='meta p-4'>Nada por aqui ainda.</div>";
+        
+        posts.forEach(p => {
+            const node = document.createElement("div");
+            node.className = "post";
+            
+            const date = new Date(p.timestamp).toLocaleString('pt-BR');
+            const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
+
+            node.innerHTML = `
+                <div class="avatar-display post-avatar"></div>
+                <div>
+                    <div class="meta"><strong class="post-username" data-u="${escape(p.user)}">${escape(p.user)}</strong> • ${date}</div>
+                    <div id="post-text-${p.id}">${escape(p.text)}</div>
+                    <div class="post-actions">
+                        <button class="mini-btn" onclick="likePost(${p.id})">❤ ${p.likes || 0}</button>
+                        <button class="mini-btn" onclick="commentPost(${p.id})">Comentar</button>
+                        ${editBtn}
+                    </div>
+                    <div class="comments" id="comments-${p.id}"></div>
+                </div>
+            `;
+            
+            renderAvatar(node.querySelector('.avatar-display'), p);
+            // Click handlers
+            node.querySelector('.post-username').onclick = () => actions.loadProfile(p.user);
+            container.appendChild(node);
+
+            // Load comments async
+            api.get(`/api/posts/${p.id}/comments`).then(d => {
+                if(d && d.comments.length) {
+                    $(`#comments-${p.id}`).innerHTML = d.comments.map(c => 
+                        `<div class="meta"><strong>${escape(c.user)}</strong>: ${escape(c.text)}</div>`
+                    ).join('');
+                }
+            });
+        });
+    },
+
+    renderTopics(posts) {
+        ui.renderPosts($('#community-topic-list'), posts);
+        $('#view-community-topics').hidden = false;
+        $('#view-community-members').hidden = true;
+        $$('.view-tabs .pill').forEach(p => p.classList.remove('active'));
+        $$('.view-tabs .pill')[0].classList.add('active'); // Tab topics
+    },
+
+    renderList(container, list, keyName = 'user') {
+        container.innerHTML = list.length ? "" : "<div class='meta'>Lista vazia.</div>";
+        list.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'friend-card';
+            el.innerHTML = `<div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div>
+                            <strong class="friend-card-name" data-u="${item[keyName]}">${escape(item[keyName])}</strong>`;
+            renderAvatar(el.querySelector('.avatar-display'), item);
+            el.querySelector('strong').onclick = () => actions.loadProfile(item[keyName]);
+            container.appendChild(el);
+        });
+    },
+
+    renderRatings(data) {
+        const container = $('#ratings-display-container');
+        const totals = data.totals;
+        const myVotes = data.userVotes || [];
+        
+        container.innerHTML = "";
+        
+        const types = [
+            { k: 'confiavel', i: '😊', l: 'Confiável' },
+            { k: 'legal', i: '🧊', l: 'Legal' },
+            { k: 'divertido', i: '🥳', l: 'Divertido' },
+            { k: 'falso', i: '🤥', l: 'Falso', neg: true },
+            { k: 'chato', i: '😴', l: 'Chato', neg: true },
+            { k: 'toxico', i: '☠️', l: 'Tóxico', neg: true }
+        ];
+
+        types.forEach(t => {
+            if (totals[t.k] > 0) {
+                const div = document.createElement('div');
+                div.className = `rating-item ${t.neg ? 'negative-stat' : ''}`;
+                div.innerHTML = `<span class="rating-icon">${t.i}</span>
+                                 <span class="rating-label">${t.l}</span>
+                                 <span class="rating-count">${totals[t.k]}</span>`;
+                container.appendChild(div);
+            }
+        });
+
+        // Update Buttons State
+        $$('#ratings-vote-container .mini-btn').forEach(btn => {
+            const type = btn.dataset.rating;
+            btn.className = 'mini-btn'; // reset
+            if (myVotes.includes(type)) {
+                btn.classList.add(['falso','chato','toxico'].includes(type) ? 'active-negative' : 'active');
+            }
+        });
+    },
+
+    renderBadges(totals) {
+        const container = $('#profile-badges') || (() => {
+            const span = document.createElement('span');
+            span.id = 'profile-badges';
+            span.style.marginLeft = '8px';
+            $('#profileName').parentElement.appendChild(span);
+            return span;
+        })();
+        
+        container.innerHTML = '';
+        const badges = [
+            { k: 'confiavel', i: '🛡️', t: 'Guardião' },
+            { k: 'legal', i: '🧊', t: 'Gente Boa' },
+            { k: 'divertido', i: '🎭', t: 'A Lenda' },
+            { k: 'toxico', i: '☣️', t: 'PERIGO' },
+            { k: 'falso', i: '🤥', t: 'Pinóquio' },
+            { k: 'chato', i: '💤', t: 'Soneca' }
+        ];
+
+        badges.forEach(b => {
+            if (totals[b.k] > 0) {
+                const s = document.createElement('span');
+                s.className = 'user-badge';
+                s.textContent = b.i;
+                s.onclick = () => toast(b.t, 'info');
+                container.appendChild(s);
+            }
+        });
+    },
+    
+    renderVisitors(list) {
+        const container = $('#recent-visitors');
+        if(!container) return;
+        container.innerHTML = list.length ? "" : "<div class='meta'>Ninguém visitou ainda.</div>";
+        
+        list.forEach(v => {
+            const el = document.createElement("div");
+            el.className = "friend-card";
+            
+            const time = new Date(v.timestamp);
+            const timeStr = time.toDateString() === new Date().toDateString() 
+                ? time.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) 
+                : time.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+
+            el.innerHTML = `
+                <div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div>
+                <strong class="friend-card-name" data-u="${v.user}">${escape(v.user)}</strong>
+                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:auto">${timeStr}</span>
+            `;
+            renderAvatar(el.querySelector('.avatar-display'), v);
+            el.querySelector('strong').onclick = () => actions.loadProfile(v.user);
+            container.appendChild(el);
+        });
+    }
+};
+
+// --- Event Binding ---
+const bindEvents = () => {
+    // Auth
+    $('#login-form').onsubmit = (e) => {
+        e.preventDefault();
+        const user = $('#login-username-input').value.trim();
+        if(user) {
+            state.user = user;
+            localStorage.setItem("agora:user", user);
+            init();
+        }
+    };
+
+    // Navigation
+    $('#home-btn').onclick = actions.loadFeed;
+    $('#btn-explore').onclick = actions.loadExplore;
+    $('#btn-explore-refresh').onclick = actions.loadExplore;
+    $('#btn-refresh').onclick = actions.loadFeed;
+    $('#explore-servers-btn').onclick = () => {
+        ui.switchView('explore-servers');
+        api.get(`/api/communities/explore?user_name=${state.user}`).then(d => {
+            if(d) {
+                const cont = $('#community-list-container');
+                cont.innerHTML = "";
+                d.communities.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'community-card-explore';
+                    div.innerHTML = `<div class="emoji">${c.emoji}</div>
+                        <div class="community-card-explore-info"><h3>${escape(c.name)}</h3><div class="meta">${escape(c.description)}</div></div>
+                        <button class="join-btn">Entrar</button>`;
+                    div.querySelector('button').onclick = async () => {
+                        await api.post('/api/community/join', { user_name: state.user, community_id: c.id });
+                        init(); // Reload sidebar
+                        actions.loadCommunity(c.id);
+                        toast(`Bem-vindo a ${c.name}!`, 'success');
+                    };
+                    cont.appendChild(div);
+                });
+            }
+        });
+    };
+
+    // Posting
+    $('#feedSend').onclick = actions.createPost;
+    $('#userbar-mood-container').onclick = () => {
+        modal({ title: "Novo Mood", val: $('#userbar-mood').textContent, onSave: async (m) => {
+            const r = await api.post('/api/profile/mood', { user: state.user, mood: m });
+            if(r) $('#userbar-mood').textContent = r.mood;
+        }});
+    };
+    
+    // Profile
+    $('#userbar-me').onclick = () => actions.loadProfile(state.user);
+    $('#avatar-upload-input').onchange = (e) => api.upload(e.target.files[0]).then(() => actions.loadProfile(state.user));
+    
+    // Ratings
+    $$('#ratings-vote-container .mini-btn').forEach(btn => {
+        btn.onclick = () => actions.vote(btn.dataset.rating);
     });
 
-    const toggleServersMenu = () => {
-        if (DOM.serversList) {
-            DOM.serversList.classList.toggle("is-open");
+    // Community Creation
+    $('#btn-show-create-community').onclick = () => ui.switchView('create-community');
+    $('#btn-cancel-create').onclick = () => ui.switchView('explore-servers');
+    $('#create-community-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const name = $('#community-name').value;
+        const emoji = $('#community-emoji').value;
+        const res = await api.post('/api/communities/create', { name, emoji, creator: state.user });
+        if (res) {
+            init();
+            actions.loadCommunity(res.community.id);
+            toast("Comunidade criada!", 'success');
         }
     };
     
-    if (DOM.btnMobileMenu) {
-        DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
-    }
-    if (DOM.btnCommunityMenu) {
-        DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
-    }
-
-    if (DOM.serversList) {
-        DOM.serversList.addEventListener("click", (e) => {
-            if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
-                if (e.target.closest(".server") || e.target.closest(".add-btn")) {
-                    DOM.serversList.classList.remove("is-open");
-                }
+    // Chat / Typing
+    $('#sendBtn').onclick = () => {
+        const txt = $('#composerInput').value.trim();
+        if(txt) {
+            socket.emit('sendMessage', { channel: state.currentChannel || state.activeChannel, user: state.user, message: txt });
+            $('#composerInput').value = "";
+        }
+    };
+    $('#composerInput').oninput = () => {
+        if($('#composerInput').value.length > 0) socket.emit('typing', { channel: state.currentChannel, user: state.user });
+    };
+    $('#composerInput').onkeydown = (e) => { if(e.key === "Enter") $('#sendBtn').click(); };
+    
+    // Community Sub-nav
+    $$('.view-tabs .pill').forEach(pill => {
+        pill.onclick = () => {
+            const view = pill.dataset.communityView;
+            if(view === 'topics') {
+                $('#view-community-topics').hidden = false;
+                $('#view-community-members').hidden = true;
+            } else {
+                $('#view-community-topics').hidden = true;
+                $('#view-community-members').hidden = false;
             }
+            $$('.view-tabs .pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+        };
+    });
+    
+    // Create Topic
+    $('#btn-new-topic').onclick = () => ui.switchView('create-topic');
+    $('#btn-cancel-topic').onclick = () => actions.loadCommunity(state.communityId);
+    $('#create-topic-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const res = await api.post('/api/community/posts', {
+            community_id: state.communityId, user: state.user,
+            title: $('#topic-title').value, content: $('#topic-content').value
+        });
+        if(res) {
+            actions.loadCommunity(state.communityId);
+            toast("Tópico criado", "success");
+            $('#topic-title').value = ""; $('#topic-content').value = "";
+        }
+    };
+
+    // Mobile Menu
+    const toggleMenu = () => $('.servers').classList.toggle('is-open');
+    if($('#btn-mobile-menu')) $('#btn-mobile-menu').onclick = toggleMenu;
+    if($('#btn-community-menu')) $('#btn-community-menu').onclick = toggleMenu;
+    $('.servers').onclick = (e) => { if(window.innerWidth <= 640 && (e.target.closest('.server') || e.target.closest('.add-btn'))) toggleMenu(); };
+};
+
+// --- Global Functions for HTML access (onclick) ---
+window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed()); // Simple reload
+window.commentPost = (id) => {
+    modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => {
+        await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt });
+        actions.loadFeed(); // Refresh
+    }});
+};
+window.editPost = (id) => {
+    const txt = $(`#post-text-${id}`).innerText;
+    modal({ title: "Editar", val: txt, onSave: async (newTxt) => {
+        await api.post(`/api/posts/${id}/update`, { user: state.user, text: newTxt });
+        $(`#post-text-${id}`).innerText = newTxt;
+    }});
+};
+
+// --- Socket Events ---
+socket.on('connect', () => console.log('WS Connected'));
+socket.on('loadHistory', (msgs) => {
+    $('#messages').innerHTML = "";
+    msgs.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'msg';
+        div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
+                         <div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`;
+        renderAvatar(div.querySelector('.avatar-display'), m);
+        $('#messages').appendChild(div);
+    });
+    $('#messages').scrollTop = $('#messages').scrollHeight;
+});
+socket.on('newMessage', (m) => {
+    if(state.currentChannel) { // Check if we are in chat view
+        // Simplistic append
+        const div = document.createElement('div');
+        div.className = 'msg';
+        div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
+                         <div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`;
+        renderAvatar(div.querySelector('.avatar-display'), m);
+        $('#messages').appendChild(div);
+        $('#messages').scrollTop = $('#messages').scrollHeight;
+    }
+});
+socket.on('displayTyping', (data) => {
+    const ind = $('#typing-indicator');
+    if(!ind) return;
+    $('#typer-name').textContent = data.user;
+    ind.hidden = false;
+    if(typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => ind.hidden = true, 3000);
+});
+socket.on('rating_update', (data) => {
+    if(state.viewedUser === data.target_user) actions.loadProfile(state.viewedUser);
+});
+
+// --- Init ---
+const init = async () => {
+    if(!state.user) {
+        $('#login-view').hidden = false;
+        $('.app').hidden = true;
+        return;
+    }
+    $('#login-view').hidden = true;
+    $('.app').hidden = false;
+    $('#userName').textContent = state.user;
+    socket.connect();
+    
+    // Sidebar
+    const data = await api.get(`/api/communities/joined?user_name=${encodeURIComponent(state.user)}`);
+    const list = $('#joined-servers-list');
+    list.innerHTML = "";
+    if(data) {
+        data.communities.forEach(c => {
+            const div = document.createElement('div');
+            div.className = `server community-btn`;
+            div.innerHTML = `<span class="emoji">${c.emoji}</span>`;
+            div.onclick = () => actions.loadCommunity(c.id);
+            div.dataset.communityId = c.id;
+            list.appendChild(div);
         });
     }
-
-    DOM.btnEditCommunity.addEventListener("click", () => {
-        const currentName = DOM.communityNameChannel.textContent;
-        const currentEmoji = DOM.communityAvatarChannel.textContent; 
-
-        openInputModal({
-            title: "Editar Nome da Comunidade",
-            initialValue: currentName,
-            onSave: async (newName) => {
-                try {
-                    const res = await fetch(`/api/community/${currentCommunityId}/update`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: newName,
-                            emoji: currentEmoji, 
-                            user: currentUser 
-                        })
-                    });
-
-                    if (!res.ok) {
-                        const err = await res.json();
-                        throw new Error(err.error);
-                    }
-                    
-                    const data = await res.json();
-                    renderCommunityDetails(data.community); 
-                    showToast("Comunidade atualizada!", "success");
-
-                } catch (err) {
-                    console.error("Falha ao atualizar comunidade:", err);
-                    showToast(`Erro ao salvar: ${err.message}`, "error");
-                    apiGetCommunityDetails(currentCommunityId);
-                }
-            }
-        });
+    
+    // My Avatar
+    api.get(`/api/profile/${state.user}`).then(d => {
+        if(d) renderAvatar($('#userAvatar'), d.profile);
     });
 
-    if (DOM.btnLeaveCommunity) {
-        DOM.btnLeaveCommunity.addEventListener("click", apiLeaveCommunity);
-    }
-}
+    actions.loadFeed();
+};
 
-function startApp() {
-  mapAppDOM();
-  bindAppEvents();
-  
-  document.getElementById("userName").textContent = currentUser;
-  
-  apiGetJoinedCommunities(); 
-  apiGetProfile(currentUser);
-  
-  activateView("feed"); 
-  DOM.appEl.hidden = false;
-  LoginDOM.view.hidden = true;
-}
-
-function handleLoginSubmit(e) {
-    e.preventDefault();
-    const username = LoginDOM.input.value.trim();
-    if (!username) return;
-    
-    currentUser = username;
-    viewedUsername = currentUser;
-    localStorage.setItem("agora:user", currentUser);
-    
-    socket.connect();
-    startApp();
-}
-
-function checkLogin() {
-    LoginDOM.view = document.getElementById('login-view');
-    LoginDOM.form = document.getElementById('login-form');
-    LoginDOM.input = document.getElementById('login-username-input');
-    DOM.appEl = document.querySelector(".app"); 
-
-    const storedUser = localStorage.getItem("agora:user");
-    
-    if (storedUser && storedUser.trim()) {
-        currentUser = storedUser.trim();
-        viewedUsername = currentUser;
-        
-        socket.connect();
-        startApp();
-    } else {
-        LoginDOM.view.hidden = false;
-        DOM.appEl.hidden = true;
-        LoginDOM.form.addEventListener('submit', handleLoginSubmit);
-    }
-}
-
-checkLogin();
+// Start
+bindEvents();
+init();
