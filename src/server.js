@@ -1,19 +1,26 @@
 // src/server.js
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io'); // Re-adicionado
+const { Server } = require('socket.io');
 const path = require('path');
 const db = require('./models/db');
 
 // --- CONFIGURAÇÃO INICIAL ---
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server); // Re-adicionado
+const io = new Server(server);
 const port = process.env.PORT || 3000;
 
 // --- MIDDLEWARES ---
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
+
+// 👇 NOVO: Middleware para injetar o 'io' nas requisições 👇
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+// 👆 Agora os controladores podem usar req.io.emit() 👆
 
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
@@ -40,9 +47,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'agora.html')); 
 });
 
-// --- LÓGICA DO SOCKET.IO (Apenas para DMs) ---
-const { initializeSocket } = require('./socket/chat.handler'); // Re-adicionado
-initializeSocket(io); // Re-adicionado
+// --- LÓGICA DO SOCKET.IO (Chat) ---
+const { initializeSocket } = require('./socket/chat.handler');
+initializeSocket(io);
 
 
 // --- INICIAR O SERVIDOR ---

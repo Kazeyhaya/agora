@@ -81,6 +81,12 @@ const addProfileRating = async (req, res) => {
         if (from_user === to_user) return res.status(400).json({ error: 'Não pode avaliar a si mesmo.' });
         
         await Profile.addRating(from_user, to_user, rating_type);
+        
+        // 👇 NOTIFICAÇÃO EM TEMPO REAL 👇
+        if (req.io) {
+            req.io.emit('rating_update', { target_user: to_user });
+        }
+        
         res.status(201).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador addProfileRating:", err);
@@ -95,6 +101,12 @@ const removeProfileRating = async (req, res) => {
         if (!from_user || !to_user || !rating_type) return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         
         await Profile.removeRating(from_user, to_user, rating_type);
+
+        // 👇 NOTIFICAÇÃO EM TEMPO REAL 👇
+        if (req.io) {
+            req.io.emit('rating_update', { target_user: to_user });
+        }
+
         res.status(200).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador removeProfileRating:", err);
@@ -102,7 +114,6 @@ const removeProfileRating = async (req, res) => {
     }
 };
 
-// 👇 NOVO CONTROLADOR: Vibe do Dia 👇
 const getDailyVibe = async (req, res) => {
     try {
         const { username } = req.params;
@@ -173,7 +184,7 @@ module.exports = {
   updateUserAvatar,
   addProfileRating,
   removeProfileRating,
-  getDailyVibe, // <-- Exportado
+  getDailyVibe,
   getFollowingList,
   getIsFollowing,
   addFollow,

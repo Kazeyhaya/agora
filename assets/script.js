@@ -281,7 +281,7 @@ function renderRatings(ratings) {
     if (!DOM.ratingsDisplayContainer) return;
     
     const totals = ratings.totals; 
-    const userVotes = ratings.userVotes || []; 
+    // const userVotes = ratings.userVotes || []; // (Pode ser usado para estilizar botões no futuro)
 
     DOM.ratingsDisplayContainer.innerHTML = "";
     
@@ -327,6 +327,7 @@ async function apiAddRating(ratingType) {
             throw new Error(err.error);
         }
         
+        // A atualização visual virá pelo Socket, mas podemos forçar um update local também
         apiGetProfile(viewedUsername); 
         showToast("Avaliação enviada!", "success");
         
@@ -909,6 +910,16 @@ socket.on('loadHistory', (messages) => {
 socket.on('newMessage', (data) => {
   if (data.channel === activeChannel) { addMessageBubble(data); }
 });
+
+// 👇 OUINTE DO SOCKET PARA ATUALIZAÇÃO DE AVALIAÇÕES 👇
+socket.on('rating_update', (data) => {
+    // Se o perfil que eu estou vendo (viewedUsername) recebeu uma avaliação...
+    if (viewedUsername === data.target_user) {
+        // ... recarrega o perfil na tela
+        apiGetProfile(viewedUsername);
+    }
+});
+
 
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
