@@ -832,42 +832,6 @@ function renderExploreCommunities(communities) {
   });
 }
 
-// --- FUNÇÃO LUCKY DIP (Comunidade Aleatória) ---
-async function apiLuckyDip() {
-    const btn = document.getElementById('lucky-btn');
-    btn.disabled = true;
-    
-    btn.style.transition = "transform 1s";
-    btn.style.transform = "rotate(360deg)";
-
-    try {
-        const res = await fetch('/api/community/lucky', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_name: currentUser })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            throw new Error(data.error);
-        }
-
-        showToast(data.message, 'magic');
-        renderJoinedCommunities([data.community]); 
-        activateCommunityView("topics", { community: data.community.id }); 
-
-    } catch (err) {
-        console.error("Sorte falhou:", err);
-        showToast(err.message || "Falha ao testar a sorte.", 'error');
-    } finally {
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.style.transform = "none";
-        }, 1000);
-    }
-}
-
 // ===================================================
 // 3. LÓGICA DO CHAT (Apenas para DMs)
 // ===================================================
@@ -1443,12 +1407,7 @@ function bindAppEvents() {
     if (DOM.btnLeaveCommunity) {
         DOM.btnLeaveCommunity.addEventListener("click", apiLeaveCommunity);
     }
-    
-    const luckyBtn = document.getElementById("lucky-btn");
-    if (luckyBtn) {
-        luckyBtn.addEventListener("click", apiLuckyDip);
-    }
-}
+  }    
 
 function startApp() {
   console.log('Socket conectado:', socket.id);

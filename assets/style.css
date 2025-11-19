@@ -620,22 +620,6 @@ a{color:inherit;text-decoration:none}
   to { opacity: 0; transform: translateY(10px); }
 }
 
-/* --- NOVO: Botão "Estou com Sorte" --- */
-#lucky-btn {
-  background: linear-gradient(135deg, #FFD700, #FFA500); 
-  color: #000;
-  font-weight: bold;
-  border: none;
-  font-size: 1.2rem;
-  position: relative;
-  overflow: hidden;
-}
-#lucky-btn:hover {
-  transform: scale(1.1) rotate(5deg);
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-}
-
-
 /* Responsivo */
 #btn-mobile-menu {
   display: none; 
