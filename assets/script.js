@@ -1,3 +1,4 @@
+// assets/script.js
 // ===================================================
 // 1. ESTADO GLOBAL E OBJETOS DOM
 // ===================================================
@@ -1219,7 +1220,6 @@ function mapAppDOM() {
     DOM.communityNameChannel = document.getElementById("community-name-channel");
     DOM.communityAvatarChannel = document.getElementById("community-avatar-channel");
     DOM.btnEditCommunity = document.getElementById("btn-edit-community"); 
-    // 👇 ADICIONADO: Botão de Sair da Comunidade
     DOM.btnLeaveCommunity = document.getElementById("btn-leave-community");
 
     DOM.btnNewTopic = document.getElementById("btn-new-topic");
@@ -1353,19 +1353,29 @@ function bindAppEvents() {
     });
 
     const toggleServersMenu = () => {
-        DOM.serversList.classList.toggle("is-open");
+        // Verificação de segurança: só tenta adicionar classe se a lista existir
+        if (DOM.serversList) {
+            DOM.serversList.classList.toggle("is-open");
+        }
     };
     
-    DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
-    DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
+    if (DOM.btnMobileMenu) {
+        DOM.btnMobileMenu.addEventListener("click", toggleServersMenu);
+    }
+    if (DOM.btnCommunityMenu) {
+        DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
+    }
 
-    DOM.serversList.addEventListener("click", (e) => {
-        if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
-            if (e.target.closest(".server") || e.target.closest(".add-btn")) {
-                DOM.serversList.classList.remove("is-open");
+    // Verificação de segurança: Evita o erro de NULL se serversList não for encontrado
+    if (DOM.serversList) {
+        DOM.serversList.addEventListener("click", (e) => {
+            if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
+                if (e.target.closest(".server") || e.target.closest(".add-btn")) {
+                    DOM.serversList.classList.remove("is-open");
+                }
             }
-        }
-    });
+        });
+    }
 
     DOM.btnEditCommunity.addEventListener("click", () => {
         const currentName = DOM.communityNameChannel.textContent;
@@ -1407,7 +1417,7 @@ function bindAppEvents() {
     if (DOM.btnLeaveCommunity) {
         DOM.btnLeaveCommunity.addEventListener("click", apiLeaveCommunity);
     }
-  }    
+}
 
 function startApp() {
   console.log('Socket conectado:', socket.id);

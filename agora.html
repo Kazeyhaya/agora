@@ -40,6 +40,8 @@
 
 
   <div class="app" hidden>
+    
+    <aside class="servers" aria-label="Comunidades">
       <div id="home-btn" class="server active" title="Agora">
         <img src="/assets/Agora-logo.png" alt="Agora Home" style="width: 100%; height: 100%; object-fit: contain;">
       </div>
@@ -47,13 +49,11 @@
       <div class="divider"></div>
       <div id="joined-servers-list"></div>
       <div class="divider"></div>
-      <div class="divider"></div>
-
+      
       <button class="add-btn" id="explore-servers-btn" title="Explorar Comunidades">+</button>
     </aside>
 
     <header class="header" role="banner">
-      
       <button class="icon-btn" id="btn-mobile-menu" title="Menu">☰</button>
       
       <div class="brand" aria-label="Agora">
@@ -67,7 +67,6 @@
     </header>
 
     <aside class="channels" aria-label="Canais" hidden>
-      
       <button class="icon-btn" id="btn-community-menu" title="Menu">☰</button>
       
       <div class="community-card">
@@ -79,7 +78,6 @@
           
           <div style="margin-top: 8px; display: flex; gap: 8px;">
               <button class="mini-btn" id="btn-edit-community" hidden style="flex: 1;">Editar</button>
-              
               <button class="mini-btn" id="btn-leave-community" hidden style="flex: 1; background: var(--danger);">Sair</button>
           </div>
         </div>
@@ -89,7 +87,6 @@
           <button class="pill active" data-community-view="topics">Tópicos</button>
           <button class="pill" data-community-view="members">Membros</button> 
       </div>
-      
     </aside>
 
     <section class="feed" id="view-feed">
@@ -101,8 +98,7 @@
         <input class="input" id="feedInput" type="text" placeholder="Compartilhe algo..." />
         <button class="send" id="feedSend">Publicar</button>
       </div>
-      <div class="posts" id="posts">
-      </div>
+      <div class="posts" id="posts"></div>
     </section>
 
     <main class="chat" aria-live="polite" id="view-chat" hidden>
@@ -112,8 +108,7 @@
           <button class="icon-btn" title="Pesquisar" id="btn-search">🔎</button>
         </div>
       </div>
-      <div class="messages" id="messages" role="log">
-      </div>
+      <div class="messages" id="messages" role="log"></div>
       <div class="composer">
         <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem..." autocomplete="off" aria-label="Mensagem">
         <button class="send" id="sendBtn">Enviar</button>
@@ -152,7 +147,7 @@
                 <button class="mini-btn" data-rating="divertido">🥳 Divertido</button>
             </div>
           </div>
-          </div>
+        </div>
         
         <div class="card">
           <h3 style="margin-bottom:8px">Avaliações</h3>
@@ -168,8 +163,7 @@
           </div>
           
           <h3 style="margin:12px 0 8px">Amigos</h3>
-          <div class="friends" id="friends">
-          </div>
+          <div class="friends" id="friends"></div>
         </div>
       </div>
     </section>
@@ -179,8 +173,7 @@
         <div class="chat-topic"><div class="topic-badge">Explorar</div><span class="meta">— Todos os posts da rede</span></div>
         <div class="chat-actions"><button class="icon-btn" id="btn-explore-refresh">🔄</button></div>
       </div>
-      <div class="posts" id="explore-posts">
-      </div>
+      <div class="posts" id="explore-posts"></div>
     </section>
 
     <section class="explore-servers" id="view-explore-servers" hidden>
@@ -189,8 +182,7 @@
         <button class="mini-btn" id="btn-show-create-community">Criar a Minha</button>
         <p class="meta">Entre em comunidades públicas e faça novos amigos</p>
       </div>
-      <div class="community-list" id="community-list-container">
-      </div>
+      <div class="community-list" id="community-list-container"></div>
     </section>
 
     <section class="create-community" id="view-create-community" hidden>
@@ -218,8 +210,7 @@
             <div class="chat-topic"><div class="topic-badge" id="current-community-name">Nome Com.</div><span class="meta">— Fórum de Tópicos (Posts)</span></div>
             <div class="chat-actions"><button class="mini-btn" id="btn-new-topic">Novo Tópico</button></div>
         </div>
-        <div class="posts" id="community-topic-list">
-        </div>
+        <div class="posts" id="community-topic-list"></div>
     </section>
     
     <section class="community-content profile-body" id="view-community-members" hidden style="grid-template-columns: 1fr;">
@@ -227,8 +218,7 @@
             <h2 id="community-members-title">Membros da Comunidade</h2>
         </div>
         <div class="card">
-            <div class="friends" id="community-member-list">
-            </div>
+            <div class="friends" id="community-member-list"></div>
         </div>
     </section>
     
@@ -252,11 +242,9 @@
         </div>
     </section>
 
-
     <footer class="userbar" role="contentinfo">
       <div class="me clickable" id="userbar-me">
         <div class="avatar-display userbar-avatar" id="userAvatar">VC</div>
-        
         <div>
           <div id="userName"><strong id="userName">Você</strong> <span class="meta">@orklover</span></div>
           <div class="meta clickable" id="userbar-mood-container" title="Clique para mudar o seu mood">
