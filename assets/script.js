@@ -55,6 +55,7 @@ const modal = ({ title, val = '', placeholder = '', onSave }) => {
     view.hidden = false;
     input.focus();
 
+    // Remove listeners antigos clonando o elemento
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
@@ -117,7 +118,7 @@ const api = {
     }
 };
 
-// --- Actions (Funções Principais) ---
+// --- Actions ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -146,7 +147,6 @@ const actions = {
         }
     },
 
-    // 👇 Antiga apiGetProfile (agora loadProfile) 👇
     async loadProfile(username) {
         if (!username) return;
         state.viewedUser = username;
@@ -164,6 +164,7 @@ const actions = {
 
         if (data) {
             $('#profileBio').textContent = data.profile.bio;
+            // Atualiza o mood na página do perfil
             $('#profileMood').textContent = `Mood: ${data.profile.mood || "✨"}`;
             renderAvatar($('#profileAvatar'), data.profile);
             
@@ -171,6 +172,7 @@ const actions = {
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
             
+            // Vibe do dia
             api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
                 if (v && v.vibe) {
                     $('#profileVibeText').textContent = v.vibe.message;
@@ -184,7 +186,7 @@ const actions = {
             $('#editBioBtn').disabled = false;
             
             if (isOwner) {
-                // Atualiza a barra lateral também
+                // CORREÇÃO: Garante que a barra lateral (userbar) também atualize
                 $('#userbar-mood').textContent = data.profile.mood || "✨";
                 renderAvatar($('#userAvatar'), data.profile);
                 
@@ -281,7 +283,7 @@ const actions = {
         });
     },
     
-    // 👇 Antiga apiUpdateMood 👇
+    // Função de Editar Mood (Atualiza tudo de uma vez)
     async updateMood() {
         modal({ 
             title: "Novo Mood", 
@@ -289,11 +291,14 @@ const actions = {
             onSave: async (m) => {
                 const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
                 if(res) {
-                    // Atualiza em ambos os lugares visualmente
+                    // CORREÇÃO: Atualiza visualmente todos os locais
                     $('#userbar-mood').textContent = res.mood;
-                    if(!$('#profileMood').hidden) {
+                    
+                    // Se estiver no perfil, atualiza lá também
+                    if($('#profileMood')) {
                          $('#profileMood').textContent = `Mood: ${res.mood}`;
                     }
+                    
                     toast("Mood atualizado!", "success");
                 }
             }
@@ -466,6 +471,7 @@ const ui = {
                 const s = document.createElement('span');
                 s.className = 'user-badge';
                 s.textContent = b.i;
+                s.title = b.t;
                 s.onclick = () => toast(b.t, 'info');
                 container.appendChild(s);
             }
@@ -560,7 +566,7 @@ const bindEvents = () => {
     // Posting
     $('#feedSend').onclick = actions.createPost;
     
-    // Mood (Chama a função actions.updateMood agora)
+    // Mood (Corrigido: usa a função actions.updateMood)
     $('#userbar-mood-container').onclick = actions.updateMood;
     
     // Profile
@@ -761,9 +767,12 @@ const init = async () => {
         });
     }
     
-    // My Avatar
+    // My Avatar (CORREÇÃO DE MOOD AQUI TAMBÉM)
     api.get(`/api/profile/${state.user}`).then(d => {
-        if(d) renderAvatar($('#userAvatar'), d.profile);
+        if(d) {
+            renderAvatar($('#userAvatar'), d.profile);
+            $('#userbar-mood').textContent = d.profile.mood || "✨ novo";
+        }
     });
 
     ui.switchView('feed');
