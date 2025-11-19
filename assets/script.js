@@ -264,23 +264,48 @@ async function apiGetProfile(username) {
     renderRatings(ratingsData); 
     
     // 👇 NOVA CHAMADA: RENDERIZAR MEDALHAS 👇
-    renderBadges(ratingsData.totals);
-    
-    renderVisitors(visitorsData);
-
-    if (username === currentUser) {
-      if (DOM.userbarMood) {
-        DOM.userbarMood.textContent = profileData.mood || "✨";
+// 👇 FUNÇÃO DE GAMIFICAÇÃO (Versão Mobile-Friendly) 👇
+function renderBadges(totals) {
+  // 1. Encontra ou cria o container de badges
+  let badgeContainer = document.getElementById('profile-badges');
+  
+  if (!badgeContainer) {
+      const nameElement = document.getElementById('profileName');
+      if (nameElement) {
+          badgeContainer = document.createElement('span');
+          badgeContainer.id = 'profile-badges';
+          badgeContainer.style.marginLeft = '8px';
+          nameElement.parentElement.appendChild(badgeContainer);
+      } else {
+          return;
       }
-      renderAvatar(DOM.userAvatarEl, profileData);
-    }
-
-  } catch (err) { 
-    console.error("Falha ao buscar perfil:", err);
-    if (DOM.profileBioEl) DOM.profileBioEl.textContent = "Erro ao carregar bio.";
-    if (DOM.profileMoodEl) DOM.profileMoodEl.textContent = "Mood: (erro)";
-    if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
   }
+  
+  badgeContainer.innerHTML = ''; 
+
+  // 2. Regras das Medalhas
+  const badges = [];
+
+  if (totals.confiavel > 0)  badges.push({ icon: '🛡️', title: 'Guardião: Altamente Confiável' });
+  if (totals.legal > 0)      badges.push({ icon: '🧊', title: 'Gente Boa: Todo mundo gosta' });
+  if (totals.divertido > 0)  badges.push({ icon: '🎭', title: 'A Lenda: A alma da festa' });
+  
+  if (totals.toxico > 0)     badges.push({ icon: '☣️', title: 'PERIGO: Alta toxicidade detectada' });
+  if (totals.falso > 0)      badges.push({ icon: '🤥', title: 'Pinóquio: Não acredite em tudo' });
+  if (totals.chato > 0)      badges.push({ icon: '💤', title: 'Soneca: Traz o travesseiro' });
+
+  // 3. Renderiza
+  badges.forEach(badge => {
+      const span = document.createElement('span');
+      span.className = 'user-badge';
+      span.textContent = badge.icon;
+      span.title = badge.title; // Tooltip para PC (Mouse)
+      
+      // 👇 CORREÇÃO PARA MOBILE: Toque para ver o significado 👇
+      span.onclick = () => showToast(badge.title, 'info'); 
+      
+      badgeContainer.appendChild(span);
+  });
 }
 
 // 👇 NOVA FUNÇÃO PARA DESENHAR OS VISITANTES 👇
