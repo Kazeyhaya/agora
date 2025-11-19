@@ -251,6 +251,7 @@ async function apiGetProfile(username) {
     const data = await res.json(); 
     const profileData = data.profile;
     const ratingsData = data.ratings; 
+    const visitorsData = data.visitors || []; // Pega os visitantes
     
     if (DOM.profileBioEl) {
       DOM.profileBioEl.textContent = profileData.bio;
@@ -261,6 +262,9 @@ async function apiGetProfile(username) {
     renderAvatar(DOM.profileAvatarEl, profileData);
     
     renderRatings(ratingsData); 
+    
+    // 👇 RENDERIZAR VISITANTES 👇
+    renderVisitors(visitorsData);
 
     if (username === currentUser) {
       if (DOM.userbarMood) {
@@ -276,6 +280,58 @@ async function apiGetProfile(username) {
     if (DOM.ratingsDisplayContainer) DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Erro ao carregar avaliações.</div>";
   }
 } 
+
+// 👇 NOVA FUNÇÃO PARA DESENHAR OS VISITANTES 👇
+function renderVisitors(visitors) {
+    const container = document.getElementById('recent-visitors');
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (visitors.length === 0) {
+        container.innerHTML = "<div class='meta'>Ninguém visitou ainda.</div>";
+        return;
+    }
+
+    visitors.forEach(visitor => {
+        const node = document.createElement("div");
+        node.className = "friend-card"; 
+        // Reutilizamos o estilo de friend-card que já é bonitinho (avatar + nome)
+        
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'avatar-display';
+        avatarEl.style.width = '32px';
+        avatarEl.style.height = '32px';
+        avatarEl.style.borderRadius = '8px';
+        avatarEl.style.fontSize = '0.9rem';
+        renderAvatar(avatarEl, visitor); 
+        
+        const nameEl = document.createElement('strong');
+        nameEl.className = 'friend-card-name'; 
+        nameEl.dataset.username = visitor.user;
+        nameEl.textContent = escapeHtml(visitor.user);
+        
+        // Adicionamos a hora da visita (hover ou texto pequeno)
+        const timeEl = document.createElement('span');
+        timeEl.style.fontSize = '0.7rem';
+        timeEl.style.color = 'var(--text-secondary)';
+        timeEl.style.marginLeft = 'auto'; // Empurra para a direita
+        
+        const visitDate = new Date(visitor.timestamp);
+        const today = new Date();
+        const isToday = visitDate.toDateString() === today.toDateString();
+        
+        timeEl.textContent = isToday 
+            ? visitDate.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
+            : visitDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+
+        node.appendChild(avatarEl);
+        node.appendChild(nameEl);
+        node.appendChild(timeEl);
+        
+        container.appendChild(node);
+    });
+}
 
 function renderRatings(ratings) {
     if (!DOM.ratingsDisplayContainer) return;

@@ -778,3 +778,7 @@ a{color:inherit;text-decoration:none}
     grid-template-columns: 1fr;
   }
 }
+.friend-card {
+  /* ... estilos anteriores ... */
+  justify-content: flex-start; /* Garante que começa da esquerda */
+}

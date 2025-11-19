@@ -8,31 +8,35 @@ const getProfileBio = async (req, res) => {
         const { viewer } = req.query;
         
         const profile = await Profile.findByUser(username);
-        const ratings = await profile.getRatings(viewer); 
         
-        res.json({ profile, ratings }); 
+        // 👇 REGISTRAR VISITA 👇
+        if (viewer && viewer !== username) {
+            await profile.recordVisit(viewer);
+        }
+
+        // 👇 BUSCAR DADOS (Agora inclui visitantes) 👇
+        const ratings = await profile.getRatings(viewer); 
+        const visitors = await profile.getRecentVisitors(); 
+
+        // Envia tudo
+        res.json({ profile, ratings, visitors }); 
+        
     } catch (err) {
         console.error("Erro no controlador getProfileBio:", err);
         res.status(500).json({ error: 'Erro ao buscar perfil' });
     }
 };
 
-// [POST] /api/profile
+// ... (O resto do arquivo continua igual, apenas repeti para garantir integridade) ...
+
 const updateProfileBio = async (req, res) => {
     try {
         const { user, bio } = req.body;
-        
-        if (!user || bio === undefined) {
-            return res.status(400).json({ error: 'Utilizador e bio são obrigatórios' });
-        }
-        if (bio.length > 150) {
-            return res.status(400).json({ error: 'A bio não pode exceder 150 caracteres.' });
-        }
-
+        if (!user || bio === undefined) return res.status(400).json({ error: 'Utilizador e bio são obrigatórios' });
+        if (bio.length > 150) return res.status(400).json({ error: 'A bio não pode exceder 150 caracteres.' });
         const profile = await Profile.findByUser(user);
         profile.bio = bio;
         await profile.save();
-        
         res.status(200).json(profile);
     } catch (err) {
         console.error("Erro no controlador updateProfileBio:", err);
@@ -40,16 +44,11 @@ const updateProfileBio = async (req, res) => {
     }
 };
 
-// [POST] /api/profile/mood
 const updateUserMood = async (req, res) => {
     try {
         const { user, mood } = req.body;
-        if (!user || mood === undefined) {
-            return res.status(400).json({ error: 'Utilizador e mood são obrigatórios' });
-        }
-        if (mood.length > 30) {
-             return res.status(400).json({ error: 'O mood não pode exceder 30 caracteres.' });
-        }
+        if (!user || mood === undefined) return res.status(400).json({ error: 'Utilizador e mood são obrigatórios' });
+        if (mood.length > 30) return res.status(400).json({ error: 'O mood não pode exceder 30 caracteres.' });
         const newMood = await Profile.updateMood(user, mood);
         res.status(200).json({ mood: newMood });
     } catch (err) {
@@ -58,13 +57,11 @@ const updateUserMood = async (req, res) => {
     }
 };
 
-// [POST] /api/profile/avatar
 const updateUserAvatar = async (req, res) => {
     try {
         const { file, body } = req; 
         if (!file) return res.status(400).json({ error: 'Nenhum ficheiro enviado.' });
         if (!body.user) return res.status(400).json({ error: 'Utilizador não especificado.' });
-
         const newAvatarUrl = await Profile.updateAvatar(body.user, file.path);
         res.status(200).json({ avatar_url: newAvatarUrl });
     } catch (err) {
@@ -73,20 +70,13 @@ const updateUserAvatar = async (req, res) => {
     }
 };
 
-// [POST] /api/profile/rate
 const addProfileRating = async (req, res) => {
     try {
         const { from_user, to_user, rating_type } = req.body;
         if (!from_user || !to_user || !rating_type) return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         if (from_user === to_user) return res.status(400).json({ error: 'Não pode avaliar a si mesmo.' });
-        
         await Profile.addRating(from_user, to_user, rating_type);
-        
-        // 👇 NOTIFICAÇÃO EM TEMPO REAL 👇
-        if (req.io) {
-            req.io.emit('rating_update', { target_user: to_user });
-        }
-        
+        if (req.io) req.io.emit('rating_update', { target_user: to_user });
         res.status(201).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador addProfileRating:", err);
@@ -94,19 +84,12 @@ const addProfileRating = async (req, res) => {
     }
 };
 
-// [POST] /api/profile/unrate
 const removeProfileRating = async (req, res) => {
     try {
         const { from_user, to_user, rating_type } = req.body;
         if (!from_user || !to_user || !rating_type) return res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-        
         await Profile.removeRating(from_user, to_user, rating_type);
-
-        // 👇 NOTIFICAÇÃO EM TEMPO REAL 👇
-        if (req.io) {
-            req.io.emit('rating_update', { target_user: to_user });
-        }
-
+        if (req.io) req.io.emit('rating_update', { target_user: to_user });
         res.status(200).json({ success: true });
     } catch (err) {
         console.error("Erro no controlador removeProfileRating:", err);

@@ -61,7 +61,6 @@ class Profile {
             [this.user]
         );
         
-        // Inicializa com TODOS os tipos (positivos e negativos)
         const totals = { 
             confiavel: 0, legal: 0, divertido: 0,
             falso: 0, chato: 0, toxico: 0 
@@ -87,17 +86,43 @@ class Profile {
         return { totals, userVotes };
     }
 
+    // 👇 NOVOS MÉTODOS: VISITANTES 👇
+    async recordVisit(visitorUsername) {
+        if (visitorUsername === this.user) return; // Não conta visita própria
+        
+        // Insere ou atualiza a data se já existir
+        await db.query(
+            `INSERT INTO profile_visits (visitor_user, visited_user, timestamp) 
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (visitor_user, visited_user) 
+             DO UPDATE SET timestamp = NOW()`,
+            [visitorUsername, this.user]
+        );
+    }
+
+    async getRecentVisitors() {
+        const result = await db.query(
+            `SELECT pv.visitor_user, p.avatar_url, pv.timestamp
+             FROM profile_visits pv
+             LEFT JOIN profiles p ON pv.visitor_user = p."user"
+             WHERE pv.visited_user = $1
+             ORDER BY pv.timestamp DESC
+             LIMIT 5`,
+            [this.user]
+        );
+        return result.rows.map(row => ({
+            user: row.visitor_user,
+            avatar_url: row.avatar_url,
+            timestamp: row.timestamp
+        }));
+    }
+    // 👆 FIM VISITANTES 👆
+
     static async getDailyVibe(username) {
         const today = new Date().toISOString().split('T')[0];
-        
-        const result = await db.query(
-            `SELECT * FROM profile_vibes WHERE user_name = $1 AND vibe_date = $2`,
-            [username, today]
-        );
+        const result = await db.query(`SELECT * FROM profile_vibes WHERE user_name = $1 AND vibe_date = $2`, [username, today]);
 
-        if (result.rows[0]) {
-            return result.rows[0];
-        }
+        if (result.rows[0]) return result.rows[0];
 
         const vibesList = [
             { msg: "Hoje a sorte sorri para os audazes.", color: "#4caf50" }, 
@@ -111,14 +136,9 @@ class Profile {
             { msg: "Sua criatividade está em alta hoje!", color: "#ffeb3b" }, 
             { msg: "Um mistério será revelado.", color: "#673ab7" }
         ];
-
         const randomVibe = vibesList[Math.floor(Math.random() * vibesList.length)];
 
-        await db.query(
-            `INSERT INTO profile_vibes (user_name, vibe_date, message, color) VALUES ($1, $2, $3, $4)`,
-            [username, today, randomVibe.msg, randomVibe.color]
-        );
-
+        await db.query(`INSERT INTO profile_vibes (user_name, vibe_date, message, color) VALUES ($1, $2, $3, $4)`, [username, today, randomVibe.msg, randomVibe.color]);
         return { user_name: username, vibe_date: today, message: randomVibe.msg, color: randomVibe.color };
     }
 
@@ -149,32 +169,16 @@ class Profile {
     }
     
     static async addRating(fromUser, toUser, ratingType) {
-        // 👇 ATUALIZADO: Lista de tipos permitidos
         const validTypes = ['confiavel', 'legal', 'divertido', 'falso', 'chato', 'toxico'];
-        
-        if (!validTypes.includes(ratingType)) {
-            throw new Error('Tipo de avaliação inválido');
-        }
-        await db.query(
-            `INSERT INTO profile_ratings (from_user, to_user, rating_type) 
-             VALUES ($1, $2, $3) 
-             ON CONFLICT (from_user, to_user, rating_type) DO NOTHING`,
-            [fromUser, toUser, ratingType]
-        );
+        if (!validTypes.includes(ratingType)) throw new Error('Tipo de avaliação inválido');
+        await db.query(`INSERT INTO profile_ratings (from_user, to_user, rating_type) VALUES ($1, $2, $3) ON CONFLICT (from_user, to_user, rating_type) DO NOTHING`, [fromUser, toUser, ratingType]);
         return { success: true };
     }
     
     static async removeRating(fromUser, toUser, ratingType) {
         const validTypes = ['confiavel', 'legal', 'divertido', 'falso', 'chato', 'toxico'];
-        
-        if (!validTypes.includes(ratingType)) {
-            throw new Error('Tipo de avaliação inválido');
-        }
-        await db.query(
-            `DELETE FROM profile_ratings 
-             WHERE from_user = $1 AND to_user = $2 AND rating_type = $3`,
-            [fromUser, toUser, ratingType]
-        );
+        if (!validTypes.includes(ratingType)) throw new Error('Tipo de avaliação inválido');
+        await db.query(`DELETE FROM profile_ratings WHERE from_user = $1 AND to_user = $2 AND rating_type = $3`, [fromUser, toUser, ratingType]);
         return { success: true };
     }
 }

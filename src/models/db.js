@@ -33,7 +33,7 @@ async function setupDatabase() {
         UNIQUE(from_user, to_user, rating_type)
     )`);
 
-    // 👇 NOVA TABELA: Vibe do Dia (Sorte) 👇
+    // Tabela de Vibe do Dia
     await client.query(`CREATE TABLE IF NOT EXISTS profile_vibes (
         user_name TEXT NOT NULL,
         vibe_date DATE NOT NULL,
@@ -41,19 +41,22 @@ async function setupDatabase() {
         color TEXT NOT NULL,
         PRIMARY KEY (user_name, vibe_date)
     )`);
+
+    // 👇 NOVA TABELA: Quem visitou seu perfil 👇
+    // Usamos PRIMARY KEY composta para que um visitante só apareça uma vez na lista (atualizando a data)
+    await client.query(`CREATE TABLE IF NOT EXISTS profile_visits (
+        visitor_user TEXT NOT NULL,
+        visited_user TEXT NOT NULL,
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (visitor_user, visited_user)
+    )`);
     
     console.log('Tabelas verificadas/criadas.');
 
     // --- 2. MIGRAÇÃO DA BD ---
-    try {
-        await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mood TEXT');
-    } catch (e) {}
-    try {
-        await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT');
-    } catch (e) {}
-    try {
-        await client.query('ALTER TABLE communities ADD COLUMN IF NOT EXISTS owner_user TEXT');
-    } catch (e) {}
+    try { await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mood TEXT'); } catch (e) {}
+    try { await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT'); } catch (e) {}
+    try { await client.query('ALTER TABLE communities ADD COLUMN IF NOT EXISTS owner_user TEXT'); } catch (e) {}
 
     await seedDatabase(client);
     
