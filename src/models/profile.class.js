@@ -61,7 +61,12 @@ class Profile {
             [this.user]
         );
         
-        const totals = { confiavel: 0, legal: 0, divertido: 0 };
+        // Inicializa com TODOS os tipos (positivos e negativos)
+        const totals = { 
+            confiavel: 0, legal: 0, divertido: 0,
+            falso: 0, chato: 0, toxico: 0 
+        };
+
         for (const row of totalsResult.rows) {
             if (totals[row.rating_type] !== undefined) {
                 totals[row.rating_type] = parseInt(row.count, 10);
@@ -82,10 +87,8 @@ class Profile {
         return { totals, userVotes };
     }
 
-    // 👇 MÉTODOS PARA A "VIBE DO DIA" 👇
     static async getDailyVibe(username) {
-        // 1. Tenta encontrar a vibe de hoje no banco
-        const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
         
         const result = await db.query(
             `SELECT * FROM profile_vibes WHERE user_name = $1 AND vibe_date = $2`,
@@ -96,23 +99,21 @@ class Profile {
             return result.rows[0];
         }
 
-        // 2. Se não existir, gera uma nova
         const vibesList = [
-            { msg: "Hoje a sorte sorri para os audazes.", color: "#4caf50" }, // Verde
-            { msg: "Um velho amigo trará novidades.", color: "#2196f3" }, // Azul
-            { msg: "Cuidado com gastos impulsivos hoje.", color: "#ef5350" }, // Vermelho
-            { msg: "A cor roxa trará boas energias.", color: "#9c27b0" }, // Roxo
-            { msg: "Foque nos estudos e o resultado virá.", color: "#ff9800" }, // Laranja
-            { msg: "O amor está no ar... ou será fome?", color: "#e91e63" }, // Rosa
-            { msg: "Dia perfeito para ouvir música alta.", color: "#00bcd4" }, // Ciano
-            { msg: "Evite tretas desnecessárias.", color: "#607d8b" }, // Cinza
-            { msg: "Sua criatividade está em alta hoje!", color: "#ffeb3b" }, // Amarelo
-            { msg: "Um mistério será revelado.", color: "#673ab7" } // Roxo escuro
+            { msg: "Hoje a sorte sorri para os audazes.", color: "#4caf50" }, 
+            { msg: "Um velho amigo trará novidades.", color: "#2196f3" }, 
+            { msg: "Cuidado com gastos impulsivos hoje.", color: "#ef5350" }, 
+            { msg: "A cor roxa trará boas energias.", color: "#9c27b0" },
+            { msg: "Foque nos estudos e o resultado virá.", color: "#ff9800" },
+            { msg: "O amor está no ar... ou será fome?", color: "#e91e63" }, 
+            { msg: "Dia perfeito para ouvir música alta.", color: "#00bcd4" }, 
+            { msg: "Evite tretas desnecessárias.", color: "#607d8b" }, 
+            { msg: "Sua criatividade está em alta hoje!", color: "#ffeb3b" }, 
+            { msg: "Um mistério será revelado.", color: "#673ab7" }
         ];
 
         const randomVibe = vibesList[Math.floor(Math.random() * vibesList.length)];
 
-        // 3. Salva no banco
         await db.query(
             `INSERT INTO profile_vibes (user_name, vibe_date, message, color) VALUES ($1, $2, $3, $4)`,
             [username, today, randomVibe.msg, randomVibe.color]
@@ -120,7 +121,6 @@ class Profile {
 
         return { user_name: username, vibe_date: today, message: randomVibe.msg, color: randomVibe.color };
     }
-    // 👆 FIM DA VIBE DO DIA 👆
 
     // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
     
@@ -149,7 +149,9 @@ class Profile {
     }
     
     static async addRating(fromUser, toUser, ratingType) {
-        const validTypes = ['confiavel', 'legal', 'divertido'];
+        // 👇 ATUALIZADO: Lista de tipos permitidos
+        const validTypes = ['confiavel', 'legal', 'divertido', 'falso', 'chato', 'toxico'];
+        
         if (!validTypes.includes(ratingType)) {
             throw new Error('Tipo de avaliação inválido');
         }
@@ -163,7 +165,8 @@ class Profile {
     }
     
     static async removeRating(fromUser, toUser, ratingType) {
-        const validTypes = ['confiavel', 'legal', 'divertido'];
+        const validTypes = ['confiavel', 'legal', 'divertido', 'falso', 'chato', 'toxico'];
+        
         if (!validTypes.includes(ratingType)) {
             throw new Error('Tipo de avaliação inválido');
         }

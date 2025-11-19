@@ -552,16 +552,34 @@ a{color:inherit;text-decoration:none}
 }
 #ratings-vote-container .mini-btn {
   background: var(--discord-dark);
+  /* Deixa os botões de votar levemente menores para caberem todos */
+  font-size: 0.85rem;
+  padding: 5px 8px;
 }
+
 #ratings-vote-container .mini-btn:hover {
   background: var(--discord-darker);
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* Botão ATIVO (Positivo - Azul) */
 #ratings-vote-container .mini-btn.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+/* Botão ATIVO (Negativo - Vermelho) */
+#ratings-vote-container .mini-btn.active-negative {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+/* Texto da estatística negativa no perfil */
+.rating-item.negative-stat .rating-count {
+    color: var(--danger);
 }
 
 

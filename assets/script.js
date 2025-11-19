@@ -1,4 +1,3 @@
-// ATUALIZACAO FORCADA
 // assets/script.js
 // ===================================================
 // 1. ESTADO GLOBAL E OBJETOS DOM
@@ -279,50 +278,59 @@ async function apiGetProfile(username) {
 } 
 
 function renderRatings(ratings) {
-  if (!DOM.ratingsDisplayContainer) return;
-  
-  const totals = ratings.totals; 
-  const userVotes = ratings.userVotes || []; // Lista do que VOCÊ já votou (ex: ['legal', 'confiavel'])
+    if (!DOM.ratingsDisplayContainer) return;
+    
+    const totals = ratings.totals; 
+    const userVotes = ratings.userVotes || []; 
 
-  // 1. Atualiza os números na tela
-  DOM.ratingsDisplayContainer.innerHTML = "";
-  
-  const items = [
-      { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
-      { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
-      { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido }
-  ];
-  
-  // Se não tiver votos, mostra mensagem padrão
-  if (items.every(item => item.count === 0)) {
-      DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
-  } else {
-      items.forEach(item => {
-          if (item.count > 0) {
-              const node = document.createElement('div');
-              node.className = 'rating-item';
-              node.innerHTML = `
-                  <span class="rating-icon">${item.icon}</span>
-                  <span class="rating-label">${item.label}</span>
-                  <span class="rating-count">${item.count}</span>
-              `;
-              DOM.ratingsDisplayContainer.appendChild(node);
-          }
-      });
-  }
+    DOM.ratingsDisplayContainer.innerHTML = "";
+    
+    const items = [
+        // Positivos
+        { key: 'confiavel', icon: '😊', label: 'Confiável', count: totals.confiavel },
+        { key: 'legal', icon: '🧊', label: 'Legal', count: totals.legal },
+        { key: 'divertido', icon: '🥳', label: 'Divertido', count: totals.divertido },
+        // Negativos (O Lado Sombrio)
+        { key: 'falso', icon: '🤥', label: 'Falso', count: totals.falso, type: 'negative' },
+        { key: 'chato', icon: '😴', label: 'Chato', count: totals.chato, type: 'negative' },
+        { key: 'toxico', icon: '☠️', label: 'Tóxico', count: totals.toxico, type: 'negative' }
+    ];
+    
+    if (items.every(item => item.count === 0)) {
+        DOM.ratingsDisplayContainer.innerHTML = "<div class='meta'>Ainda não há avaliações.</div>";
+    } else {
+        items.forEach(item => {
+            if (item.count > 0) {
+                const node = document.createElement('div');
+                node.className = 'rating-item';
+                if (item.type === 'negative') node.classList.add('negative-stat'); // Para estilizar vermelho
+                
+                node.innerHTML = `
+                    <span class="rating-icon">${item.icon}</span>
+                    <span class="rating-label">${item.label}</span>
+                    <span class="rating-count">${item.count}</span>
+                `;
+                DOM.ratingsDisplayContainer.appendChild(node);
+            }
+        });
+    }
 
-  // 2. ATUALIZAÇÃO VISUAL DOS BOTÕES (O Segredo!)
-  // Percorre os botões de votar e marca como 'active' os que você já clicou
-  if (DOM.ratingVoteButtons) {
-      DOM.ratingVoteButtons.forEach(button => {
-          const ratingType = button.dataset.rating;
-          if (userVotes.includes(ratingType)) {
-              button.classList.add('active'); // Fica colorido
-          } else {
-              button.classList.remove('active'); // Fica cinza
-          }
-      });
-  }
+    // Atualiza os botões
+    if (DOM.ratingVoteButtons) {
+        DOM.ratingVoteButtons.forEach(button => {
+            const ratingType = button.dataset.rating;
+            // Remove as classes antigas para evitar conflito
+            button.classList.remove('active', 'active-negative');
+            
+            if (userVotes.includes(ratingType)) {
+                if (['falso', 'chato', 'toxico'].includes(ratingType)) {
+                    button.classList.add('active-negative'); // Fica Vermelho
+                } else {
+                    button.classList.add('active'); // Fica Azul/Normal
+                }
+            }
+        });
+    }
 }
 
 async function apiAddRating(ratingType) {
@@ -342,7 +350,6 @@ async function apiAddRating(ratingType) {
             throw new Error(err.error);
         }
         
-        // A atualização visual virá pelo Socket, mas podemos forçar um update local também
         apiGetProfile(viewedUsername); 
         showToast("Avaliação enviada!", "success");
         
@@ -926,15 +933,29 @@ socket.on('newMessage', (data) => {
   if (data.channel === activeChannel) { addMessageBubble(data); }
 });
 
-// 👇 OUINTE DO SOCKET PARA ATUALIZAÇÃO DE AVALIAÇÕES 👇
-socket.on('rating_update', (data) => {
-    // Se o perfil que eu estou vendo (viewedUsername) recebeu uma avaliação...
-    if (viewedUsername === data.target_user) {
-        // ... recarrega o perfil na tela
-        apiGetProfile(viewedUsername);
-    }
+// 👇 OUVINTES DE CONEXÃO PARA DEBUGAR 👇
+socket.on('connect', () => {
+    console.log('✅ Socket CONECTADO com ID:', socket.id);
 });
 
+socket.on('disconnect', () => {
+    console.log('❌ Socket desconectado.');
+});
+
+socket.on('rating_update', (data) => {
+    console.log('🔔 Notificação de voto recebida para:', data.target_user);
+    // Se estou vendo o perfil que recebeu voto, atualizo
+    if (viewedUsername === data.target_user) {
+        apiGetProfile(viewedUsername);
+        // Efeito visual no contador (piscar)
+        const container = document.getElementById('ratings-display-container');
+        if(container) {
+            container.style.transition = "background 0.3s";
+            container.style.background = "rgba(255,255,255,0.1)";
+            setTimeout(() => container.style.background = "transparent", 300);
+        }
+    }
+});
 
 // ===================================================
 // 4. EVENTOS (Conexões dos Botões)
@@ -1069,7 +1090,9 @@ async function showDynamicProfile(username) {
   const vibeBox = document.getElementById('profileVibe');
   vibeBox.hidden = true;
 
-  DOM.ratingVoteButtons.forEach(button => button.classList.remove('active'));
+  DOM.ratingVoteButtons.forEach(button => {
+      button.classList.remove('active', 'active-negative');
+  });
   
   DOM.profileAvatarEl.classList.remove('is-owner');
   DOM.avatarUploadLabel.style.display = 'none';
@@ -1370,7 +1393,10 @@ function bindAppEvents() {
         button.addEventListener("click", () => {
             const ratingType = button.dataset.rating;
             
-            if (button.classList.contains('active')) {
+            // Verifica se é ativo (seja normal ou negativo)
+            const isActive = button.classList.contains('active') || button.classList.contains('active-negative');
+
+            if (isActive) {
                 apiRemoveRating(ratingType);
             } else {
                 apiAddRating(ratingType);
@@ -1379,7 +1405,6 @@ function bindAppEvents() {
     });
 
     const toggleServersMenu = () => {
-        // Verificação de segurança: só tenta adicionar classe se a lista existir
         if (DOM.serversList) {
             DOM.serversList.classList.toggle("is-open");
         }
@@ -1392,7 +1417,6 @@ function bindAppEvents() {
         DOM.btnCommunityMenu.addEventListener("click", toggleServersMenu);
     }
 
-    // Verificação de segurança: Evita o erro de NULL se serversList não for encontrado
     if (DOM.serversList) {
         DOM.serversList.addEventListener("click", (e) => {
             if (window.innerWidth <= 640 && DOM.serversList.classList.contains("is-open")) {
@@ -1446,7 +1470,6 @@ function bindAppEvents() {
 }
 
 function startApp() {
-  console.log('Socket conectado:', socket.id);
   mapAppDOM();
   bindAppEvents();
   

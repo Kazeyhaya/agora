@@ -40,7 +40,6 @@
 
 
   <div class="app" hidden>
-    
     <aside class="servers" aria-label="Comunidades">
       <div id="home-btn" class="server active" title="Agora">
         <img src="/assets/Agora-logo.png" alt="Agora Home" style="width: 100%; height: 100%; object-fit: contain;">
@@ -49,7 +48,6 @@
       <div class="divider"></div>
       <div id="joined-servers-list"></div>
       <div class="divider"></div>
-      
       <button class="add-btn" id="explore-servers-btn" title="Explorar Comunidades">+</button>
     </aside>
 
@@ -141,10 +139,15 @@
           
           <div id="ratings-vote-container" hidden style="margin-top: 10px;">
             <div class="meta" style="margin-bottom: 5px;">Avalie este usuário:</div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <button class="mini-btn" data-rating="confiavel">😊 Confiável</button>
                 <button class="mini-btn" data-rating="legal">🧊 Legal</button>
                 <button class="mini-btn" data-rating="divertido">🥳 Divertido</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="mini-btn" data-rating="falso">🤥 Falso</button>
+                <button class="mini-btn" data-rating="chato">😴 Chato</button>
+                <button class="mini-btn" data-rating="toxico">☠️ Tóxico</button>
             </div>
           </div>
         </div>
