@@ -1,4 +1,5 @@
-Agora — Plataforma Social com Comunidades e Chat
+Agora. 
+Plataforma Social com Comunidades e Chat
 
 Uma aplicação full‑stack inspirada em Discord/Orkut, com feed social, comunidades, fórum, chat em tempo real e perfis personalizáveis.
 
