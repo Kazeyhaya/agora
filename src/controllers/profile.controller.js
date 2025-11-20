@@ -2,7 +2,6 @@
 const Profile = require('../models/profile.class');
 const db = require('../models/db');
 
-// ... (login, getProfileBio... continuam iguais) ...
 const login = async (req, res) => {
     try {
         const { user, password } = req.body;
@@ -69,30 +68,25 @@ const updateUserAvatar = async (req, res) => {
     try {
         const { file, body } = req; 
         if (!file || !body.user) return res.status(400).json({ error: 'Erro.' });
-        // Base64 conversão
         const b64 = Buffer.from(file.buffer).toString('base64');
         const dataUrl = `data:${file.mimetype};base64,${b64}`;
-        
         const newUrl = await Profile.updateAvatar(body.user, dataUrl);
         res.status(200).json({ avatar_url: newUrl });
     } catch (err) { res.status(500).json({ error: 'Erro avatar' }); }
 };
 
-// 👇 NOVA FUNÇÃO: CAPA (BANNER) 👇
+// 👇 NOVO: Atualizar Capa 👇
 const updateUserCover = async (req, res) => {
     try {
         const { file, body } = req; 
         if (!file || !body.user) return res.status(400).json({ error: 'Erro.' });
-        
         const b64 = Buffer.from(file.buffer).toString('base64');
         const dataUrl = `data:${file.mimetype};base64,${b64}`;
-        
         const newUrl = await Profile.updateCover(body.user, dataUrl);
         res.status(200).json({ cover_url: newUrl });
     } catch (err) { res.status(500).json({ error: 'Erro capa' }); }
 };
 
-// ... (ratings, follow, vibe continuam iguais) ...
 const addProfileRating = async (req, res) => { try { await Profile.addRating(req.body.from_user, req.body.to_user, req.body.rating_type); if (req.io) req.io.emit('rating_update', { target_user: req.body.to_user }); res.status(201).json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } };
 const removeProfileRating = async (req, res) => { try { await Profile.removeRating(req.body.from_user, req.body.to_user, req.body.rating_type); if (req.io) req.io.emit('rating_update', { target_user: req.body.to_user }); res.status(200).json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } };
 const getDailyVibe = async (req, res) => { try { const v = await Profile.getDailyVibe(req.params.username); res.json({ vibe: v }); } catch (err) { res.status(500).json({ error: 'Erro' }); } };
@@ -108,7 +102,7 @@ module.exports = {
   updateUserMood,
   updateUserPassword,
   updateUserAvatar,
-  updateUserCover, // Exporta nova função
+  updateUserCover, // Exportado
   addProfileRating,
   removeProfileRating,
   getDailyVibe,

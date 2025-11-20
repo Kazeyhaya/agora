@@ -362,3 +362,40 @@ a{color:inherit;text-decoration:none}
   .channels { min-width: unset; }
   .profile-body { grid-template-columns: 1fr; }
 }
+.profile-cover {
+  width: 100%;
+  height: 150px;
+  background-color: var(--discord-darker);
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  margin-bottom: -40px; /* Puxa o avatar para cima */
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.change-cover-btn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.change-cover-btn:hover {
+  background: rgba(0,0,0,0.8);
+}
+
+/* Ajuste do Avatar para ficar em cima da capa */
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid var(--discord-panel); /* Cria uma "margem" visual */
+  position: relative;
+  z-index: 2;
+  margin-left: 16px;
+}
