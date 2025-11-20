@@ -1,12 +1,10 @@
 // assets/script.js
 
-// --- Utils & Config ---
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const socket = io({ autoConnect: false });
 let typingTimeout = null;
 
-// State
 const state = {
     user: localStorage.getItem("agora:user"),
     currentChannel: null,
@@ -15,7 +13,6 @@ const state = {
     statusIndex: 0
 };
 
-// --- UI Helpers ---
 const toast = (msg, type = 'info') => {
     const container = $('#toast-container');
     if (!container) return;
@@ -43,7 +40,6 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// Modal (Lida com required e senha)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -62,32 +58,26 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
         passInput.style.marginBottom = '10px';
         input.parentNode.insertBefore(passInput, input);
     }
-
     if (isPassword) {
-       input.style.display = 'none'; input.required = false; // Desliga validação
+       input.style.display = 'none'; input.required = false;
        passInput.value = val; passInput.placeholder = placeholder; passInput.style.display = 'block'; passInput.required = true; passInput.focus();
     } else {
-       input.style.display = 'block'; input.required = true; // Liga validação
+       input.style.display = 'block'; input.required = true;
        passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
-
     view.hidden = false;
-
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
-
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
         if (valToSave) onSave(valToSave);
         view.hidden = true;
     };
-    
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
-// --- API Layer ---
 const api = {
     async get(endpoint) {
         try {
@@ -120,7 +110,6 @@ const api = {
     }
 };
 
-// --- Actions ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -280,16 +269,34 @@ const ui = {
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
+
+        // Views do tipo "HOME" (layout de 2 colunas)
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
-            app.classList.add('view-home'); $('.header').hidden = false; $('.channels').hidden = true;
+            app.classList.add('view-home');
+            $('.header').hidden = false; $('.channels').hidden = true;
             if (viewName === 'feed') $('#home-btn').classList.add('active');
             if (viewName === 'explore') $('#btn-explore').classList.add('active');
             if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
-        } else if (viewName === 'community' || viewName === 'chat') {
-            app.classList.add('view-community'); $('.header').hidden = true; $('.channels').hidden = false;
-            if (viewName === 'community') { $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active'); $('#view-community-topics').hidden = false; return; }
+        } 
+        // Views do tipo "COMMUNITY" (layout de 3 colunas)
+        // 👇 CORREÇÃO: Adicionei create-topic e create-community aqui 👇
+        else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
+            app.classList.add('view-community');
+            $('.header').hidden = true;
+            $('.channels').hidden = false;
+
+            if (viewName === 'community' || viewName === 'create-topic') {
+                $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active');
+                if(viewName === 'community') $('#view-community-topics').hidden = false;
+                return;
+            }
         }
-        const map = { 'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 'explore-servers': 'view-explore-servers', 'chat': 'view-chat' };
+
+        const map = { 
+            'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 
+            'explore-servers': 'view-explore-servers', 'chat': 'view-chat',
+            'create-community': 'view-create-community', 'create-topic': 'view-create-topic'
+        };
         if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
     },
     renderPosts(container, posts) {
