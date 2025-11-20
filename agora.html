@@ -27,7 +27,7 @@
 
   <div class="modal-overlay" id="input-modal" hidden>
     <form class="modal-card" id="modal-form">
-      <h3 id="modal-title" style="margin-bottom: 15px;">Título do Modal</h3>
+      <h3 id="modal-title" style="margin-bottom: 15px;">Título</h3>
       <textarea class="input" id="modal-input" style="width: 100%; min-height: 80px;"></textarea>
       <input class="input" id="modal-pass-input" type="password" style="width: 100%; display: none; margin-bottom: 10px;">
       <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px;">
@@ -64,7 +64,7 @@
       <div class="community-card">
         <div class="avatar-display community-avatar" id="community-avatar-channel">AG</div>
         <div class="community-info">
-          <div class="community-name" id="community-name-channel">Nome da Comunidade</div>
+          <div class="community-name" id="community-name-channel">Comunidade</div>
           <div class="community-sub" id="community-members-count">0 membros</div>
           <div style="margin-top: 8px; display: flex; gap: 8px;">
               <button class="mini-btn" id="btn-edit-community" hidden style="flex: 1;">Editar</button>
@@ -80,7 +80,7 @@
 
     <section class="feed" id="view-feed">
       <div class="feed-top">
-        <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Posts de quem você segue</span></div>
+        <div class="chat-topic"><div class="topic-badge">Feed</div><span class="meta">— Posts de quem você segue</span></div>
         <div class="chat-actions"><button class="icon-btn" id="btn-refresh">🔄</button></div>
       </div>
       <div class="composer-feed">
@@ -116,13 +116,15 @@
     </main>
     
     <section class="profile" id="view-profile" hidden>
-      <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div><span class="meta">— Seu perfil social</span></div></div>
+      <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div></div></div>
+      
       <div class="profile-body">
         <div class="card">
           <div class="profile-cover" id="profileCover">
              <label class="change-cover-btn" for="cover-upload-input" id="cover-upload-label" style="display:none;">📷 Alterar Capa</label>
              <input type="file" id="cover-upload-input" accept="image/*" hidden>
           </div>
+          
           <div class="avatar-display profile-avatar" id="profileAvatar">VC</div>
           <label class="mini-btn" for="avatar-upload-input" id="avatar-upload-label" style="display: none; margin-top:10px; justify-content: center;">Mudar Foto</label>
           <input type="file" id="avatar-upload-input" accept="image/*" hidden>
