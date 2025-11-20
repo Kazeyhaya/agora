@@ -318,8 +318,11 @@ const ui = {
             const date = new Date(p.timestamp).toLocaleString('pt-BR');
             const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
             // Renderiza a Imagem
-            const imageHtml = p.image_url ? `<img src="${p.image_url}" alt="Imagem" class="post-image" onclick="window.open(this.src)" style="cursor:zoom-in">` : '';
-            
+            const imageHtml = p.image_url 
+    ? `<div style="text-align: center; margin-top: 8px;">
+           <img src="${p.image_url}" alt="Imagem do post" class="post-image" onclick="window.open(this.src)">
+       </div>` 
+    : '';
             node.innerHTML = `
                 <div class="avatar-display post-avatar"></div>
                 <div style="width: 100%;">
