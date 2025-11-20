@@ -6,7 +6,7 @@ const $$ = (selector) => document.querySelectorAll(selector);
 const socket = io({ autoConnect: false });
 let typingTimeout = null;
 
-// State (Estado da aplicação)
+// State
 const state = {
     user: localStorage.getItem("agora:user"),
     currentChannel: null,
@@ -15,7 +15,7 @@ const state = {
     statusIndex: 0
 };
 
-// --- UI Helpers (Coisas visuais) ---
+// --- UI Helpers ---
 const toast = (msg, type = 'info') => {
     const container = $('#toast-container');
     if (!container) return;
@@ -43,7 +43,6 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// Modal Genérico (Agora suporta Senha)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -69,12 +68,9 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
        passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
     view.hidden = false;
-    
-    // Clona para limpar eventos antigos
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
-    
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
@@ -84,7 +80,7 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
-// --- API Layer (Comunicação com o Servidor) ---
+// --- API Layer ---
 const api = {
     async get(endpoint) {
         try {
@@ -93,7 +89,6 @@ const api = {
             return await res.json();
         } catch (err) { console.error(err); return null; }
     },
-    // Suporte a JSON e Upload de Arquivos
     async post(endpoint, body) {
         try {
             const headers = {};
@@ -115,10 +110,21 @@ const api = {
             if (!res.ok) throw new Error('Erro no upload');
             return await res.json();
         } catch (err) { toast(err.message, 'error'); return null; }
+    },
+    // Upload genérico (para capa)
+    async uploadImage(type, file) {
+        const formData = new FormData();
+        formData.append(type, file);
+        formData.append('user', state.user);
+        try {
+            const res = await fetch(`/api/profile/${type}`, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Erro upload');
+            return await res.json();
+        } catch (err) { return null; }
     }
 };
 
-// --- Actions (Lógica do Usuário) ---
+// --- Actions ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -155,7 +161,6 @@ const actions = {
             toast("Post publicado!", "success");
         }
     },
-    // AQUI ESTÁ A ANTIGA apiGetProfile
     async loadProfile(username) {
         if (!username) return;
         state.viewedUser = username;
@@ -163,6 +168,8 @@ const actions = {
         $('#profileName').textContent = username;
         renderAvatar($('#profileAvatar'), { user: username });
         $('#profileVibe').hidden = true;
+        // Reseta capa
+        $('#profileCover').style.backgroundImage = 'none';
         
         const [data, following, testimonials] = await Promise.all([
             api.get(`/api/profile/${encodeURIComponent(username)}?viewer=${encodeURIComponent(state.user)}`),
@@ -171,9 +178,14 @@ const actions = {
         ]);
 
         if (data) {
-            $('#profileBio').textContent = data.profile.bio;
+            $('#profileBio').textContent = data.profile.bio || "Sem bio.";
             $('#profileMood').textContent = `Mood: ${data.profile.mood || "✨"}`;
+            
             renderAvatar($('#profileAvatar'), data.profile);
+            if (data.profile.cover_url) {
+                $('#profileCover').style.backgroundImage = `url(${data.profile.cover_url})`;
+            }
+
             ui.renderRatings(data.ratings);
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
@@ -192,12 +204,20 @@ const actions = {
                 $('#userbar-mood').textContent = data.profile.mood || "✨";
                 renderAvatar($('#userAvatar'), data.profile);
                 $('#profileAvatar').classList.add('is-owner');
+                
+                // Controles de edição
+                $('#avatar-upload-label').style.display = 'flex';
+                $('#cover-upload-label').style.display = 'block';
+
                 $('#editBioBtn').onclick = actions.editBio;
                 $('#ratings-vote-container').hidden = true;
                 $('#dmBtn').style.display = 'none';
                 $('#testimonial-form-container').hidden = true;
             } else {
                 $('#profileAvatar').classList.remove('is-owner');
+                $('#avatar-upload-label').style.display = 'none';
+                $('#cover-upload-label').style.display = 'none';
+
                 $('#ratings-vote-container').hidden = false;
                 $('#dmBtn').style.display = 'flex';
                 $('#testimonial-form-container').hidden = false;
@@ -264,7 +284,6 @@ const actions = {
             if (res) { $('#profileBio').textContent = res.bio; toast("Bio salva!", "success"); }
         }});
     },
-    // AQUI ESTÁ A ANTIGA apiUpdateMood
     async updateMood() {
         modal({ title: "Novo Mood", val: $('#userbar-mood').textContent, onSave: async (m) => {
             const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
@@ -285,7 +304,7 @@ const actions = {
     }
 };
 
-// --- UI Renderers (Desenham na tela) ---
+// --- UI Renderers ---
 const ui = {
     switchView(viewName) {
         $$('.app > section, .app > main').forEach(el => el.hidden = true);
@@ -317,12 +336,14 @@ const ui = {
             node.className = "post";
             const date = new Date(p.timestamp).toLocaleString('pt-BR');
             const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
-            // Renderiza a Imagem
+            
+            // 👇 RENDERIZAÇÃO CENTRALIZADA DA IMAGEM 👇
             const imageHtml = p.image_url 
-    ? `<div style="text-align: center; margin-top: 8px;">
-           <img src="${p.image_url}" alt="Imagem do post" class="post-image" onclick="window.open(this.src)">
-       </div>` 
-    : '';
+                ? `<div style="text-align: center; margin-top: 8px;">
+                       <img src="${p.image_url}" alt="Imagem do post" class="post-image" onclick="window.open(this.src)">
+                   </div>` 
+                : '';
+
             node.innerHTML = `
                 <div class="avatar-display post-avatar"></div>
                 <div style="width: 100%;">
@@ -427,7 +448,6 @@ const ui = {
     }
 };
 
-// --- Event Binding ---
 const bindEvents = () => {
     $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -443,8 +463,6 @@ const bindEvents = () => {
             }
         }
     };
-    
-    // Uploads e Preview
     $('#btn-add-image').onclick = () => $('#feedImageInput').click();
     $('#feedImageInput').onchange = (e) => {
         const file = e.target.files[0];
@@ -461,8 +479,6 @@ const bindEvents = () => {
         $('#feedImageInput').value = "";
         $('#image-preview-container').style.display = 'none';
     };
-
-    // Navigation
     $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };
     $('#btn-explore').onclick = actions.loadExplore;
     $('#btn-explore-refresh').onclick = actions.loadExplore;
@@ -483,13 +499,14 @@ const bindEvents = () => {
             }
         });
     };
-
     $('#feedSend').onclick = actions.createPost;
-    // BIND DO MOOD
     $('#userbar-mood-container').onclick = actions.updateMood;
-    
     $('#userbar-me').onclick = () => actions.loadProfile(state.user);
-    $('#avatar-upload-input').onchange = (e) => api.upload(e.target.files[0]).then(() => actions.loadProfile(state.user));
+    
+    // Bind Uploads
+    $('#avatar-upload-input').onchange = (e) => api.uploadImage('avatar', e.target.files[0]).then(() => actions.loadProfile(state.user));
+    $('#cover-upload-input').onchange = (e) => api.uploadImage('cover', e.target.files[0]).then(() => actions.loadProfile(state.user));
+
     $$('#ratings-vote-container .mini-btn').forEach(btn => { btn.onclick = () => actions.vote(btn.dataset.rating); });
     $('#testimonialSend').onclick = async () => { const text = $('#testimonialInput').value.trim(); if(!text) return; await api.post('/api/testimonials', { from_user: state.user, to_user: state.viewedUser, text }); $('#testimonialInput').value = ""; actions.loadProfile(state.viewedUser); toast("Depoimento enviado", "success"); };
     $('#btn-show-create-community').onclick = () => ui.switchView('create-community');
@@ -514,19 +531,16 @@ const bindEvents = () => {
     $('#btn-logout').onclick = () => { if(confirm("Sair do Agora?")) { localStorage.removeItem("agora:user"); window.location.reload(); } };
 };
 
-// --- Global Functions (onclick handlers) ---
 window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed());
 window.commentPost = (id) => { modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => { await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt }); actions.loadFeed(); }}); };
 window.editPost = (id) => { const txt = $(`#post-text-${id}`).innerText; modal({ title: "Editar", val: txt, onSave: async (newTxt) => { await api.post(`/api/posts/${id}/update`, { user: state.user, text: newTxt }); $(`#post-text-${id}`).innerText = newTxt; }}); };
 
-// --- Socket Events ---
 socket.on('connect', () => console.log('WS Connected'));
 socket.on('loadHistory', (msgs) => { $('#messages').innerHTML = ""; msgs.forEach(m => { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); }); $('#messages').scrollTop = $('#messages').scrollHeight; });
 socket.on('newMessage', (m) => { if(state.currentChannel) { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); $('#messages').scrollTop = $('#messages').scrollHeight; } });
 socket.on('displayTyping', (data) => { const ind = $('#typing-indicator'); if(!ind) return; $('#typer-name').textContent = data.user; ind.hidden = false; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout = setTimeout(() => ind.hidden = true, 3000); });
 socket.on('rating_update', (data) => { if(state.viewedUser === data.target_user) actions.loadProfile(state.viewedUser); });
 
-// --- Init ---
 const init = async () => {
     if(!state.user) { $('#login-view').hidden = false; $('.app').hidden = true; return; }
     $('#login-view').hidden = true; $('.app').hidden = false; $('#userName').textContent = state.user;
@@ -537,6 +551,5 @@ const init = async () => {
     api.get(`/api/profile/${state.user}`).then(d => { if(d) { renderAvatar($('#userAvatar'), d.profile); $('#userbar-mood').textContent = d.profile.mood || "✨ novo"; } });
     ui.switchView('feed'); actions.loadFeed();
 };
-
 bindEvents();
 init();

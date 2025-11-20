@@ -27,7 +27,7 @@
 
   <div class="modal-overlay" id="input-modal" hidden>
     <form class="modal-card" id="modal-form">
-      <h3 id="modal-title" style="margin-bottom: 15px;">Título</h3>
+      <h3 id="modal-title" style="margin-bottom: 15px;">Título do Modal</h3>
       <textarea class="input" id="modal-input" style="width: 100%; min-height: 80px;"></textarea>
       <input class="input" id="modal-pass-input" type="password" style="width: 100%; display: none; margin-bottom: 10px;">
       <div style="display: flex; gap: 10px; width: 100%; margin-top: 10px;">
@@ -40,12 +40,12 @@
   <div class="app" hidden>
     <aside class="servers">
       <div id="home-btn" class="server active" title="Agora">
-        <img src="/assets/Agora-logo.png" style="width: 100%; height: 100%; object-fit: contain;">
+        <img src="/assets/Agora-logo.png" alt="Agora Home" style="width: 100%; height: 100%; object-fit: contain;">
       </div>
       <div class="divider"></div>
       <div id="joined-servers-list"></div>
       <div class="divider"></div>
-      <button class="add-btn" id="explore-servers-btn" title="Explorar">+</button>
+      <button class="add-btn" id="explore-servers-btn" title="Explorar Comunidades">+</button>
     </aside>
 
     <header class="header">
@@ -64,7 +64,7 @@
       <div class="community-card">
         <div class="avatar-display community-avatar" id="community-avatar-channel">AG</div>
         <div class="community-info">
-          <div class="community-name" id="community-name-channel">Comunidade</div>
+          <div class="community-name" id="community-name-channel">Nome da Comunidade</div>
           <div class="community-sub" id="community-members-count">0 membros</div>
           <div style="margin-top: 8px; display: flex; gap: 8px;">
               <button class="mini-btn" id="btn-edit-community" hidden style="flex: 1;">Editar</button>
@@ -83,7 +83,6 @@
         <div class="chat-topic"><div class="topic-badge">Agora Feed</div><span class="meta">— Posts de quem você segue</span></div>
         <div class="chat-actions"><button class="icon-btn" id="btn-refresh">🔄</button></div>
       </div>
-      
       <div class="composer-feed">
         <input class="input" id="feedInput" type="text" placeholder="Compartilhe algo..." />
         <button class="icon-btn" id="btn-add-image" title="Adicionar Imagem" style="margin-right: 8px;">🖼️</button>
@@ -101,27 +100,34 @@
 
     <main class="chat" id="view-chat" hidden>
       <div class="chat-top">
-        <div class="chat-topic"><div class="topic-badge" id="topic">@ Utilizador</div></div>
+        <div class="chat-topic"><div class="topic-badge" id="topic">@ Utilizador</div><span class="meta">— Mensagem Direta</span></div>
+        <div class="chat-actions">
+          <button class="icon-btn" title="Pesquisar" id="btn-search">🔎</button>
+        </div>
       </div>
-      <div class="messages" id="messages"></div>
+      <div class="messages" id="messages" role="log"></div>
       <div id="typing-indicator" class="typing-indicator" hidden>
         <span class="dots">...</span> <span id="typer-name">Alguém</span> está digitando
       </div>
       <div class="composer">
-        <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem...">
+        <input class="input" id="composerInput" type="text" placeholder="Envie uma mensagem..." autocomplete="off" aria-label="Mensagem">
         <button class="send" id="sendBtn">Enviar</button>
       </div>
     </main>
     
     <section class="profile" id="view-profile" hidden>
-      <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div></div></div>
+      <div class="profile-top"><div class="chat-topic"><div class="topic-badge">Perfil</div><span class="meta">— Seu perfil social</span></div></div>
       <div class="profile-body">
         <div class="card">
-          <div class="avatar-display profile-avatar" id="profileAvatar" style="width:64px;height:64px;border-radius:16px;margin-bottom:8px">VC</div>
-          <label class="mini-btn" for="avatar-upload-input" id="avatar-upload-label" style="display: none; margin-bottom: 8px; justify-content: center;">Mudar Foto</label>
+          <div class="profile-cover" id="profileCover">
+             <label class="change-cover-btn" for="cover-upload-input" id="cover-upload-label" style="display:none;">📷 Alterar Capa</label>
+             <input type="file" id="cover-upload-input" accept="image/*" hidden>
+          </div>
+          <div class="avatar-display profile-avatar" id="profileAvatar">VC</div>
+          <label class="mini-btn" for="avatar-upload-input" id="avatar-upload-label" style="display: none; margin-top:10px; justify-content: center;">Mudar Foto</label>
           <input type="file" id="avatar-upload-input" accept="image/*" hidden>
           
-          <div><strong id="profileName">Você</strong> <span id="profile-badges"></span></div>
+          <div style="margin-top: 10px;"><strong id="profileName">Você</strong> <span id="profile-badges"></span></div>
           <div class="meta" id="profileBio">...</div>
           <div class="meta" id="profileMood" style="color:var(--orkut-pink); margin-top: 4px;"></div>
           <div id="profileVibe" class="vibe-box" hidden><span class="vibe-icon">🔮</span> <span id="profileVibeText"></span></div>
@@ -146,7 +152,9 @@
         
         <div class="card">
           <h3 style="margin-bottom:8px">Avaliações</h3>
-          <div class="ratings-display" id="ratings-display-container"></div>
+          <div class="ratings-display" id="ratings-display-container">
+            <div class="meta">Ainda não há avaliações.</div>
+          </div>
           <h3 style="margin:12px 0 8px">Depoimentos</h3>
           <div id="testimonials" class="comments"></div>
           <div style="display:flex;gap:8px;margin-top:10px" id="testimonial-form-container">
@@ -156,7 +164,9 @@
           <h3 style="margin:12px 0 8px">Amigos</h3>
           <div class="friends" id="friends"></div>
           <h3 style="margin:16px 0 8px; font-size: 0.95rem; color: var(--text-secondary);">Últimos Visitantes</h3>
-          <div class="friends" id="recent-visitors"></div>
+          <div class="friends" id="recent-visitors">
+              <div class="meta">Ninguém visitou ainda.</div>
+          </div>
         </div>
       </div>
     </section>
@@ -173,19 +183,26 @@
       <div class="explore-servers-top">
         <h2>Explorar Comunidades</h2>
         <button class="mini-btn" id="btn-show-create-community">Criar a Minha</button>
+        <p class="meta">Entre em comunidades públicas e faça novos amigos</p>
       </div>
       <div class="community-list" id="community-list-container"></div>
     </section>
 
     <section class="create-community" id="view-create-community" hidden>
-      <div class="explore-servers-top"><h2>Criar Nova Comunidade</h2></div>
+      <div class="explore-servers-top">
+            <h2>Criar Nova Comunidade</h2>
+        </div>
         <div class="profile-body" style="grid-template-columns: 1fr;">
             <div class="card" style="max-width: 600px;">
                 <form id="create-community-form">
-                    <label>Nome:</label> <input class="input" id="community-name" required>
-                    <label style="margin-top:10px">Emoji:</label> <input class="input" id="community-emoji">
-                    <button class="send" type="submit" style="margin-top: 15px;">Criar</button>
-                    <button type="button" class="mini-btn" id="btn-cancel-create">Cancelar</button>
+                    <label for="community-name">Nome da Comunidade:</label>
+                    <input class="input" id="community-name" type="text" required placeholder="Ex: Clube de Programação">
+                    
+                    <label for="community-emoji" style="margin-top: 10px;">Emoji/Ícone (Ex: 💻):</label>
+                    <input class="input" id="community-emoji" type="text" placeholder="Opcional. Ex: 🌟">
+                    
+                    <button class="send" type="submit" style="margin-top: 15px;">Criar e Entrar</button>
+                    <button type="button" class="mini-btn" id="btn-cancel-create" style="margin-left: 10px;">Cancelar</button>
                 </form>
             </div>
         </div>
@@ -193,48 +210,61 @@
     
     <section class="community-content" id="view-community-topics" hidden>
       <div class="feed-top">
-            <div class="chat-topic"><div class="topic-badge" id="current-community-name">Nome</div></div>
+            <div class="chat-topic"><div class="topic-badge" id="current-community-name">Nome Com.</div><span class="meta">— Fórum de Tópicos (Posts)</span></div>
             <div class="chat-actions"><button class="mini-btn" id="btn-new-topic">Novo Tópico</button></div>
         </div>
         <div class="posts" id="community-topic-list"></div>
     </section>
     
     <section class="community-content profile-body" id="view-community-members" hidden style="grid-template-columns: 1fr;">
-      <div class="explore-servers-top" style="border-bottom: none;"><h2 id="community-members-title">Membros</h2></div>
-        <div class="card"><div class="friends" id="community-member-list"></div></div>
+      <div class="explore-servers-top" style="border-bottom: none;">
+            <h2 id="community-members-title">Membros da Comunidade</h2>
+        </div>
+        <div class="card">
+            <div class="friends" id="community-member-list"></div>
+        </div>
     </section>
     
     <section class="create-topic" id="view-create-topic" hidden>
-       <div class="explore-servers-top"><h2>Criar Novo Tópico</h2></div>
+       <div class="explore-servers-top">
+            <h2>Criar Novo Tópico</h2>
+        </div>
         <div class="profile-body" style="grid-template-columns: 1fr;">
             <div class="card" style="max-width: 800px;">
                 <form id="create-topic-form">
-                    <label>Título:</label> <input class="input" id="topic-title" required>
-                    <label style="margin-top: 10px;">Conteúdo:</label> <textarea class="input" id="topic-content" required style="min-height: 150px;"></textarea>
-                    <button class="send" type="submit" style="margin-top: 15px;">Publicar</button>
-                    <button type="button" class="mini-btn" id="btn-cancel-topic">Cancelar</button>
+                    <label for="topic-title">Título do Tópico:</label>
+                    <input class="input" id="topic-title" type="text" required placeholder="Ex: Qual a vossa música favorita?">
+                    
+                    <label for="topic-content" style="margin-top: 10px;">Conteúdo:</label>
+                    <textarea class="input" id="topic-content" required placeholder="Escreva a sua mensagem..." style="min-height: 150px;"></textarea>
+                    
+                    <button class="send" type="submit" style="margin-top: 15px;">Publicar Tópico</button>
+                    <button type="button" class="mini-btn" id="btn-cancel-topic" style="margin-left: 10px;">Cancelar</button>
                 </form>
             </div>
         </div>
     </section>
 
-    <footer class="userbar">
+    <footer class="userbar" role="contentinfo">
       <div class="me clickable" id="userbar-me">
         <div class="avatar-display userbar-avatar" id="userAvatar">VC</div>
         <div>
-          <div id="userName"><strong>Você</strong></div>
-          <div class="meta clickable" id="userbar-mood-container">Mood: <span id="userbar-mood" style="color:var(--orkut-pink)"></span></div>
+          <div id="userName"><strong id="userName">Você</strong> <span class="meta">@orklover</span></div>
+          <div class="meta clickable" id="userbar-mood-container" title="Clique para mudar o seu mood">
+            Mood: <span id="userbar-mood" style="color:var(--orkut-pink)">❤ feliz</span>
+          </div>
         </div>
       </div>
       <div class="user-actions">
-        <div class="presence" id="btn-status" title="Status"></div>
-        <button class="icon-btn" id="btn-settings">⚙️</button>
-        <button class="icon-btn" id="btn-logout">🚪</button>
+        <div class="presence" id="btn-status" title="Mudar Status"></div>
+        <button class="icon-btn" id="btn-settings" title="Alterar Senha">⚙️</button>
+        <button class="icon-btn" id="btn-logout" title="Sair">🚪</button>
       </div>
     </footer>
   </div>
 
   <script src="/socket.io/socket.io.js" defer></script>
   <script src="/assets/script.js" defer></script>
+  
 </body>
 </html>
