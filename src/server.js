@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const db = require('./models/db');
 
-// 👇 NOVAS IMPORTAÇÕES DE SEGURANÇA 👇
+// Importações de Segurança
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
@@ -13,42 +13,39 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  // Configura o CORS também para o Socket (Chat)
   cors: {
-    origin: "*", // ⚠️ Em produção, mude '*' para o seu domínio: 'https://agora-vcnz.onrender.com'
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
 const port = process.env.PORT || 3000;
 
-// --- 🔒 CAMADA DE SEGURANÇA (NOVO) ---
+// --- 🔒 SEGURANÇA ---
 
-// 1. CORS (Controla QUEM pode acessar)
-// Impede que sites piratas usem sua API via navegador
+// 1. CORS
 app.use(cors({
-  origin: '*', // ⚠️ IMPORTANTE: Quando terminar de testar, troque '*' pelo link do seu site no Render
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 2. Rate Limiting (Controla a VELOCIDADE)
-// Impede ataques de força bruta (adivinhar senhas) e spam
+// 2. Rate Limiting (AJUSTADO PARA NÃO BLOQUEAR VOCÊ)
 const apiLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // Janela de 15 minutos
-	max: 100, // Limite de 100 requisições por IP a cada 15 min
-	message: { error: "Muitas requisições. Tente novamente mais tarde." },
+	windowMs: 15 * 60 * 1000, // 15 minutos
+	max: 3000, // ⚠️ AUMENTEI DE 100 PARA 3000 (Para não travar nos testes)
+	message: { error: "Muitas requisições. Calma lá, cowboy!" },
 	standardHeaders: true,
 	legacyHeaders: false,
 });
 
-// Aplica o limitador apenas nas rotas da API (deixa o HTML/CSS livres)
+// Aplica o limite apenas nas rotas de API
 app.use('/api/', apiLimiter);
 
 // --- MIDDLEWARES ---
 app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 
-// Middleware para injetar o 'io' nas requisições
+// Injeta o socket.io nas requisições
 app.use((req, res, next) => {
     req.io = io;
     next();
@@ -74,22 +71,22 @@ app.use('/api/communities', communitiesRouter);
 app.use('/api/community', communityRouter);
 
 
-// --- ROTA PRINCIPAL (O HTML) ---
+// --- ROTA PRINCIPAL ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'agora.html')); 
 });
 
-// --- LÓGICA DO SOCKET.IO ---
+// --- CHAT ---
 const { initializeSocket } = require('./socket/chat.handler');
 initializeSocket(io);
 
 
-// --- INICIAR O SERVIDOR ---
+// --- START ---
 if (require.main === module) {
   db.setupDatabase().then(() => {
     server.listen(port, () => {
       console.log(`🚀 Agora a rodar na porta ${port}`);
-      console.log(`🛡️ Segurança ativada: CORS e Rate Limit`);
+      console.log(`🛡️ Segurança: Limite de requisições aumentado para desenvolvimento.`);
     });
   }).catch(err => {
       console.error("Falha crítica ao iniciar a base de dados:", err);
