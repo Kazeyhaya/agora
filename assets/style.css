@@ -272,10 +272,47 @@ a{color:inherit;text-decoration:none}
 @media (max-width: 720px){ .app.view-community, .app.view-home { grid-template-columns:64px 1fr; } .brand-title { display: none; } }
 @media (max-width: 640px) {
   .app { padding: 8px; gap: 8px; }
-  #btn-mobile-menu, .app.view-community #btn-community-menu { display: grid; }
-  .servers { position: fixed; left: 0; top: 0; height: 100dvh; z-index: 50; border-radius: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
-  .servers.is-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.5); }
-  .app.view-home, .app.view-community { grid-template-columns: 1fr; grid-template-areas: "header" "content" "userbar"; grid-template-rows: 64px 1fr 64px; }
-  .channels { min-width: unset; }
-  .profile-body { grid-template-columns: 1fr; }
-}
+  #btn-mobile-menu {
+    display: none; /* Escondido por padrão no PC */
+    border: none;
+    font-size: 1.5rem;
+    margin-right: 5px;
+    background: transparent; /* Garante que não tenha fundo */
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  
+  #btn-community-menu {
+    display: none;
+    border: none;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  
+  /* Regra para Tablet (mostra botões se precisar, mas mantém layout) */
+  @media (max-width: 1080px){
+    .app.view-community { grid-template-columns:72px 1fr; }
+    .app.view-home { grid-template-columns:72px 1fr; }
+  }
+  
+  /* Regra para Celular (AQUI SIM os botões aparecem) */
+  @media (max-width: 640px) {
+    .app { padding: 8px; gap: 8px; }
+    
+    /* 👇 MOSTRA OS BOTÕES NO MOBILE 👇 */
+    #btn-mobile-menu, .app.view-community #btn-community-menu { 
+      display: grid; 
+      place-items: center;
+    }
+    
+    .servers { position: fixed; left: 0; top: 0; height: 100dvh; z-index: 50; border-radius: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
+    .servers.is-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.5); }
+    .app.view-home, .app.view-community { grid-template-columns: 1fr; grid-template-areas: "header" "content" "userbar"; grid-template-rows: 64px 1fr 64px; }
+    .channels { min-width: unset; }
+    .profile-body { grid-template-columns: 1fr; }
+  }
