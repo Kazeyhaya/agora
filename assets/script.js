@@ -6,7 +6,7 @@ const $$ = (selector) => document.querySelectorAll(selector);
 const socket = io({ autoConnect: false });
 let typingTimeout = null;
 
-// State
+// State (Estado da aplicação)
 const state = {
     user: localStorage.getItem("agora:user"),
     currentChannel: null,
@@ -15,7 +15,7 @@ const state = {
     statusIndex: 0
 };
 
-// --- UI Helpers ---
+// --- UI Helpers (Coisas visuais) ---
 const toast = (msg, type = 'info') => {
     const container = $('#toast-container');
     if (!container) return;
@@ -43,6 +43,7 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
+// Modal Genérico (Agora suporta Senha)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -68,9 +69,12 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
        passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
     view.hidden = false;
+    
+    // Clona para limpar eventos antigos
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
+    
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
@@ -80,7 +84,7 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
-// --- API Layer ---
+// --- API Layer (Comunicação com o Servidor) ---
 const api = {
     async get(endpoint) {
         try {
@@ -89,35 +93,19 @@ const api = {
             return await res.json();
         } catch (err) { console.error(err); return null; }
     },
-
-    // 👇 ATUALIZADO: Suporte a FormData (Upload de Arquivos) 👇
+    // Suporte a JSON e Upload de Arquivos
     async post(endpoint, body) {
         try {
             const headers = {};
-            // Se NÃO for FormData (ou seja, JSON puro), define o header
-            // Se for FormData, o navegador define o header multipart automaticamente
             if (!(body instanceof FormData)) {
                 headers['Content-Type'] = 'application/json';
                 body = JSON.stringify(body);
             }
-            
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: headers,
-                body: body
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Erro na requisição');
-            }
+            const res = await fetch(endpoint, { method: 'POST', headers, body });
+            if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Erro na requisição'); }
             return await res.json();
-        } catch (err) {
-            console.error(err);
-            toast(err.message, 'error');
-            return null;
-        }
+        } catch (err) { console.error(err); toast(err.message, 'error'); return null; }
     },
-    
     async upload(file) {
         const formData = new FormData();
         formData.append('avatar', file);
@@ -130,7 +118,7 @@ const api = {
     }
 };
 
-// --- Actions ---
+// --- Actions (Lógica do Usuário) ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -141,41 +129,33 @@ const actions = {
         const data = await api.get('/api/posts/explore');
         if (data) ui.renderPosts($('#explore-posts'), data.posts || []);
     },
-
-    // 👇 ATUALIZADO: Envia Texto + Imagem 👇
     async createPost() {
         const input = $('#feedInput');
         const fileInput = $('#feedImageInput');
         const text = input.value.trim();
-        
         if (!text) return;
         
         $('#feedSend').disabled = true;
         $('#feedSend').textContent = "Enviando...";
 
-        // Usa FormData para suportar texto + arquivo
         const formData = new FormData();
         formData.append('user', state.user);
         formData.append('text', text);
-        
-        if (fileInput.files.length > 0) {
-            formData.append('image', fileInput.files[0]);
-        }
+        if (fileInput.files.length > 0) formData.append('image', fileInput.files[0]);
 
         const res = await api.post('/api/posts', formData);
-        
         $('#feedSend').disabled = false;
         $('#feedSend').textContent = "Publicar";
         
         if (res) {
             input.value = "";
-            fileInput.value = ""; // Limpa o arquivo
-            $('#image-preview-container').style.display = 'none'; // Esconde preview
+            fileInput.value = "";
+            $('#image-preview-container').style.display = 'none';
             actions.loadFeed();
             toast("Post publicado!", "success");
         }
     },
-
+    // AQUI ESTÁ A ANTIGA apiGetProfile
     async loadProfile(username) {
         if (!username) return;
         state.viewedUser = username;
@@ -197,6 +177,7 @@ const actions = {
             ui.renderRatings(data.ratings);
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
+            
             api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
                 if (v && v.vibe) {
                     $('#profileVibeText').textContent = v.vibe.message;
@@ -283,6 +264,7 @@ const actions = {
             if (res) { $('#profileBio').textContent = res.bio; toast("Bio salva!", "success"); }
         }});
     },
+    // AQUI ESTÁ A ANTIGA apiUpdateMood
     async updateMood() {
         modal({ title: "Novo Mood", val: $('#userbar-mood').textContent, onSave: async (m) => {
             const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
@@ -303,7 +285,7 @@ const actions = {
     }
 };
 
-// --- UI Renderers ---
+// --- UI Renderers (Desenham na tela) ---
 const ui = {
     switchView(viewName) {
         $$('.app > section, .app > main').forEach(el => el.hidden = true);
@@ -328,8 +310,6 @@ const ui = {
         const map = { 'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 'explore-servers': 'view-explore-servers', 'chat': 'view-chat' };
         if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
     },
-
-    // 👇 RENDERIZAR POST COM IMAGEM 👇
     renderPosts(container, posts) {
         container.innerHTML = posts.length ? "" : "<div class='meta p-4'>Nada por aqui ainda.</div>";
         posts.forEach(p => {
@@ -337,12 +317,9 @@ const ui = {
             node.className = "post";
             const date = new Date(p.timestamp).toLocaleString('pt-BR');
             const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
+            // Renderiza a Imagem
+            const imageHtml = p.image_url ? `<img src="${p.image_url}" alt="Imagem" class="post-image" onclick="window.open(this.src)" style="cursor:zoom-in">` : '';
             
-            // Se tiver imagem, cria a tag IMG
-            const imageHtml = p.image_url 
-                ? `<img src="${p.image_url}" alt="Imagem do post" class="post-image" onclick="window.open(this.src)" style="cursor:zoom-in">` 
-                : '';
-
             node.innerHTML = `
                 <div class="avatar-display post-avatar"></div>
                 <div style="width: 100%;">
@@ -355,15 +332,13 @@ const ui = {
                         ${editBtn}
                     </div>
                     <div class="comments" id="comments-${p.id}"></div>
-                </div>
-            `;
+                </div>`;
             renderAvatar(node.querySelector('.avatar-display'), p);
             node.querySelector('.post-username').onclick = () => actions.loadProfile(p.user);
             container.appendChild(node);
             api.get(`/api/posts/${p.id}/comments`).then(d => { if(d && d.comments.length) { $(`#comments-${p.id}`).innerHTML = d.comments.map(c => `<div class="meta"><strong>${escape(c.user)}</strong>: ${escape(c.text)}</div>`).join(''); }});
         });
     },
-
     renderTopics(posts) {
         ui.renderPosts($('#community-topic-list'), posts);
         $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true;
@@ -449,6 +424,7 @@ const ui = {
     }
 };
 
+// --- Event Binding ---
 const bindEvents = () => {
     $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -465,12 +441,8 @@ const bindEvents = () => {
         }
     };
     
-    // 👇 BOTÃO DE ADD IMAGEM 👇
-    $('#btn-add-image').onclick = () => {
-        $('#feedImageInput').click();
-    };
-    
-    // 👇 PREVIEW DA IMAGEM 👇
+    // Uploads e Preview
+    $('#btn-add-image').onclick = () => $('#feedImageInput').click();
     $('#feedImageInput').onchange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -482,13 +454,12 @@ const bindEvents = () => {
             reader.readAsDataURL(file);
         }
     };
-    
-    // 👇 REMOVER IMAGEM 👇
     $('#btn-remove-image').onclick = () => {
         $('#feedImageInput').value = "";
         $('#image-preview-container').style.display = 'none';
     };
 
+    // Navigation
     $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };
     $('#btn-explore').onclick = actions.loadExplore;
     $('#btn-explore-refresh').onclick = actions.loadExplore;
@@ -509,8 +480,11 @@ const bindEvents = () => {
             }
         });
     };
+
     $('#feedSend').onclick = actions.createPost;
+    // BIND DO MOOD
     $('#userbar-mood-container').onclick = actions.updateMood;
+    
     $('#userbar-me').onclick = () => actions.loadProfile(state.user);
     $('#avatar-upload-input').onchange = (e) => api.upload(e.target.files[0]).then(() => actions.loadProfile(state.user));
     $$('#ratings-vote-container .mini-btn').forEach(btn => { btn.onclick = () => actions.vote(btn.dataset.rating); });
@@ -537,16 +511,19 @@ const bindEvents = () => {
     $('#btn-logout').onclick = () => { if(confirm("Sair do Agora?")) { localStorage.removeItem("agora:user"); window.location.reload(); } };
 };
 
+// --- Global Functions (onclick handlers) ---
 window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed());
 window.commentPost = (id) => { modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => { await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt }); actions.loadFeed(); }}); };
 window.editPost = (id) => { const txt = $(`#post-text-${id}`).innerText; modal({ title: "Editar", val: txt, onSave: async (newTxt) => { await api.post(`/api/posts/${id}/update`, { user: state.user, text: newTxt }); $(`#post-text-${id}`).innerText = newTxt; }}); };
 
+// --- Socket Events ---
 socket.on('connect', () => console.log('WS Connected'));
 socket.on('loadHistory', (msgs) => { $('#messages').innerHTML = ""; msgs.forEach(m => { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); }); $('#messages').scrollTop = $('#messages').scrollHeight; });
 socket.on('newMessage', (m) => { if(state.currentChannel) { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); $('#messages').scrollTop = $('#messages').scrollHeight; } });
 socket.on('displayTyping', (data) => { const ind = $('#typing-indicator'); if(!ind) return; $('#typer-name').textContent = data.user; ind.hidden = false; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout = setTimeout(() => ind.hidden = true, 3000); });
 socket.on('rating_update', (data) => { if(state.viewedUser === data.target_user) actions.loadProfile(state.viewedUser); });
 
+// --- Init ---
 const init = async () => {
     if(!state.user) { $('#login-view').hidden = false; $('.app').hidden = true; return; }
     $('#login-view').hidden = true; $('.app').hidden = false; $('#userName').textContent = state.user;
@@ -557,5 +534,6 @@ const init = async () => {
     api.get(`/api/profile/${state.user}`).then(d => { if(d) { renderAvatar($('#userAvatar'), d.profile); $('#userbar-mood').textContent = d.profile.mood || "✨ novo"; } });
     ui.switchView('feed'); actions.loadFeed();
 };
+
 bindEvents();
 init();
