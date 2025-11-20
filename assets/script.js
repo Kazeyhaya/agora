@@ -374,6 +374,5 @@ const init = async () => {
     api.get(`/api/profile/${state.user}`).then(d => { if(d) { renderAvatar($('#userAvatar'), d.profile); $('#userbar-mood').textContent = d.profile.mood || "✨ novo"; } });
     ui.switchView('feed'); actions.loadFeed();
 };
-
 bindEvents();
 init();
