@@ -13,11 +13,9 @@ class Post {
         this.avatar_url = avatar_url || null; 
     }
 
-    // --- MÉTODOS DE INSTÂNCIA ---
-    
     async save() {
         if (!this.id) {
-            // Inserir Novo
+            // Criação
             const result = await db.query(
                 `INSERT INTO posts ("user", text, image_url, timestamp, likes) 
                  VALUES ($1, $2, $3, $4, $5) RETURNING *`,
@@ -25,7 +23,7 @@ class Post {
             );
             this.id = result.rows[0].id; 
         } else {
-            // Atualizar Existente
+            // Edição
             await db.query(
                 `UPDATE posts SET "user" = $1, text = $2, image_url = $3, likes = $4 WHERE id = $5`,
                 [this.user, this.text, this.image_url, this.likes, this.id]
@@ -45,8 +43,6 @@ class Post {
         await db.query(`UPDATE posts SET likes = $1 WHERE id = $2`, [this.likes, this.id]);
         return this;
     }
-
-    // --- MÉTODOS ESTÁTICOS ---
 
     static async findById(postId) {
         const result = await db.query('SELECT * FROM posts WHERE id = $1', [postId]);
