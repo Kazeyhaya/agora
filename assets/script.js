@@ -12,21 +12,18 @@ const state = {
     currentChannel: null,
     viewedUser: null,
     communityId: null,
-    statusIndex: 0 // 0: Online, 1: Busy, 2: Away
+    statusIndex: 0
 };
 
 // --- UI Helpers ---
 const toast = (msg, type = 'info') => {
     const container = $('#toast-container');
     if (!container) return;
-
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     const icon = { success: '✅', error: '❌', magic: '✨', info: 'ℹ️' }[type] || 'ℹ️';
-    
     el.innerHTML = `<span>${icon}</span> <span>${escape(msg)}</span>`;
     container.appendChild(el);
-    
     setTimeout(() => {
         el.style.animation = 'fadeOut 0.5s forwards';
         el.addEventListener('animationend', () => el.remove());
@@ -46,19 +43,15 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// MODAL ATUALIZADO (Corrige erro de validação)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
-    
     $('#modal-title').textContent = title;
     input.value = val;
     input.placeholder = placeholder;
     
-    // Lógica para input de senha
     let passInput = $('#modal-pass-input');
     if (!passInput) {
-        // Fallback se não existir no HTML
         passInput = document.createElement('input');
         passInput.id = 'modal-pass-input';
         passInput.type = 'password';
@@ -67,38 +60,23 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
         passInput.style.marginBottom = '10px';
         input.parentNode.insertBefore(passInput, input);
     }
-
     if (isPassword) {
-       input.style.display = 'none';
-       input.required = false; // REMOVE obrigatoriedade do oculto
-       
-       passInput.value = val;
-       passInput.placeholder = placeholder;
-       passInput.style.display = 'block';
-       passInput.required = true; // ADICIONA obrigatoriedade no visível
-       passInput.focus();
+       input.style.display = 'none'; input.required = false;
+       passInput.value = val; passInput.placeholder = placeholder; passInput.style.display = 'block'; passInput.required = true; passInput.focus();
     } else {
-       input.style.display = 'block';
-       input.required = true;
-       
-       passInput.style.display = 'none';
-       passInput.required = false;
-       input.focus();
+       input.style.display = 'block'; input.required = true;
+       passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
-
     view.hidden = false;
-
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
-
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
         if (valToSave) onSave(valToSave);
         view.hidden = true;
     };
-    
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
@@ -109,18 +87,24 @@ const api = {
             const res = await fetch(endpoint);
             if (!res.ok) throw new Error(`API Error: ${res.status}`);
             return await res.json();
-        } catch (err) {
-            console.error(err);
-            return null;
-        }
+        } catch (err) { console.error(err); return null; }
     },
 
+    // 👇 ATUALIZADO: Suporte a FormData (Upload de Arquivos) 👇
     async post(endpoint, body) {
         try {
+            const headers = {};
+            // Se NÃO for FormData (ou seja, JSON puro), define o header
+            // Se for FormData, o navegador define o header multipart automaticamente
+            if (!(body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+                body = JSON.stringify(body);
+            }
+            
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                headers: headers,
+                body: body
             });
             if (!res.ok) {
                 const err = await res.json();
@@ -138,15 +122,11 @@ const api = {
         const formData = new FormData();
         formData.append('avatar', file);
         formData.append('user', state.user);
-        
         try {
             const res = await fetch('/api/profile/avatar', { method: 'POST', body: formData });
             if (!res.ok) throw new Error('Erro no upload');
             return await res.json();
-        } catch (err) {
-            toast(err.message, 'error');
-            return null;
-        }
+        } catch (err) { toast(err.message, 'error'); return null; }
     }
 };
 
@@ -156,24 +136,41 @@ const actions = {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
         if (data) ui.renderPosts($('#posts'), data.posts || []);
     },
-    
     async loadExplore() {
         ui.switchView('explore');
         const data = await api.get('/api/posts/explore');
         if (data) ui.renderPosts($('#explore-posts'), data.posts || []);
     },
 
+    // 👇 ATUALIZADO: Envia Texto + Imagem 👇
     async createPost() {
         const input = $('#feedInput');
+        const fileInput = $('#feedImageInput');
         const text = input.value.trim();
+        
         if (!text) return;
         
         $('#feedSend').disabled = true;
-        const res = await api.post('/api/posts', { user: state.user, text });
+        $('#feedSend').textContent = "Enviando...";
+
+        // Usa FormData para suportar texto + arquivo
+        const formData = new FormData();
+        formData.append('user', state.user);
+        formData.append('text', text);
+        
+        if (fileInput.files.length > 0) {
+            formData.append('image', fileInput.files[0]);
+        }
+
+        const res = await api.post('/api/posts', formData);
+        
         $('#feedSend').disabled = false;
+        $('#feedSend').textContent = "Publicar";
         
         if (res) {
             input.value = "";
+            fileInput.value = ""; // Limpa o arquivo
+            $('#image-preview-container').style.display = 'none'; // Esconde preview
             actions.loadFeed();
             toast("Post publicado!", "success");
         }
@@ -183,7 +180,6 @@ const actions = {
         if (!username) return;
         state.viewedUser = username;
         ui.switchView('profile');
-
         $('#profileName').textContent = username;
         renderAvatar($('#profileAvatar'), { user: username });
         $('#profileVibe').hidden = true;
@@ -198,11 +194,9 @@ const actions = {
             $('#profileBio').textContent = data.profile.bio;
             $('#profileMood').textContent = `Mood: ${data.profile.mood || "✨"}`;
             renderAvatar($('#profileAvatar'), data.profile);
-            
             ui.renderRatings(data.ratings);
             ui.renderBadges(data.ratings.totals);
             ui.renderVisitors(data.visitors || []);
-            
             api.get(`/api/profile/${encodeURIComponent(username)}/vibe`).then(v => {
                 if (v && v.vibe) {
                     $('#profileVibeText').textContent = v.vibe.message;
@@ -210,15 +204,12 @@ const actions = {
                     $('#profileVibe').hidden = false;
                 }
             });
-
             const isOwner = username === state.user;
             $('#editBioBtn').textContent = isOwner ? "Editar bio" : "Seguir";
             $('#editBioBtn').disabled = false;
-            
             if (isOwner) {
                 $('#userbar-mood').textContent = data.profile.mood || "✨";
                 renderAvatar($('#userAvatar'), data.profile);
-                
                 $('#profileAvatar').classList.add('is-owner');
                 $('#editBioBtn').onclick = actions.editBio;
                 $('#ratings-vote-container').hidden = true;
@@ -230,7 +221,6 @@ const actions = {
                 $('#dmBtn').style.display = 'flex';
                 $('#testimonial-form-container').hidden = false;
                 $('#dmBtn').onclick = () => actions.startDM(username);
-                
                 api.get(`/api/isfollowing/${encodeURIComponent(username)}?follower=${encodeURIComponent(state.user)}`)
                     .then(f => {
                         if (f && f.isFollowing) {
@@ -242,11 +232,9 @@ const actions = {
                     });
             }
         }
-        
         if (following) ui.renderList($('#friends'), following.following, 'user');
         if (testimonials) ui.renderTestimonials(testimonials.testimonials);
     },
-
     async toggleFollow(target, isFollowing) {
         const endpoint = isFollowing ? '/api/follow' : '/api/unfollow';
         const res = await api.post(endpoint, { follower: state.user, following: target });
@@ -255,41 +243,33 @@ const actions = {
             actions.loadProfile(target);
         }
     },
-
     async vote(type) {
         const btn = $(`button[data-rating="${type}"]`);
         const isActive = btn.classList.contains('active') || btn.classList.contains('active-negative');
         const endpoint = isActive ? '/api/profile/unrate' : '/api/profile/rate';
-        
         const res = await api.post(endpoint, { from_user: state.user, to_user: state.viewedUser, rating_type: type });
         if (res) {
             actions.loadProfile(state.viewedUser);
             toast(isActive ? "Voto removido" : "Voto enviado!", "success");
         }
     },
-
     async loadCommunity(id) {
         state.communityId = id;
         ui.switchView('community');
-        
         const details = await api.get(`/api/community/${id}/details`);
         if (details) {
             $('#community-name-channel').textContent = details.community.name;
             $('#community-avatar-channel').textContent = details.community.emoji;
-            
             const isOwner = details.community.owner_user === state.user;
             $('#btn-edit-community').hidden = !isOwner;
-            
             actions.loadTopics(id);
             actions.loadMembers(id);
         }
     },
-
     async loadTopics(id) {
         const data = await api.get(`/api/community/${id}/posts`);
         if (data) ui.renderTopics(data.posts);
     },
-    
     async loadMembers(id) {
         const data = await api.get(`/api/community/${id}/members`);
         if (data) {
@@ -297,44 +277,28 @@ const actions = {
             $('#community-members-count').textContent = `${data.members.length} membros`;
         }
     },
-
     async editBio() {
-        modal({
-            title: "Editar Bio",
-            val: $('#profileBio').textContent,
-            onSave: async (bio) => {
-                const res = await api.post('/api/profile', { user: state.user, bio });
-                if (res) {
-                    $('#profileBio').textContent = res.bio;
-                    toast("Bio salva!", "success");
-                }
-            }
-        });
+        modal({ title: "Editar Bio", val: $('#profileBio').textContent, onSave: async (bio) => {
+            const res = await api.post('/api/profile', { user: state.user, bio });
+            if (res) { $('#profileBio').textContent = res.bio; toast("Bio salva!", "success"); }
+        }});
     },
-    
     async updateMood() {
-        modal({ 
-            title: "Novo Mood", 
-            val: $('#userbar-mood').textContent, 
-            onSave: async (m) => {
-                const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
-                if(res) {
-                    $('#userbar-mood').textContent = res.mood;
-                    if($('#profileMood')) $('#profileMood').textContent = `Mood: ${res.mood}`;
-                    toast("Mood atualizado!", "success");
-                }
+        modal({ title: "Novo Mood", val: $('#userbar-mood').textContent, onSave: async (m) => {
+            const res = await api.post('/api/profile/mood', { user: state.user, mood: m });
+            if(res) {
+                $('#userbar-mood').textContent = res.mood;
+                if($('#profileMood')) $('#profileMood').textContent = `Mood: ${res.mood}`;
+                toast("Mood atualizado!", "success");
             }
-        });
+        }});
     },
-
     startDM(target) {
         if (target === state.user) return;
         state.currentChannel = [state.user, target].sort().join('_');
-        
         ui.switchView('chat');
         $('#messages').innerHTML = "";
         $('#topic').textContent = `@ ${target}`;
-        
         socket.emit('joinChannel', { channel: state.currentChannel, user: state.user });
     }
 };
@@ -346,38 +310,26 @@ const ui = {
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
-
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
             app.classList.add('view-home');
-            $('.header').hidden = false;
-            $('.channels').hidden = true;
-            
+            $('.header').hidden = false; $('.channels').hidden = true;
             if (viewName === 'feed') $('#home-btn').classList.add('active');
             if (viewName === 'explore') $('#btn-explore').classList.add('active');
             if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
-            
         } else if (viewName === 'community' || viewName === 'chat') {
             app.classList.add('view-community');
-            $('.header').hidden = true;
-            $('.channels').hidden = false;
-
+            $('.header').hidden = true; $('.channels').hidden = false;
             if (viewName === 'community') {
                 $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active');
                 $('#view-community-topics').hidden = false;
                 return;
             }
         }
-
-        const map = {
-            'feed': 'view-feed',
-            'explore': 'view-explore',
-            'profile': 'view-profile',
-            'explore-servers': 'view-explore-servers',
-            'chat': 'view-chat'
-        };
+        const map = { 'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 'explore-servers': 'view-explore-servers', 'chat': 'view-chat' };
         if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
     },
 
+    // 👇 RENDERIZAR POST COM IMAGEM 👇
     renderPosts(container, posts) {
         container.innerHTML = posts.length ? "" : "<div class='meta p-4'>Nada por aqui ainda.</div>";
         posts.forEach(p => {
@@ -385,12 +337,18 @@ const ui = {
             node.className = "post";
             const date = new Date(p.timestamp).toLocaleString('pt-BR');
             const editBtn = p.user === state.user ? `<button class="mini-btn" onclick="editPost(${p.id})">Editar</button>` : '';
+            
+            // Se tiver imagem, cria a tag IMG
+            const imageHtml = p.image_url 
+                ? `<img src="${p.image_url}" alt="Imagem do post" class="post-image" onclick="window.open(this.src)" style="cursor:zoom-in">` 
+                : '';
 
             node.innerHTML = `
                 <div class="avatar-display post-avatar"></div>
-                <div>
+                <div style="width: 100%;">
                     <div class="meta"><strong class="post-username" data-u="${escape(p.user)}">${escape(p.user)}</strong> • ${date}</div>
                     <div id="post-text-${p.id}">${escape(p.text)}</div>
+                    ${imageHtml}
                     <div class="post-actions">
                         <button class="mini-btn" onclick="likePost(${p.id})">❤ ${p.likes || 0}</button>
                         <button class="mini-btn" onclick="commentPost(${p.id})">Comentar</button>
@@ -402,73 +360,47 @@ const ui = {
             renderAvatar(node.querySelector('.avatar-display'), p);
             node.querySelector('.post-username').onclick = () => actions.loadProfile(p.user);
             container.appendChild(node);
-
-            api.get(`/api/posts/${p.id}/comments`).then(d => {
-                if(d && d.comments.length) {
-                    $(`#comments-${p.id}`).innerHTML = d.comments.map(c => 
-                        `<div class="meta"><strong>${escape(c.user)}</strong>: ${escape(c.text)}</div>`
-                    ).join('');
-                }
-            });
+            api.get(`/api/posts/${p.id}/comments`).then(d => { if(d && d.comments.length) { $(`#comments-${p.id}`).innerHTML = d.comments.map(c => `<div class="meta"><strong>${escape(c.user)}</strong>: ${escape(c.text)}</div>`).join(''); }});
         });
     },
 
     renderTopics(posts) {
         ui.renderPosts($('#community-topic-list'), posts);
-        $('#view-community-topics').hidden = false;
-        $('#view-community-members').hidden = true;
+        $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true;
         $$('.view-tabs .pill').forEach(p => p.classList.remove('active'));
-        $$('.view-tabs .pill')[0].classList.add('active'); 
+        $$('.view-tabs .pill')[0].classList.add('active');
     },
-
     renderList(container, list, keyName = 'user') {
         container.innerHTML = list.length ? "" : "<div class='meta'>Lista vazia.</div>";
         list.forEach(item => {
             const el = document.createElement('div');
             el.className = 'friend-card';
-            el.innerHTML = `<div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div>
-                            <strong class="friend-card-name" data-u="${item[keyName]}">${escape(item[keyName])}</strong>`;
+            el.innerHTML = `<div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div><strong class="friend-card-name" data-u="${item[keyName]}">${escape(item[keyName])}</strong>`;
             renderAvatar(el.querySelector('.avatar-display'), item);
             el.querySelector('strong').onclick = () => actions.loadProfile(item[keyName]);
             container.appendChild(el);
         });
     },
-
     renderRatings(data) {
         const container = $('#ratings-display-container');
         const totals = data.totals;
         const myVotes = data.userVotes || [];
-        
         container.innerHTML = "";
-        const types = [
-            { k: 'confiavel', i: '😊', l: 'Confiável' },
-            { k: 'legal', i: '🧊', l: 'Legal' },
-            { k: 'divertido', i: '🥳', l: 'Divertido' },
-            { k: 'falso', i: '🤥', l: 'Falso', neg: true },
-            { k: 'chato', i: '😴', l: 'Chato', neg: true },
-            { k: 'toxico', i: '☠️', l: 'Tóxico', neg: true }
-        ];
-
+        const types = [ { k: 'confiavel', i: '😊', l: 'Confiável' }, { k: 'legal', i: '🧊', l: 'Legal' }, { k: 'divertido', i: '🥳', l: 'Divertido' }, { k: 'falso', i: '🤥', l: 'Falso', neg: true }, { k: 'chato', i: '😴', l: 'Chato', neg: true }, { k: 'toxico', i: '☠️', l: 'Tóxico', neg: true } ];
         types.forEach(t => {
             if (totals[t.k] > 0) {
                 const div = document.createElement('div');
                 div.className = `rating-item ${t.neg ? 'negative-stat' : ''}`;
-                div.innerHTML = `<span class="rating-icon">${t.i}</span>
-                                 <span class="rating-label">${t.l}</span>
-                                 <span class="rating-count">${totals[t.k]}</span>`;
+                div.innerHTML = `<span class="rating-icon">${t.i}</span><span class="rating-label">${t.l}</span><span class="rating-count">${totals[t.k]}</span>`;
                 container.appendChild(div);
             }
         });
-
         $$('#ratings-vote-container .mini-btn').forEach(btn => {
             const type = btn.dataset.rating;
-            btn.className = 'mini-btn'; 
-            if (myVotes.includes(type)) {
-                btn.classList.add(['falso','chato','toxico'].includes(type) ? 'active-negative' : 'active');
-            }
+            btn.className = 'mini-btn';
+            if (myVotes.includes(type)) { btn.classList.add(['falso','chato','toxico'].includes(type) ? 'active-negative' : 'active'); }
         });
     },
-
     renderBadges(totals) {
         const container = $('#profile-badges') || (() => {
             const span = document.createElement('span');
@@ -477,17 +409,8 @@ const ui = {
             $('#profileName').parentElement.appendChild(span);
             return span;
         })();
-        
         container.innerHTML = '';
-        const badges = [
-            { k: 'confiavel', i: '🛡️', t: 'Guardião' },
-            { k: 'legal', i: '🧊', t: 'Gente Boa' },
-            { k: 'divertido', i: '🎭', t: 'A Lenda' },
-            { k: 'toxico', i: '☣️', t: 'PERIGO' },
-            { k: 'falso', i: '🤥', t: 'Pinóquio' },
-            { k: 'chato', i: '💤', t: 'Soneca' }
-        ];
-
+        const badges = [ { k: 'confiavel', i: '🛡️', t: 'Guardião' }, { k: 'legal', i: '🧊', t: 'Gente Boa' }, { k: 'divertido', i: '🎭', t: 'A Lenda' }, { k: 'toxico', i: '☣️', t: 'PERIGO' }, { k: 'falso', i: '🤥', t: 'Pinóquio' }, { k: 'chato', i: '💤', t: 'Soneca' } ];
         badges.forEach(b => {
             if (totals[b.k] > 0) {
                 const s = document.createElement('span');
@@ -499,31 +422,21 @@ const ui = {
             }
         });
     },
-    
     renderVisitors(list) {
         const container = $('#recent-visitors');
         if(!container) return;
         container.innerHTML = list.length ? "" : "<div class='meta'>Ninguém visitou ainda.</div>";
-        
         list.forEach(v => {
             const el = document.createElement("div");
             el.className = "friend-card";
             const time = new Date(v.timestamp);
-            const timeStr = time.toDateString() === new Date().toDateString() 
-                ? time.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) 
-                : time.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
-
-            el.innerHTML = `
-                <div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div>
-                <strong class="friend-card-name" data-u="${v.user}">${escape(v.user)}</strong>
-                <span style="font-size:0.7rem;color:var(--text-secondary);margin-left:auto">${timeStr}</span>
-            `;
+            const timeStr = time.toDateString() === new Date().toDateString() ? time.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : time.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+            el.innerHTML = `<div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div><strong class="friend-card-name" data-u="${v.user}">${escape(v.user)}</strong><span style="font-size:0.7rem;color:var(--text-secondary);margin-left:auto">${timeStr}</span>`;
             renderAvatar(el.querySelector('.avatar-display'), v);
             el.querySelector('strong').onclick = () => actions.loadProfile(v.user);
             container.appendChild(el);
         });
     },
-
     renderTestimonials(list) {
         const cont = $('#testimonials');
         cont.innerHTML = list.length ? "" : "<div class='meta'>Nenhum depoimento ainda.</div>";
@@ -536,14 +449,11 @@ const ui = {
     }
 };
 
-// --- Event Binding ---
 const bindEvents = () => {
-    // Auth
     $('#login-form').onsubmit = async (e) => {
         e.preventDefault();
         const user = $('#login-username-input').value.trim();
         const password = $('#login-password-input').value.trim();
-        
         if(user && password) {
             const res = await api.post('/api/login', { user, password });
             if (res && res.success) {
@@ -554,8 +464,31 @@ const bindEvents = () => {
             }
         }
     };
+    
+    // 👇 BOTÃO DE ADD IMAGEM 👇
+    $('#btn-add-image').onclick = () => {
+        $('#feedImageInput').click();
+    };
+    
+    // 👇 PREVIEW DA IMAGEM 👇
+    $('#feedImageInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                $('#image-preview').src = ev.target.result;
+                $('#image-preview-container').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    // 👇 REMOVER IMAGEM 👇
+    $('#btn-remove-image').onclick = () => {
+        $('#feedImageInput').value = "";
+        $('#image-preview-container').style.display = 'none';
+    };
 
-    // Navigation
     $('#home-btn').onclick = () => { ui.switchView('feed'); actions.loadFeed(); };
     $('#btn-explore').onclick = actions.loadExplore;
     $('#btn-explore-refresh').onclick = actions.loadExplore;
@@ -569,272 +502,60 @@ const bindEvents = () => {
                 d.communities.forEach(c => {
                     const div = document.createElement('div');
                     div.className = 'community-card-explore';
-                    div.innerHTML = `<div class="emoji">${c.emoji}</div>
-                        <div class="community-card-explore-info"><h3>${escape(c.name)}</h3><div class="meta">${escape(c.description)}</div></div>
-                        <button class="join-btn">Entrar</button>`;
-                    div.querySelector('button').onclick = async () => {
-                        await api.post('/api/community/join', { user_name: state.user, community_id: c.id });
-                        init(); 
-                        actions.loadCommunity(c.id);
-                        toast(`Bem-vindo a ${c.name}!`, 'success');
-                    };
+                    div.innerHTML = `<div class="emoji">${c.emoji}</div><div class="community-card-explore-info"><h3>${escape(c.name)}</h3><div class="meta">${escape(c.description)}</div></div><button class="join-btn">Entrar</button>`;
+                    div.querySelector('button').onclick = async () => { await api.post('/api/community/join', { user_name: state.user, community_id: c.id }); init(); actions.loadCommunity(c.id); toast(`Bem-vindo a ${c.name}!`, 'success'); };
                     cont.appendChild(div);
                 });
             }
         });
     };
-
-    // Posting
     $('#feedSend').onclick = actions.createPost;
     $('#userbar-mood-container').onclick = actions.updateMood;
-    
-    // Profile
     $('#userbar-me').onclick = () => actions.loadProfile(state.user);
     $('#avatar-upload-input').onchange = (e) => api.upload(e.target.files[0]).then(() => actions.loadProfile(state.user));
-    
-    // Ratings
-    $$('#ratings-vote-container .mini-btn').forEach(btn => {
-        btn.onclick = () => actions.vote(btn.dataset.rating);
-    });
-
-    // Testimonials
-    $('#testimonialSend').onclick = async () => {
-        const text = $('#testimonialInput').value.trim();
-        if(!text) return;
-        await api.post('/api/testimonials', { from_user: state.user, to_user: state.viewedUser, text });
-        $('#testimonialInput').value = "";
-        actions.loadProfile(state.viewedUser);
-        toast("Depoimento enviado", "success");
-    };
-
-    // Community Creation
+    $$('#ratings-vote-container .mini-btn').forEach(btn => { btn.onclick = () => actions.vote(btn.dataset.rating); });
+    $('#testimonialSend').onclick = async () => { const text = $('#testimonialInput').value.trim(); if(!text) return; await api.post('/api/testimonials', { from_user: state.user, to_user: state.viewedUser, text }); $('#testimonialInput').value = ""; actions.loadProfile(state.viewedUser); toast("Depoimento enviado", "success"); };
     $('#btn-show-create-community').onclick = () => ui.switchView('create-community');
     $('#btn-cancel-create').onclick = () => ui.switchView('explore-servers');
-    $('#create-community-form').onsubmit = async (e) => {
-        e.preventDefault();
-        const name = $('#community-name').value;
-        const emoji = $('#community-emoji').value;
-        const res = await api.post('/api/communities/create', { name, emoji, creator: state.user });
-        if (res) {
-            init();
-            actions.loadCommunity(res.community.id);
-            toast("Comunidade criada!", 'success');
-        }
-    };
-    
-    // Chat
-    $('#sendBtn').onclick = () => {
-        const txt = $('#composerInput').value.trim();
-        if(txt) {
-            socket.emit('sendMessage', { channel: state.currentChannel || state.activeChannel, user: state.user, message: txt });
-            $('#composerInput').value = "";
-        }
-    };
-    $('#composerInput').oninput = () => {
-        if($('#composerInput').value.length > 0) socket.emit('typing', { channel: state.currentChannel, user: state.user });
-    };
+    $('#create-community-form').onsubmit = async (e) => { e.preventDefault(); const name = $('#community-name').value; const emoji = $('#community-emoji').value; const res = await api.post('/api/communities/create', { name, emoji, creator: state.user }); if (res) { init(); actions.loadCommunity(res.community.id); toast("Comunidade criada!", 'success'); } };
+    $('#sendBtn').onclick = () => { const txt = $('#composerInput').value.trim(); if(txt) { socket.emit('sendMessage', { channel: state.currentChannel || state.activeChannel, user: state.user, message: txt }); $('#composerInput').value = ""; } };
+    $('#composerInput').oninput = () => { if($('#composerInput').value.length > 0) socket.emit('typing', { channel: state.currentChannel, user: state.user }); };
     $('#composerInput').onkeydown = (e) => { if(e.key === "Enter") $('#sendBtn').click(); };
-    
-    // Community Sub-nav
-    $$('.view-tabs .pill').forEach(pill => {
-        pill.onclick = () => {
-            const view = pill.dataset.communityView;
-            if(view === 'topics') {
-                $('#view-community-topics').hidden = false;
-                $('#view-community-members').hidden = true;
-            } else {
-                $('#view-community-topics').hidden = true;
-                $('#view-community-members').hidden = false;
-            }
-            $$('.view-tabs .pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-        };
-    });
-    
-    // Create Topic
+    $$('.view-tabs .pill').forEach(pill => { pill.onclick = () => { const view = pill.dataset.communityView; if(view === 'topics') { $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true; } else { $('#view-community-topics').hidden = true; $('#view-community-members').hidden = false; } $$('.view-tabs .pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }; });
     $('#btn-new-topic').onclick = () => ui.switchView('create-topic');
     $('#btn-cancel-topic').onclick = () => actions.loadCommunity(state.communityId);
-    $('#create-topic-form').onsubmit = async (e) => {
-        e.preventDefault();
-        const res = await api.post('/api/community/posts', {
-            community_id: state.communityId, user: state.user,
-            title: $('#topic-title').value, content: $('#topic-content').value
-        });
-        if(res) {
-            actions.loadCommunity(state.communityId);
-            toast("Tópico criado", "success");
-            $('#topic-title').value = ""; $('#topic-content').value = "";
-        }
-    };
-
-    // Mobile Menu
-    const toggleMenu = () => {
-        const servers = $('.servers');
-        if(servers) servers.classList.toggle('is-open');
-    };
+    $('#create-topic-form').onsubmit = async (e) => { e.preventDefault(); const res = await api.post('/api/community/posts', { community_id: state.communityId, user: state.user, title: $('#topic-title').value, content: $('#topic-content').value }); if(res) { actions.loadCommunity(state.communityId); toast("Tópico criado", "success"); $('#topic-title').value = ""; $('#topic-content').value = ""; } };
+    const toggleMenu = () => { const servers = $('.servers'); if(servers) servers.classList.toggle('is-open'); };
     if($('#btn-mobile-menu')) $('#btn-mobile-menu').onclick = toggleMenu;
     if($('#btn-community-menu')) $('#btn-community-menu').onclick = toggleMenu;
     const serversEl = $('.servers');
     if(serversEl) serversEl.onclick = (e) => { if(window.innerWidth <= 640 && (e.target.closest('.server') || e.target.closest('.add-btn'))) toggleMenu(); };
-
-    // Edit Community
-    if($('#btn-edit-community')) {
-        $('#btn-edit-community').onclick = () => {
-            const currentName = $('#community-name-channel').textContent;
-            modal({ title: "Editar Comunidade", val: currentName, onSave: async (newName) => {
-                const res = await api.post(`/api/community/${state.communityId}/update`, {
-                    name: newName, emoji: $('#community-avatar-channel').textContent, user: state.user
-                });
-                if(res) {
-                    actions.loadCommunity(state.communityId);
-                    toast("Comunidade atualizada!", "success");
-                }
-            }});
-        };
-    }
-    
-    if($('#btn-leave-community')) {
-        $('#btn-leave-community').onclick = async () => {
-            if(!confirm("Sair da comunidade?")) return;
-            const res = await api.post('/api/community/leave', { user_name: state.user, community_id: state.communityId });
-            if(res) {
-                ui.switchView('feed');
-                init();
-                toast("Você saiu.", "info");
-            }
-        };
-    }
-
-    // 👇 STATUS 👇
-    $('#btn-status').onclick = () => {
-        state.statusIndex = (state.statusIndex + 1) % 3;
-        const classes = ['presence', 'presence busy', 'presence away'];
-        const titles = ['Online', 'Ocupado', 'Ausente'];
-        
-        $('#btn-status').className = classes[state.statusIndex];
-        $('#btn-status').title = titles[state.statusIndex];
-        
-        toast(`Status: ${titles[state.statusIndex]}`, 'info');
-    };
-
-    // 👇 CONFIG (SENHA) CORRIGIDO 👇
-    $('#btn-settings').onclick = () => {
-        modal({ 
-            title: "Alterar Senha", 
-            placeholder: "Nova senha...", 
-            isPassword: true, 
-            onSave: async (newPass) => {
-                const res = await api.post('/api/profile/password', { 
-                    user: state.user, 
-                    password: newPass 
-                });
-                
-                if(res && res.success) {
-                    toast("Senha alterada com sucesso!", "success");
-                }
-            }
-        });
-    };
-
-    // 👇 LOGOUT 👇
-    $('#btn-logout').onclick = () => {
-        if(confirm("Sair do Agora?")) {
-            localStorage.removeItem("agora:user");
-            window.location.reload();
-        }
-    };
+    if($('#btn-edit-community')) { $('#btn-edit-community').onclick = () => { const currentName = $('#community-name-channel').textContent; modal({ title: "Editar Comunidade", val: currentName, onSave: async (newName) => { const res = await api.post(`/api/community/${state.communityId}/update`, { name: newName, emoji: $('#community-avatar-channel').textContent, user: state.user }); if(res) { actions.loadCommunity(state.communityId); toast("Comunidade atualizada!", "success"); } }}); }; }
+    if($('#btn-leave-community')) { $('#btn-leave-community').onclick = async () => { if(!confirm("Sair da comunidade?")) return; const res = await api.post('/api/community/leave', { user_name: state.user, community_id: state.communityId }); if(res) { ui.switchView('feed'); init(); toast("Você saiu.", "info"); } }; }
+    $('#btn-status').onclick = () => { state.statusIndex = (state.statusIndex + 1) % 3; const classes = ['presence', 'presence busy', 'presence away']; const titles = ['Online', 'Ocupado', 'Ausente']; $('#btn-status').className = classes[state.statusIndex]; $('#btn-status').title = titles[state.statusIndex]; toast(`Status: ${titles[state.statusIndex]}`, 'info'); };
+    $('#btn-settings').onclick = () => { modal({ title: "Alterar Senha", placeholder: "Nova senha...", isPassword: true, onSave: async (newPass) => { const res = await api.post('/api/profile/password', { user: state.user, password: newPass }); if(res && res.success) { toast("Senha alterada com sucesso!", "success"); } } }); };
+    $('#btn-logout').onclick = () => { if(confirm("Sair do Agora?")) { localStorage.removeItem("agora:user"); window.location.reload(); } };
 };
 
-// --- Global Functions for HTML access (onclick) ---
 window.likePost = (id) => api.post(`/api/posts/${id}/like`, {}).then(() => actions.loadFeed());
-window.commentPost = (id) => {
-    modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => {
-        await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt });
-        actions.loadFeed();
-    }});
-};
-window.editPost = (id) => {
-    const txt = $(`#post-text-${id}`).innerText;
-    modal({ title: "Editar", val: txt, onSave: async (newTxt) => {
-        await api.post(`/api/posts/${id}/update`, { user: state.user, text: newTxt });
-        $(`#post-text-${id}`).innerText = newTxt;
-    }});
-};
+window.commentPost = (id) => { modal({ title: "Comentar", placeholder: "Escreva...", onSave: async (txt) => { await api.post(`/api/posts/${id}/comments`, { user: state.user, text: txt }); actions.loadFeed(); }}); };
+window.editPost = (id) => { const txt = $(`#post-text-${id}`).innerText; modal({ title: "Editar", val: txt, onSave: async (newTxt) => { await api.post(`/api/posts/${id}/update`, { user: state.user, text: newTxt }); $(`#post-text-${id}`).innerText = newTxt; }}); };
 
-// --- Socket Events ---
 socket.on('connect', () => console.log('WS Connected'));
-socket.on('loadHistory', (msgs) => {
-    $('#messages').innerHTML = "";
-    msgs.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'msg';
-        div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
-                         <div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`;
-        renderAvatar(div.querySelector('.avatar-display'), m);
-        $('#messages').appendChild(div);
-    });
-    $('#messages').scrollTop = $('#messages').scrollHeight;
-});
-socket.on('newMessage', (m) => {
-    if(state.currentChannel) { 
-        const div = document.createElement('div');
-        div.className = 'msg';
-        div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div>
-                         <div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`;
-        renderAvatar(div.querySelector('.avatar-display'), m);
-        $('#messages').appendChild(div);
-        $('#messages').scrollTop = $('#messages').scrollHeight;
-    }
-});
-socket.on('displayTyping', (data) => {
-    const ind = $('#typing-indicator');
-    if(!ind) return;
-    $('#typer-name').textContent = data.user;
-    ind.hidden = false;
-    if(typingTimeout) clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => ind.hidden = true, 3000);
-});
-socket.on('rating_update', (data) => {
-    if(state.viewedUser === data.target_user) actions.loadProfile(state.viewedUser);
-});
+socket.on('loadHistory', (msgs) => { $('#messages').innerHTML = ""; msgs.forEach(m => { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); }); $('#messages').scrollTop = $('#messages').scrollHeight; });
+socket.on('newMessage', (m) => { if(state.currentChannel) { const div = document.createElement('div'); div.className = 'msg'; div.innerHTML = `<div class="avatar-display" style="width:44px;height:44px;border-radius:12px"></div><div class="bubble"><div class="meta"><strong>${escape(m.user)}</strong></div><div>${escape(m.message)}</div></div>`; renderAvatar(div.querySelector('.avatar-display'), m); $('#messages').appendChild(div); $('#messages').scrollTop = $('#messages').scrollHeight; } });
+socket.on('displayTyping', (data) => { const ind = $('#typing-indicator'); if(!ind) return; $('#typer-name').textContent = data.user; ind.hidden = false; if(typingTimeout) clearTimeout(typingTimeout); typingTimeout = setTimeout(() => ind.hidden = true, 3000); });
+socket.on('rating_update', (data) => { if(state.viewedUser === data.target_user) actions.loadProfile(state.viewedUser); });
 
-// --- Init ---
 const init = async () => {
-    if(!state.user) {
-        $('#login-view').hidden = false;
-        $('.app').hidden = true;
-        return;
-    }
-    $('#login-view').hidden = true;
-    $('.app').hidden = false;
-    $('#userName').textContent = state.user;
+    if(!state.user) { $('#login-view').hidden = false; $('.app').hidden = true; return; }
+    $('#login-view').hidden = true; $('.app').hidden = false; $('#userName').textContent = state.user;
     socket.connect();
-    
     const data = await api.get(`/api/communities/joined?user_name=${encodeURIComponent(state.user)}`);
-    const list = $('#joined-servers-list');
-    list.innerHTML = "";
-    if(data) {
-        data.communities.forEach(c => {
-            const div = document.createElement('div');
-            div.className = `server community-btn`;
-            div.innerHTML = `<span class="emoji">${c.emoji}</span>`;
-            div.onclick = () => actions.loadCommunity(c.id);
-            div.dataset.communityId = c.id;
-            list.appendChild(div);
-        });
-    }
-    
-    api.get(`/api/profile/${state.user}`).then(d => {
-        if(d) {
-            renderAvatar($('#userAvatar'), d.profile);
-            $('#userbar-mood').textContent = d.profile.mood || "✨ novo";
-        }
-    });
-
-    ui.switchView('feed');
-    actions.loadFeed();
+    const list = $('#joined-servers-list'); list.innerHTML = "";
+    if(data) { data.communities.forEach(c => { const div = document.createElement('div'); div.className = `server community-btn`; div.innerHTML = `<span class="emoji">${c.emoji}</span>`; div.onclick = () => actions.loadCommunity(c.id); div.dataset.communityId = c.id; list.appendChild(div); }); }
+    api.get(`/api/profile/${state.user}`).then(d => { if(d) { renderAvatar($('#userAvatar'), d.profile); $('#userbar-mood').textContent = d.profile.mood || "✨ novo"; } });
+    ui.switchView('feed'); actions.loadFeed();
 };
-
-// Start
 bindEvents();
 init();

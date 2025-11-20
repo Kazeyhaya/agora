@@ -13,11 +13,11 @@ async function setupDatabase() {
   try {
     // --- 1. CRIAÇÃO DE TABELAS ---
     await client.query(`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, channel TEXT NOT NULL, "user" TEXT NOT NULL, message TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
-    await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     
-    // Perfis (Agora com senha)
+    // Posts (Agora com suporte a imagens)
+    await client.query(`CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, "user" TEXT NOT NULL, text TEXT NOT NULL, image_url TEXT, likes INT DEFAULT 0, timestamp TIMESTAMPTZ DEFAULT NOW())`);
+    
     await client.query(`CREATE TABLE IF NOT EXISTS profiles ("user" TEXT PRIMARY KEY, bio TEXT, mood TEXT, avatar_url TEXT, password TEXT)`);
-    
     await client.query(`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, "from_user" TEXT NOT NULL, "to_user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS comments (id SERIAL PRIMARY KEY, post_id INT NOT NULL REFERENCES posts(id) ON DELETE CASCADE, "user" TEXT NOT NULL, text TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW())`);
     await client.query(`CREATE TABLE IF NOT EXISTS follows (id SERIAL PRIMARY KEY, follower_user TEXT NOT NULL, following_user TEXT NOT NULL, timestamp TIMESTAMPTZ DEFAULT NOW(), UNIQUE(follower_user, following_user))`);
@@ -31,16 +31,20 @@ async function setupDatabase() {
     
     console.log('Tabelas verificadas/criadas.');
 
-    // --- 2. MIGRAÇÃO DA BD ---
-    try { await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mood TEXT'); } catch (e) {}
-    try { await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT'); } catch (e) {}
-    try { await client.query('ALTER TABLE communities ADD COLUMN IF NOT EXISTS owner_user TEXT'); } catch (e) {}
-    
-    // 👇 MIGRAÇÃO DE SEGURANÇA 👇
-    try { 
-        await client.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password TEXT'); 
-        console.log('Coluna de senha verificada.');
-    } catch (e) {}
+    // --- 2. MIGRAÇÃO DA BD (Atualiza tabelas antigas sem perder dados) ---
+    const migrations = [
+        'ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mood TEXT',
+        'ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT',
+        'ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password TEXT',
+        'ALTER TABLE communities ADD COLUMN IF NOT EXISTS owner_user TEXT',
+        // 👇 MIGRAÇÃO NOVA: IMAGENS NOS POSTS 👇
+        'ALTER TABLE posts ADD COLUMN IF NOT EXISTS image_url TEXT'
+    ];
+
+    for (let query of migrations) {
+        try { await client.query(query); } catch (e) { /* Ignora se já existir */ }
+    }
+    console.log('Migrações concluídas.');
 
     await seedDatabase(client);
     
@@ -60,7 +64,7 @@ async function seedDatabase(client) {
       const music = await client.query(`INSERT INTO communities (name, description, emoji, members, owner_user) VALUES ('Música 🎵', 'Do Rock ao Pop.', '🎵', 1, 'Admin') RETURNING id`);
       const games = await client.query(`INSERT INTO communities (name, description, emoji, members, owner_user) VALUES ('Games 🎮', 'Discussão geral e x1.', '🎮', 1, 'Admin') RETURNING id`);
       
-      const tId = tech.rows[0].id, mId = music.rows[0].id, gId = games.rows[0].id;
+      const tId = tech.rows[0].id;
       await client.query(`INSERT INTO community_posts (community_id, "user", title, content) VALUES ($1, 'Admin', 'Bem-vindos!', 'O que estão a programar?')`, [tId]);
     }
   } catch (err) { console.error('Erro ao popular:', err); }

@@ -3,28 +3,32 @@ const db = require('./db');
 
 class Post {
     
-    constructor({ id, user, text, likes, timestamp, avatar_url }) {
+    constructor({ id, user, text, image_url, likes, timestamp, avatar_url }) {
         this.id = id;
         this.user = user;
         this.text = text;
+        this.image_url = image_url || null; // Nova propriedade
         this.likes = likes || 0;
         this.timestamp = timestamp || new Date();
         this.avatar_url = avatar_url || null; 
     }
 
-    // --- MÉTODOS DE INSTÂNCIA (save, addLike, removeLike) ---
+    // --- MÉTODOS DE INSTÂNCIA ---
     
     async save() {
         if (!this.id) {
+            // Inserir Novo
             const result = await db.query(
-                `INSERT INTO posts ("user", text, timestamp, likes) VALUES ($1, $2, $3, $4) RETURNING *`,
-                [this.user, this.text, this.timestamp, this.likes]
+                `INSERT INTO posts ("user", text, image_url, timestamp, likes) 
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [this.user, this.text, this.image_url, this.timestamp, this.likes]
             );
             this.id = result.rows[0].id; 
         } else {
+            // Atualizar Existente
             await db.query(
-                `UPDATE posts SET "user" = $1, text = $2, likes = $3 WHERE id = $4`,
-                [this.user, this.text, this.likes, this.id]
+                `UPDATE posts SET "user" = $1, text = $2, image_url = $3, likes = $4 WHERE id = $5`,
+                [this.user, this.text, this.image_url, this.likes, this.id]
             );
         }
         return this; 
@@ -42,13 +46,11 @@ class Post {
         return this;
     }
 
-
-    // --- MÉTODOS ESTÁTICOS ("Fábricas") ---
+    // --- MÉTODOS ESTÁTICOS ---
 
     static async findById(postId) {
         const result = await db.query('SELECT * FROM posts WHERE id = $1', [postId]);
         if (!result.rows[0]) return null;
-        
         return new Post(result.rows[0]); 
     }
 
@@ -77,8 +79,6 @@ class Post {
         return result.rows.map(row => new Post(row));
     }
 
-    // --- MÉTODOS ESTÁTICOS PARA COMENTÁRIOS ---
-
     static async getComments(postId) {
         const result = await db.query(
             'SELECT "user", text FROM comments WHERE post_id = $1 ORDER BY timestamp ASC', 
@@ -95,27 +95,17 @@ class Post {
         return result.rows[0];
     }
     
-    // 👇 NOVO MÉTODO ESTÁTICO ADICIONADO 👇
     static async update(postId, user, newText) {
-        // 1. Encontra o post
         const post = await Post.findById(postId);
-        if (!post) {
-            throw new Error('Post não encontrado');
-        }
+        if (!post) throw new Error('Post não encontrado');
+        if (post.user !== user) throw new Error('Não autorizado');
 
-        // 2. Verifica a autorização
-        if (post.user !== user) {
-            throw new Error('Não autorizado');
-        }
-
-        // 3. Atualiza o post
         const result = await db.query(
             `UPDATE posts SET text = $1 WHERE id = $2 RETURNING *`,
             [newText, postId]
         );
         return new Post(result.rows[0]);
     }
-    // 👆 FIM DO NOVO MÉTODO 👆
 }
 
 module.exports = Post;

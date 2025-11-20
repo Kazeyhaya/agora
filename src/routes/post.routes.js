@@ -1,34 +1,27 @@
 // src/routes/post.routes.js
 const express = require('express');
 const router = express.Router();
-const postController = require('../controllers/post.controller'); // Importa o nosso Controlador
+const postController = require('../controllers/post.controller');
+const upload = require('../config/storage'); // Importa o configurador de upload
 
-// Rota para o Feed Pessoal (GET /api/posts?user=...)
+// Rota para o Feed Pessoal
 router.get('/', postController.getFeed);
 
-// Rota para o Feed Explorar (GET /api/posts/explore)
+// Rota para o Feed Explorar
 router.get('/explore', postController.getExplore);
 
-// Rota para Criar Post (POST /api/posts)
-router.post('/', postController.createNewPost);
+// 👇 ROTA DE CRIAR POST (AGORA COM UPLOAD) 👇
+router.post('/', upload.single('image'), postController.createNewPost);
 
-// 👇 NOVA ROTA DE ATUALIZAÇÃO (EDITAR) 👇
-// [POST] /api/posts/:id/update
+// Rota de Atualização (Editar Texto)
 router.post('/:id/update', postController.updatePost);
 
-// Rota para Like (POST /api/posts/:id/like)
+// Rotas de Like
 router.post('/:id/like', postController.addLike);
-
-// Rota para Unlike (POST /api/posts/:id/unlike)
 router.post('/:id/unlike', postController.removeLike);
 
-// --- ROTAS DE COMENTÁRIOS ---
-
-// Rota para buscar comentários (GET /api/posts/:id/comments)
+// Rotas de Comentários
 router.get('/:id/comments', postController.getPostComments);
-
-// Rota para criar comentário (POST /api/posts/:id/comments)
 router.post('/:id/comments', postController.addPostComment);
-
 
 module.exports = router;
