@@ -1,3 +1,4 @@
+/* --- REGRA DE OURO: O que tiver atributo 'hidden' DEVE sumir --- */
 [hidden] { display: none !important; }
 
 :root{
@@ -88,7 +89,7 @@ a{color:inherit;text-decoration:none}
 .channel{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:2px 0;border-radius:10px;cursor:pointer;transition:.15s;background:transparent;color:var(--text-secondary)}
 .channel.active,.channel:hover{background:rgba(255,255,255,.06);color:#fff}
 
-/* --- Layout Grids --- */
+/* --- Layout Grids (Corrigido para evitar sobreposição) --- */
 .app.view-home {
   grid-template-columns: 80px 1fr;
   grid-template-rows: 64px 1fr 64px;
@@ -99,11 +100,20 @@ a{color:inherit;text-decoration:none}
   grid-template-rows: 1fr 64px; 
   grid-template-areas: "servers channels content" "servers userbar content";
 }
-.app.view-home .feed, .app.view-home .profile, .app.view-home .explore, .app.view-home .explore-servers, .app.view-home .create-community, .app.view-home .create-topic, .app.view-home .community-content { grid-area: content; }
-.app.view-home .channels, .app.view-home .chat { display: none; }
+
+/* Assegura que apenas a área de 'content' mostre o que não está hidden */
+.app.view-home .feed:not([hidden]), 
+.app.view-home .profile:not([hidden]), 
+.app.view-home .explore:not([hidden]), 
+.app.view-home .explore-servers:not([hidden]), 
+.app.view-home .create-community:not([hidden]), 
+.app.view-home .create-topic:not([hidden]) { grid-area: content; }
+
+.app.view-home .channels, .app.view-home .chat { display: none !important; }
 .app.view-community .channels { display: flex; }
-.app.view-community .chat, .app.view-community .community-content { display: grid; grid-area: content; }
-.app.view-community .header, .app.view-community .feed, .app.view-community .profile, .app.view-community .explore, .app.view-community .explore-servers, .app.view-community .create-community, .app.view-community .create-topic { display: none; }
+.app.view-community .chat:not([hidden]), 
+.app.view-community .community-content:not([hidden]) { display: grid; grid-area: content; }
+.app.view-community .header, .app.view-community .feed, .app.view-community .profile { display: none !important; }
 
 /* --- Paineis --- */
 .chat, .feed, .community-content, .profile, .explore-servers, .create-community, .create-topic {
@@ -113,13 +123,17 @@ a{color:inherit;text-decoration:none}
   box-shadow: var(--shadow);
   display: grid;
   min-height: 0;
+  overflow: hidden; /* Impede vazar conteudo */
 }
+
+/* Rows Específicas */
 .chat { grid-template-rows: 56px 1fr auto 74px; }
 #view-feed { grid-template-rows: 56px auto 1fr; }
 #view-community-topics, #view-explore, #view-community-members { grid-template-rows: 56px 1fr; }
 #view-profile { grid-template-rows: 56px 1fr; }
 #view-create-community, #view-create-topic { grid-template-rows: auto 1fr; }
 
+/* Topos */
 .feed-top, .chat-top, .profile-top, .explore-servers-top {
   display:flex;align-items:center;justify-content:space-between;padding:0 14px;
   border-bottom:1px solid rgba(255,255,255,.06);
@@ -196,7 +210,7 @@ a{color:inherit;text-decoration:none}
 .userbar .me.clickable { border-radius: 8px; transition: .2s background; padding: 4px; margin-left: -4px; }
 #userbar-mood-container { border-radius: 4px; padding: 0 4px; margin-left: -4px; transition: .2s background; }
 
-/* Listas e Cards */
+/* Listas */
 .community-list { overflow-y: auto; padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-content: start; }
 .community-card-explore { background: var(--discord-panel); border:1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 12px; display: flex; gap: 12px; align-items: center; transition: .2s background; }
 .community-card-explore:hover { background: rgba(255,255,255,.05); }
@@ -207,14 +221,16 @@ a{color:inherit;text-decoration:none}
 .friend-card { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; padding: 8px; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
 .friend-card strong { cursor: pointer; transition: .2s; } .friend-card strong:hover { color: var(--orkut-blue); }
 
-/* --- MODAL (CORRIGIDO) --- */
+/* --- MODAL (CORREÇÃO DO BUG VISUAL) --- */
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  display: flex; justify-content: center; align-items: center;
-  background: rgba(10, 10, 10, 0.7); backdrop-filter: blur(5px);
-  z-index: 10000; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s;
+  display: flex; /* FLEX é essencial para centralizar */
+  justify-content: center; align-items: center;
+  background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(5px);
+  z-index: 10000; /* Fica em cima de tudo */
+  opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s;
 }
-.modal-overlay:not([hidden]) { opacity: 1; visibility: visible; }
+.modal-overlay:not([hidden]) { opacity: 1; visibility: visible; display: flex; }
 .modal-card {
   background: var(--discord-panel); border: 1px solid rgba(255, 255, 255, .1); border-radius: var(--radius);
   padding: 24px; width: 90%; max-width: 400px;
@@ -222,16 +238,23 @@ a{color:inherit;text-decoration:none}
   transform: scale(0.95); transition: transform 0.2s;
 }
 .modal-overlay:not([hidden]) .modal-card { transform: scale(1); }
+
+/* Login também deve ser Flex para centralizar */
+.login-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; justify-content: center; align-items: center;
+  background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(10px);
+  z-index: 10001; display: none;
+}
+.login-overlay:not([hidden]) { display: flex; }
+.login-card { background: var(--discord-panel); border: 1px solid rgba(255, 255, 255, .08); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; box-shadow: var(--shadow); }
+
+/* Inputs do Modal */
 #modal-input, #modal-pass-input {
   background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); color: white;
   padding: 10px; border-radius: 6px; margin-bottom: 15px; width: 100%; font-family: inherit; resize: vertical;
 }
 #modal-input:focus, #modal-pass-input:focus { border-color: var(--accent); outline: none; }
-
-/* Login */
-.login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: grid; place-items: center; background: rgba(10, 10, 10, 0.5); backdrop-filter: blur(10px); z-index: 100; display: none; }
-.login-overlay:not([hidden]) { display: grid; }
-.login-card { background: var(--discord-panel); border: 1px solid rgba(255, 255, 255, .08); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; box-shadow: var(--shadow); }
 
 /* Ratings */
 .ratings-display { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-bottom: 15px; }
@@ -245,13 +268,13 @@ a{color:inherit;text-decoration:none}
 #ratings-vote-container .mini-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 #ratings-vote-container .mini-btn.active-negative { background: var(--danger); border-color: var(--danger); color: #fff; }
 
-/* Badges */
+/* Vibe / Badges */
+.vibe-box { margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-left: 3px solid #fff; border-radius: 8px; font-size: 0.9rem; font-style: italic; display: flex; align-items: center; gap: 8px; }
 #profile-badges { display: inline-flex; gap: 4px; vertical-align: middle; }
 .user-badge { font-size: 1.1rem; cursor: pointer; transition: transform 0.2s; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); user-select: none; }
 .user-badge:hover { transform: scale(1.3) rotate(10deg); }
-.user-badge:active { transform: scale(0.9); }
 
-/* IMAGEM DO POST */
+/* Post Images */
 .post-image {
   display: block; max-width: 100%; max-height: 500px; width: auto; height: auto;
   border-radius: 12px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1);
@@ -272,47 +295,10 @@ a{color:inherit;text-decoration:none}
 @media (max-width: 720px){ .app.view-community, .app.view-home { grid-template-columns:64px 1fr; } .brand-title { display: none; } }
 @media (max-width: 640px) {
   .app { padding: 8px; gap: 8px; }
-  #btn-mobile-menu {
-    display: none; /* Escondido por padrão no PC */
-    border: none;
-    font-size: 1.5rem;
-    margin-right: 5px;
-    background: transparent; /* Garante que não tenha fundo */
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-  
-  #btn-community-menu {
-    display: none;
-    border: none;
-    font-size: 1.5rem;
-    margin-bottom: 10px;
-    width: 44px;
-    height: 44px;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-  
-  /* Regra para Tablet (mostra botões se precisar, mas mantém layout) */
-  @media (max-width: 1080px){
-    .app.view-community { grid-template-columns:72px 1fr; }
-    .app.view-home { grid-template-columns:72px 1fr; }
-  }
-  
-  /* Regra para Celular (AQUI SIM os botões aparecem) */
-  @media (max-width: 640px) {
-    .app { padding: 8px; gap: 8px; }
-    
-    /* 👇 MOSTRA OS BOTÕES NO MOBILE 👇 */
-    #btn-mobile-menu, .app.view-community #btn-community-menu { 
-      display: grid; 
-      place-items: center;
-    }
-    
-    .servers { position: fixed; left: 0; top: 0; height: 100dvh; z-index: 50; border-radius: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
-    .servers.is-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.5); }
-    .app.view-home, .app.view-community { grid-template-columns: 1fr; grid-template-areas: "header" "content" "userbar"; grid-template-rows: 64px 1fr 64px; }
-    .channels { min-width: unset; }
-    .profile-body { grid-template-columns: 1fr; }
-  }
+  #btn-mobile-menu, .app.view-community #btn-community-menu { display: grid; place-items: center; }
+  .servers { position: fixed; left: 0; top: 0; height: 100dvh; z-index: 50; border-radius: 0; transform: translateX(-100%); transition: transform 0.3s ease; }
+  .servers.is-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.5); }
+  .app.view-home, .app.view-community { grid-template-columns: 1fr; grid-template-areas: "header" "content" "userbar"; grid-template-rows: 64px 1fr 64px; }
+  .channels { min-width: unset; }
+  .profile-body { grid-template-columns: 1fr; }
+}
