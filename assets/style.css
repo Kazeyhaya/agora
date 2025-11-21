@@ -100,13 +100,20 @@ a{color:inherit;text-decoration:none}
   grid-template-areas: "servers channels content" "servers userbar content";
 }
 
-/* Áreas de Conteúdo */
+/* Controla onde cada painel aparece */
 .app.view-home .feed, .app.view-home .profile, .app.view-home .explore, .app.view-home .explore-servers, .app.view-home .create-community { grid-area: content; }
 .app.view-home .channels, .app.view-home .chat, .app.view-home .create-topic, .app.view-home .community-content { display: none !important; }
 
 .app.view-community .channels { display: flex; }
-/* 👇 CORREÇÃO: Adicionado .create-topic na view de comunidade 👇 */
-.app.view-community .chat, .app.view-community .community-content, .app.view-community .create-topic { display: grid; grid-area: content; }
+
+/* 👇 AQUI ESTÁ A CORREÇÃO PARA O CREATE TOPIC 👇 */
+.app.view-community .chat, 
+.app.view-community .community-content, 
+.app.view-community .create-topic { 
+    display: grid; 
+    grid-area: content; 
+}
+
 .app.view-community .header, .app.view-community .feed, .app.view-community .profile, .app.view-community .explore, .app.view-community .explore-servers, .app.view-community .create-community { display: none !important; }
 
 /* --- Paineis --- */

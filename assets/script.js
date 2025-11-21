@@ -43,6 +43,7 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
+// Modal
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
@@ -61,6 +62,7 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
         passInput.style.marginBottom = '10px';
         input.parentNode.insertBefore(passInput, input);
     }
+
     if (isPassword) {
        input.style.display = 'none'; input.required = false;
        passInput.value = val; passInput.placeholder = placeholder; passInput.style.display = 'block'; passInput.required = true; passInput.focus();
@@ -68,16 +70,20 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
        input.style.display = 'block'; input.required = true;
        passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
+
     view.hidden = false;
+
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
+
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
         if (valToSave) onSave(valToSave);
         view.hidden = true;
     };
+    
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
@@ -229,7 +235,7 @@ const actions = {
         if (res) { actions.loadProfile(state.viewedUser); toast(isActive ? "Voto removido" : "Voto enviado!", "success"); }
     },
     async loadCommunity(id) {
-        state.communityId = id; // GARANTINDO O ID NO STATE
+        state.communityId = id;
         ui.switchView('community');
         const details = await api.get(`/api/community/${id}/details`);
         if (details) {
@@ -274,19 +280,20 @@ const ui = {
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
+
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
             app.classList.add('view-home'); $('.header').hidden = false; $('.channels').hidden = true;
             if (viewName === 'feed') $('#home-btn').classList.add('active');
             if (viewName === 'explore') $('#btn-explore').classList.add('active');
             if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
-        } 
-        else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
+        } else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
             app.classList.add('view-community'); $('.header').hidden = true; $('.channels').hidden = false;
             if (viewName === 'community' || viewName === 'create-topic') {
                 const commBtn = $(`.community-btn[data-community-id="${state.communityId}"]`);
                 if(commBtn) commBtn.classList.add('active');
+                
+                // SE FOR COMMUNITY, MOSTRA TOPICS. SE FOR CREATE-TOPIC, A SECTION JÁ FOI EXIBIDA PELO MAPA ABAIXO
                 if(viewName === 'community') $('#view-community-topics').hidden = false;
-                // Se for create-topic, a section correspondente será exibida abaixo
                 return;
             }
         }
@@ -343,6 +350,7 @@ const bindEvents = () => {
     
     // 👇 HANDLER DO BOTÃO "NOVO TÓPICO" 👇
     $('#btn-new-topic').onclick = () => {
+        // Garante que temos uma comunidade selecionada antes de trocar a view
         if (state.communityId) {
             ui.switchView('create-topic'); 
         } else {
