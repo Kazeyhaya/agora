@@ -1,10 +1,12 @@
 // assets/script.js
 
+// --- Utils & Config ---
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 const socket = io({ autoConnect: false });
 let typingTimeout = null;
 
+// State
 const state = {
     user: localStorage.getItem("agora:user"),
     currentChannel: null,
@@ -13,6 +15,7 @@ const state = {
     statusIndex: 0
 };
 
+// --- UI Helpers ---
 const toast = (msg, type = 'info') => {
     const container = $('#toast-container');
     if (!container) return;
@@ -40,10 +43,10 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
+// Modal
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
-    
     $('#modal-title').textContent = title;
     input.value = val;
     input.placeholder = placeholder;
@@ -78,6 +81,7 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
+// --- API Layer ---
 const api = {
     async get(endpoint) {
         try {
@@ -110,6 +114,7 @@ const api = {
     }
 };
 
+// --- Actions ---
 const actions = {
     async loadFeed() {
         const data = await api.get(`/api/posts?user=${encodeURIComponent(state.user)}`);
@@ -223,8 +228,10 @@ const actions = {
         const res = await api.post(endpoint, { from_user: state.user, to_user: state.viewedUser, rating_type: type });
         if (res) { actions.loadProfile(state.viewedUser); toast(isActive ? "Voto removido" : "Voto enviado!", "success"); }
     },
+    
+    // 👇 CORREÇÃO: GARANTE QUE O ID SEJA SALVO NO ESTADO 👇
     async loadCommunity(id) {
-        state.communityId = id;
+        state.communityId = id; // <--- IMPORTANTE!
         ui.switchView('community');
         const details = await api.get(`/api/community/${id}/details`);
         if (details) {
@@ -269,34 +276,22 @@ const ui = {
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
-
-        // Views do tipo "HOME" (layout de 2 colunas)
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
-            app.classList.add('view-home');
-            $('.header').hidden = false; $('.channels').hidden = true;
+            app.classList.add('view-home'); $('.header').hidden = false; $('.channels').hidden = true;
             if (viewName === 'feed') $('#home-btn').classList.add('active');
             if (viewName === 'explore') $('#btn-explore').classList.add('active');
             if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
-        } 
-        // Views do tipo "COMMUNITY" (layout de 3 colunas)
-        // 👇 CORREÇÃO: Adicionei create-topic e create-community aqui 👇
-        else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
-            app.classList.add('view-community');
-            $('.header').hidden = true;
-            $('.channels').hidden = false;
-
+        } else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
+            app.classList.add('view-community'); $('.header').hidden = true; $('.channels').hidden = false;
+            
             if (viewName === 'community' || viewName === 'create-topic') {
-                $(`.community-btn[data-community-id="${state.communityId}"]`)?.classList.add('active');
+                const commBtn = $(`.community-btn[data-community-id="${state.communityId}"]`);
+                if(commBtn) commBtn.classList.add('active');
                 if(viewName === 'community') $('#view-community-topics').hidden = false;
                 return;
             }
         }
-
-        const map = { 
-            'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 
-            'explore-servers': 'view-explore-servers', 'chat': 'view-chat',
-            'create-community': 'view-create-community', 'create-topic': 'view-create-topic'
-        };
+        const map = { 'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 'explore-servers': 'view-explore-servers', 'chat': 'view-chat', 'create-community': 'view-create-community', 'create-topic': 'view-create-topic' };
         if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
     },
     renderPosts(container, posts) {
@@ -346,9 +341,39 @@ const bindEvents = () => {
     $('#composerInput').oninput = () => { if($('#composerInput').value.length > 0) socket.emit('typing', { channel: state.currentChannel, user: state.user }); };
     $('#composerInput').onkeydown = (e) => { if(e.key === "Enter") $('#sendBtn').click(); };
     $$('.view-tabs .pill').forEach(pill => { pill.onclick = () => { const view = pill.dataset.communityView; if(view === 'topics') { $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true; } else { $('#view-community-topics').hidden = true; $('#view-community-members').hidden = false; } $$('.view-tabs .pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }; });
-    $('#btn-new-topic').onclick = () => ui.switchView('create-topic');
-    $('#btn-cancel-topic').onclick = () => actions.loadCommunity(state.communityId);
-    $('#create-topic-form').onsubmit = async (e) => { e.preventDefault(); const res = await api.post('/api/community/posts', { community_id: state.communityId, user: state.user, title: $('#topic-title').value, content: $('#topic-content').value }); if(res) { actions.loadCommunity(state.communityId); toast("Tópico criado", "success"); $('#topic-title').value = ""; $('#topic-content').value = ""; } };
+    
+    // 👇 CORREÇÃO AQUI: Adicionando verificação de nulo e debug 👇
+    $('#btn-new-topic').onclick = () => {
+        console.log("Abrindo criação de tópico. ID:", state.communityId);
+        if(state.communityId) {
+            ui.switchView('create-topic');
+        } else {
+            toast("Erro: Comunidade não selecionada.", "error");
+        }
+    };
+
+    $('#btn-cancel-topic').onclick = () => {
+        if(state.communityId) actions.loadCommunity(state.communityId);
+    };
+
+    $('#create-topic-form').onsubmit = async (e) => { 
+        e.preventDefault(); 
+        if(!state.communityId) { toast("Erro: Comunidade inválida.", "error"); return; }
+        
+        const res = await api.post('/api/community/posts', { 
+            community_id: state.communityId, 
+            user: state.user, 
+            title: $('#topic-title').value, 
+            content: $('#topic-content').value 
+        }); 
+        if(res) { 
+            actions.loadCommunity(state.communityId); 
+            toast("Tópico criado", "success"); 
+            $('#topic-title').value = ""; 
+            $('#topic-content').value = ""; 
+        } 
+    };
+
     const toggleMenu = () => { const servers = $('.servers'); if(servers) servers.classList.toggle('is-open'); };
     if($('#btn-mobile-menu')) $('#btn-mobile-menu').onclick = toggleMenu;
     if($('#btn-community-menu')) $('#btn-community-menu').onclick = toggleMenu;
