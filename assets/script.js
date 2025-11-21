@@ -43,10 +43,11 @@ const renderAvatar = (el, { user, avatar_url }) => {
     }
 };
 
-// Modal
+// Modal (Lida com required e senha)
 const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }) => {
     const view = $('#input-modal');
     const input = $('#modal-input');
+    
     $('#modal-title').textContent = title;
     input.value = val;
     input.placeholder = placeholder;
@@ -61,6 +62,7 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
         passInput.style.marginBottom = '10px';
         input.parentNode.insertBefore(passInput, input);
     }
+
     if (isPassword) {
        input.style.display = 'none'; input.required = false;
        passInput.value = val; passInput.placeholder = placeholder; passInput.style.display = 'block'; passInput.required = true; passInput.focus();
@@ -68,16 +70,20 @@ const modal = ({ title, val = '', placeholder = '', onSave, isPassword = false }
        input.style.display = 'block'; input.required = true;
        passInput.style.display = 'none'; passInput.required = false; input.focus();
     }
+
     view.hidden = false;
+
     const form = $('#modal-form');
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
+
     newForm.onsubmit = (e) => {
         e.preventDefault();
         const valToSave = isPassword ? $('#modal-pass-input').value.trim() : input.value.trim();
         if (valToSave) onSave(valToSave);
         view.hidden = true;
     };
+    
     $('#modal-cancel-btn').onclick = () => view.hidden = true;
 };
 
@@ -229,9 +235,9 @@ const actions = {
         if (res) { actions.loadProfile(state.viewedUser); toast(isActive ? "Voto removido" : "Voto enviado!", "success"); }
     },
     
-    // 👇 CORREÇÃO: GARANTE QUE O ID SEJA SALVO NO ESTADO 👇
+    // 👇 IMPORTANTE: Carrega a comunidade e guarda o ID no state 👇
     async loadCommunity(id) {
-        state.communityId = id; // <--- IMPORTANTE!
+        state.communityId = id; 
         ui.switchView('community');
         const details = await api.get(`/api/community/${id}/details`);
         if (details) {
@@ -276,22 +282,42 @@ const ui = {
         const app = $('.app');
         app.classList.remove('view-home', 'view-community');
         $$('.server, .add-btn, .pill').forEach(b => b.classList.remove('active'));
+        
+        // Layout HOME (Feed, Explorar, Perfil)
         if (['feed', 'explore', 'profile', 'explore-servers'].includes(viewName)) {
-            app.classList.add('view-home'); $('.header').hidden = false; $('.channels').hidden = true;
+            app.classList.add('view-home'); 
+            $('.header').hidden = false; 
+            $('.channels').hidden = true;
+            
             if (viewName === 'feed') $('#home-btn').classList.add('active');
             if (viewName === 'explore') $('#btn-explore').classList.add('active');
             if (viewName === 'explore-servers') $('#explore-servers-btn').classList.add('active');
-        } else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
-            app.classList.add('view-community'); $('.header').hidden = true; $('.channels').hidden = false;
+        } 
+        // Layout COMMUNITY (Comunidade, Chat, Criar Tópico)
+        else if (viewName === 'community' || viewName === 'chat' || viewName === 'create-topic' || viewName === 'create-community') {
+            app.classList.add('view-community'); 
+            $('.header').hidden = true; 
+            $('.channels').hidden = false; // Garante que a sidebar apareça
             
             if (viewName === 'community' || viewName === 'create-topic') {
                 const commBtn = $(`.community-btn[data-community-id="${state.communityId}"]`);
                 if(commBtn) commBtn.classList.add('active');
-                if(viewName === 'community') $('#view-community-topics').hidden = false;
+                
+                // Se for 'create-topic', mostramos a section de criação, senão, a lista de tópicos
+                if (viewName === 'community') {
+                    $('#view-community-topics').hidden = false;
+                } else {
+                    $('#view-create-topic').hidden = false;
+                }
                 return;
             }
         }
-        const map = { 'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 'explore-servers': 'view-explore-servers', 'chat': 'view-chat', 'create-community': 'view-create-community', 'create-topic': 'view-create-topic' };
+        
+        const map = { 
+            'feed': 'view-feed', 'explore': 'view-explore', 'profile': 'view-profile', 
+            'explore-servers': 'view-explore-servers', 'chat': 'view-chat', 
+            'create-community': 'view-create-community', 'create-topic': 'view-create-topic' 
+        };
         if (map[viewName]) $(`#${map[viewName]}`).hidden = false;
     },
     renderPosts(container, posts) {
@@ -309,7 +335,13 @@ const ui = {
             api.get(`/api/posts/${p.id}/comments`).then(d => { if(d && d.comments.length) { $(`#comments-${p.id}`).innerHTML = d.comments.map(c => `<div class="meta"><strong>${escape(c.user)}</strong>: ${escape(c.text)}</div>`).join(''); }});
         });
     },
-    renderTopics(posts) { ui.renderPosts($('#community-topic-list'), posts); $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true; $$('.view-tabs .pill').forEach(p => p.classList.remove('active')); $$('.view-tabs .pill')[0].classList.add('active'); },
+    renderTopics(posts) { 
+        ui.renderPosts($('#community-topic-list'), posts); 
+        $('#view-community-topics').hidden = false; 
+        $('#view-community-members').hidden = true; 
+        $$('.view-tabs .pill').forEach(p => p.classList.remove('active')); 
+        $$('.view-tabs .pill')[0].classList.add('active'); 
+    },
     renderList(container, list, keyName = 'user') { container.innerHTML = list.length ? "" : "<div class='meta'>Lista vazia.</div>"; list.forEach(item => { const el = document.createElement('div'); el.className = 'friend-card'; el.innerHTML = `<div class="avatar-display" style="width:32px;height:32px;border-radius:8px"></div><strong class="friend-card-name" data-u="${item[keyName]}">${escape(item[keyName])}</strong>`; renderAvatar(el.querySelector('.avatar-display'), item); el.querySelector('strong').onclick = () => actions.loadProfile(item[keyName]); container.appendChild(el); }); },
     renderRatings(data) { const container = $('#ratings-display-container'); const totals = data.totals; const myVotes = data.userVotes || []; container.innerHTML = ""; const types = [ { k: 'confiavel', i: '😊', l: 'Confiável' }, { k: 'legal', i: '🧊', l: 'Legal' }, { k: 'divertido', i: '🥳', l: 'Divertido' }, { k: 'falso', i: '🤥', l: 'Falso', neg: true }, { k: 'chato', i: '😴', l: 'Chato', neg: true }, { k: 'toxico', i: '☠️', l: 'Tóxico', neg: true } ]; types.forEach(t => { if (totals[t.k] > 0) { const div = document.createElement('div'); div.className = `rating-item ${t.neg ? 'negative-stat' : ''}`; div.innerHTML = `<span class="rating-icon">${t.i}</span><span class="rating-label">${t.l}</span><span class="rating-count">${totals[t.k]}</span>`; container.appendChild(div); } }); $$('#ratings-vote-container .mini-btn').forEach(btn => { const type = btn.dataset.rating; btn.className = 'mini-btn'; if (myVotes.includes(type)) { btn.classList.add(['falso','chato','toxico'].includes(type) ? 'active-negative' : 'active'); } }); },
     renderBadges(totals) { const container = $('#profile-badges') || (() => { const span = document.createElement('span'); span.id = 'profile-badges'; span.style.marginLeft = '8px'; $('#profileName').parentElement.appendChild(span); return span; })(); container.innerHTML = ''; const badges = [ { k: 'confiavel', i: '🛡️', t: 'Guardião' }, { k: 'legal', i: '🧊', t: 'Gente Boa' }, { k: 'divertido', i: '🎭', t: 'A Lenda' }, { k: 'toxico', i: '☣️', t: 'PERIGO' }, { k: 'falso', i: '🤥', t: 'Pinóquio' }, { k: 'chato', i: '💤', t: 'Soneca' } ]; badges.forEach(b => { if (totals[b.k] > 0) { const s = document.createElement('span'); s.className = 'user-badge'; s.textContent = b.i; s.title = b.t; s.onclick = () => toast(b.t, 'info'); container.appendChild(s); } }); },
@@ -342,20 +374,17 @@ const bindEvents = () => {
     $('#composerInput').onkeydown = (e) => { if(e.key === "Enter") $('#sendBtn').click(); };
     $$('.view-tabs .pill').forEach(pill => { pill.onclick = () => { const view = pill.dataset.communityView; if(view === 'topics') { $('#view-community-topics').hidden = false; $('#view-community-members').hidden = true; } else { $('#view-community-topics').hidden = true; $('#view-community-members').hidden = false; } $$('.view-tabs .pill').forEach(p => p.classList.remove('active')); pill.classList.add('active'); }; });
     
-    // 👇 CORREÇÃO AQUI: Adicionando verificação de nulo e debug 👇
+    // 👇 CORREÇÃO: Botão Novo Tópico chama a view certa e passa o ID 👇
     $('#btn-new-topic').onclick = () => {
-        console.log("Abrindo criação de tópico. ID:", state.communityId);
-        if(state.communityId) {
-            ui.switchView('create-topic');
-        } else {
-            toast("Erro: Comunidade não selecionada.", "error");
+        if (!state.communityId) {
+            toast("Erro: Nenhuma comunidade selecionada.", "error");
+            return;
         }
+        ui.switchView('create-topic'); 
     };
-
-    $('#btn-cancel-topic').onclick = () => {
-        if(state.communityId) actions.loadCommunity(state.communityId);
-    };
-
+    
+    $('#btn-cancel-topic').onclick = () => actions.loadCommunity(state.communityId);
+    
     $('#create-topic-form').onsubmit = async (e) => { 
         e.preventDefault(); 
         if(!state.communityId) { toast("Erro: Comunidade inválida.", "error"); return; }
@@ -373,7 +402,7 @@ const bindEvents = () => {
             $('#topic-content').value = ""; 
         } 
     };
-
+    
     const toggleMenu = () => { const servers = $('.servers'); if(servers) servers.classList.toggle('is-open'); };
     if($('#btn-mobile-menu')) $('#btn-mobile-menu').onclick = toggleMenu;
     if($('#btn-community-menu')) $('#btn-community-menu').onclick = toggleMenu;
